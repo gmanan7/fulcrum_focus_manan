@@ -34,7 +34,10 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur-sm safe-area-pb">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 safe-area-pb"
+        style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-card)' }}
+      >
         <div className="flex items-stretch justify-around">
           {mainItems.map((item) => (
             <button
@@ -42,8 +45,8 @@ export function MobileBottomNav() {
               onClick={() => navigate(item.path)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors',
-                isActive(item.path) ? 'text-blue-600' : 'text-slate-400',
               )}
+              style={{ color: isActive(item.path) ? 'var(--color-primary)' : 'var(--text-muted)' }}
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
@@ -51,10 +54,8 @@ export function MobileBottomNav() {
           ))}
           <button
             onClick={() => setMoreOpen(true)}
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors',
-              moreOpen ? 'text-blue-600' : 'text-slate-400',
-            )}
+            className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"
+            style={{ color: moreOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
           >
             <MoreHorizontal className="h-5 w-5" />
             <span>More</span>
@@ -74,8 +75,11 @@ export function MobileBottomNav() {
                 onClick={() => { navigate(item.path); setMoreOpen(false); }}
                 className={cn(
                   'flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors min-h-[72px]',
-                  isActive(item.path) ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50',
                 )}
+                style={{
+                  color: isActive(item.path) ? 'var(--color-primary)' : 'var(--text-secondary)',
+                  background: isActive(item.path) ? 'var(--rag-green-bg)' : 'transparent',
+                }}
               >
                 <item.icon className="h-6 w-6" />
                 <span className="text-xs font-medium">{item.label}</span>
