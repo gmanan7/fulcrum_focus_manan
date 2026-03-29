@@ -315,14 +315,22 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
 
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
   const [showDueDateChange, setShowDueDateChange] = useState(false);
   const [newDueDate, setNewDueDate] = useState('');
   const [dueDateReason, setDueDateReason] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDeptId, setEditDeptId] = useState('');
+  const [editOwnerId, setEditOwnerId] = useState('');
+  const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
+  const [editDueDate, setEditDueDate] = useState('');
   const today = format(new Date(), 'yyyy-MM-dd');
+  const canEdit = hasAnyRole('super_admin', 'factory_manager');
 
   const { data: freshTask } = useQuery({
     queryKey: ['task-detail', task.id],
