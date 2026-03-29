@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, RotateCcw, Pencil, UserX, Loader2 } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, UserX, UserCheck, Loader2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -87,6 +87,7 @@ function useDepartments() {
   });
 }
 
+/* ─── Create User Dialog ─── */
 function CreateUserDialog() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -205,7 +206,127 @@ function CreateUserDialog() {
   );
 }
 
-function UserCard({ user, onDeactivate }: { user: UserRow; onDeactivate: (id: string) => void }) {
+/* ─── Edit User Dialog ─── */
+function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void }) {
+  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const { data: departments } = useDepartments();
+  const [form, setForm] = useState({
+    full_name: user.full_name,
+    designation: user.designation || '',
+    employee_id: user.employee_id || '',
+    role: user.roles[0] || ('team_member' as AppRole),
+    department_ids: user.departments.map((d) => d.id),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      // 1. Update profile
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({
+          full_name: form.full_name,
+          designation: form.designation || null,
+          employee_id: form.employee_id || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      if (profileErr) throw profileErr;
+
+      // 2. Update role: delete existing, insert new
+      await supabase.from('user_roles').delete().eq('user_id', user.id);
+      const { error: roleErr } = await supabase.from('user_roles').insert({ user_id: user.id, role: form.role });
+      if (roleErr) throw roleErr;
+
+      // 3. Update departments: delete existing, insert new
+      await supabase.from('user_departments').delete().eq('user_id', user.id);
+      if (form.department_ids.length > 0) {
+        const { error: deptErr } = await supabase
+          .from('user_departments')
+          .insert(form.department_ids.map((did) => ({ user_id: user.id, department_id: did })));
+        if (deptErr) throw deptErr;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'User updated' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      onClose();
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error updating user', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const toggleDept = (id: string) => {
+    setForm((f) => ({
+      ...f,
+      department_ids: f.department_ids.includes(id) ? f.department_ids.filter((d) => d !== id) : [...f.department_ids, id],
+    }));
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className={isMobile ? 'h-full max-h-full w-full max-w-full rounded-none' : 'max-w-lg'}>
+        <DialogHeader>
+          <DialogTitle>Edit User</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-4 overflow-y-auto max-h-[calc(100dvh-8rem)] md:max-h-[70vh]"
+          onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(); }}
+        >
+          <div className="space-y-2">
+            <Label>Full Name *</Label>
+            <Input value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} required className="h-11" />
+          </div>
+          <div className="space-y-2">
+            <Label>Designation</Label>
+            <Input value={form.designation} onChange={(e) => setForm((f) => ({ ...f, designation: e.target.value }))} className="h-11" />
+          </div>
+          <div className="space-y-2">
+            <Label>Employee ID</Label>
+            <Input value={form.employee_id} onChange={(e) => setForm((f) => ({ ...f, employee_id: e.target.value }))} className="h-11" />
+          </div>
+          <div className="space-y-2">
+            <Label>Role *</Label>
+            <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as AppRole }))}>
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROLE_LABELS).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Departments</Label>
+            <div className="max-h-40 overflow-y-auto rounded-md border p-3 space-y-2">
+              {departments?.map((d) => (
+                <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer min-h-[2.5rem]">
+                  <Checkbox checked={form.department_ids.includes(d.id)} onCheckedChange={() => toggleDept(d.id)} />
+                  <span>{d.name} ({d.code})</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button type="submit" className="w-full h-11" disabled={updateMutation.isPending}>
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── User Card (mobile) ─── */
+function UserCard({ user, currentUserId, onDeactivate, onReactivate, onEdit }: {
+  user: UserRow;
+  currentUserId: string;
+  onDeactivate: (id: string) => void;
+  onReactivate: (id: string) => void;
+  onEdit: (u: UserRow) => void;
+}) {
+  const isSelf = user.id === currentUserId;
   return (
     <Card className={!user.is_active ? 'opacity-60' : ''}>
       <CardContent className="p-4 space-y-2">
@@ -224,28 +345,37 @@ function UserCard({ user, onDeactivate }: { user: UserRow; onDeactivate: (id: st
         {user.departments.length > 0 && (
           <p className="text-xs text-muted-foreground">{user.departments.map((d) => d.name).join(', ')}</p>
         )}
-        {user.is_active && (
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1" disabled>
-              <RotateCcw className="h-3 w-3" /> Reset PW
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1" disabled>
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" disabled>
+            <RotateCcw className="h-3 w-3" /> Reset PW
+          </Button>
+          {user.is_active && (
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => onEdit(user)}>
               <Pencil className="h-3 w-3" /> Edit
             </Button>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1 text-destructive" onClick={() => onDeactivate(user.id)}>
+          )}
+          {user.is_active ? (
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-1 text-destructive" onClick={() => onDeactivate(user.id)} disabled={isSelf}>
               <UserX className="h-3 w-3" /> Deactivate
             </Button>
-          </div>
-        )}
+          ) : (
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => onReactivate(user.id)}>
+              <UserCheck className="h-3 w-3" /> Reactivate
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
+/* ─── Main Page ─── */
 export default function AdminUsers() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [showInactive, setShowInactive] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const { data: users, isLoading } = useUsers(showInactive);
 
   const deactivateMutation = useMutation({
@@ -261,6 +391,22 @@ export default function AdminUsers() {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     },
   });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from('profiles').update({ is_active: true }).eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'User reactivated' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const currentUserId = currentUser?.id ?? '';
 
   return (
     <div className="space-y-4">
@@ -279,7 +425,16 @@ export default function AdminUsers() {
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : isMobile ? (
         <div className="space-y-3">
-          {users?.map((u) => <UserCard key={u.id} user={u} onDeactivate={(id) => deactivateMutation.mutate(id)} />)}
+          {users?.map((u) => (
+            <UserCard
+              key={u.id}
+              user={u}
+              currentUserId={currentUserId}
+              onDeactivate={(id) => deactivateMutation.mutate(id)}
+              onReactivate={(id) => reactivateMutation.mutate(id)}
+              onEdit={(u) => setEditingUser(u)}
+            />
+          ))}
           {users?.length === 0 && <p className="text-center text-muted-foreground py-8">No users found</p>}
         </div>
       ) : (
@@ -314,15 +469,33 @@ export default function AdminUsers() {
                     <Badge variant={u.is_active ? 'default' : 'outline'}>{u.is_active ? 'Active' : 'Inactive'}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {u.is_active && (
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" title="Reset Password" disabled><RotateCcw className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" title="Edit" disabled><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" title="Deactivate" className="text-destructive hover:text-destructive" onClick={() => deactivateMutation.mutate(u.id)}>
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="Reset Password" disabled><RotateCcw className="h-4 w-4" /></Button>
+                      {u.is_active && (
+                        <Button variant="ghost" size="icon" title="Edit" onClick={() => setEditingUser(u)}><Pencil className="h-4 w-4" /></Button>
+                      )}
+                      {u.is_active ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Deactivate"
+                          className="text-destructive hover:text-destructive"
+                          disabled={u.id === currentUserId}
+                          onClick={() => deactivateMutation.mutate(u.id)}
+                        >
                           <UserX className="h-4 w-4" />
                         </Button>
-                      </div>
-                    )}
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Reactivate"
+                          onClick={() => reactivateMutation.mutate(u.id)}
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -333,6 +506,8 @@ export default function AdminUsers() {
           </Table>
         </div>
       )}
+
+      {editingUser && <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />}
     </div>
   );
 }
