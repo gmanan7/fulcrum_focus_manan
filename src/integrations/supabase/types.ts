@@ -1,0 +1,1124 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.4"
+  }
+  public: {
+    Tables: {
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          performed_at: string
+          performed_by: string | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department: {
+        Row: {
+          code: string
+          created_at: string
+          display_order: number
+          factory_id: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          display_order?: number
+          factory_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          display_order?: number
+          factory_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      factory: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          location: string | null
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      kpi_entries: {
+        Row: {
+          actual_value: number | null
+          computed_status: Database["public"]["Enums"]["rag_status"] | null
+          id: string
+          is_late_entry: boolean
+          kpi_id: string
+          meeting_id: string | null
+          remarks: string | null
+          reporting_date: string
+          submitted_at: string
+          submitted_by: string
+          text_value: string | null
+        }
+        Insert: {
+          actual_value?: number | null
+          computed_status?: Database["public"]["Enums"]["rag_status"] | null
+          id?: string
+          is_late_entry?: boolean
+          kpi_id: string
+          meeting_id?: string | null
+          remarks?: string | null
+          reporting_date: string
+          submitted_at?: string
+          submitted_by: string
+          text_value?: string | null
+        }
+        Update: {
+          actual_value?: number | null
+          computed_status?: Database["public"]["Enums"]["rag_status"] | null
+          id?: string
+          is_late_entry?: boolean
+          kpi_id?: string
+          meeting_id?: string | null
+          remarks?: string | null
+          reporting_date?: string
+          submitted_at?: string
+          submitted_by?: string
+          text_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_kpi_meeting"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_entries_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_entries_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_master: {
+        Row: {
+          amber_threshold: number | null
+          created_at: string
+          department_id: string
+          description: string | null
+          direction: Database["public"]["Enums"]["kpi_direction"]
+          display_order: number
+          frequency: Database["public"]["Enums"]["kpi_frequency"]
+          green_threshold: number | null
+          id: string
+          is_active: boolean
+          kpi_type: Database["public"]["Enums"]["kpi_type"]
+          name: string
+          target_value: number | null
+          unit: string | null
+        }
+        Insert: {
+          amber_threshold?: number | null
+          created_at?: string
+          department_id: string
+          description?: string | null
+          direction?: Database["public"]["Enums"]["kpi_direction"]
+          display_order?: number
+          frequency?: Database["public"]["Enums"]["kpi_frequency"]
+          green_threshold?: number | null
+          id?: string
+          is_active?: boolean
+          kpi_type?: Database["public"]["Enums"]["kpi_type"]
+          name: string
+          target_value?: number | null
+          unit?: string | null
+        }
+        Update: {
+          amber_threshold?: number | null
+          created_at?: string
+          department_id?: string
+          description?: string | null
+          direction?: Database["public"]["Enums"]["kpi_direction"]
+          display_order?: number
+          frequency?: Database["public"]["Enums"]["kpi_frequency"]
+          green_threshold?: number | null
+          id?: string
+          is_active?: boolean
+          kpi_type?: Database["public"]["Enums"]["kpi_type"]
+          name?: string
+          target_value?: number | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_master_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_attendance: {
+        Row: {
+          id: string
+          invitee_id: string
+          marked_at: string
+          marked_by: string
+          meeting_id: string
+          remarks: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+        }
+        Insert: {
+          id?: string
+          invitee_id: string
+          marked_at?: string
+          marked_by: string
+          meeting_id: string
+          remarks?: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+        }
+        Update: {
+          id?: string
+          invitee_id?: string
+          marked_at?: string
+          marked_by?: string
+          meeting_id?: string
+          remarks?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_attendance_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_invitees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendance_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_decisions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          decision_text: string
+          discussion_point_id: string | null
+          id: string
+          linked_task_id: string | null
+          meeting_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          decision_text: string
+          discussion_point_id?: string | null
+          id?: string
+          linked_task_id?: string | null
+          meeting_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          decision_text?: string
+          discussion_point_id?: string | null
+          id?: string
+          linked_task_id?: string | null
+          meeting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_decision_task"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_decisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_decisions_discussion_point_id_fkey"
+            columns: ["discussion_point_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_discussion_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_decisions_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_discussion_points: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_id: string
+          notes: string | null
+          sequence: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_id: string
+          notes?: string | null
+          sequence?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_id?: string
+          notes?: string | null
+          sequence?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_discussion_points_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_discussion_points_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_invitees: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          guest_designation: string | null
+          guest_name: string | null
+          id: string
+          is_mandatory: boolean
+          meeting_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          guest_designation?: string | null
+          guest_name?: string | null
+          id?: string
+          is_mandatory?: boolean
+          meeting_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          guest_designation?: string | null
+          guest_name?: string | null
+          id?: string
+          is_mandatory?: boolean
+          meeting_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_invitees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_invitees_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_invitees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          actual_end: string | null
+          actual_start: string | null
+          created_at: string
+          created_by: string | null
+          facilitator_id: string
+          factory_id: string
+          id: string
+          location: string | null
+          scheduled_date: string
+          scheduled_end_time: string
+          scheduled_start_time: string
+          status: Database["public"]["Enums"]["meeting_status"]
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          actual_end?: string | null
+          actual_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          facilitator_id: string
+          factory_id: string
+          id?: string
+          location?: string | null
+          scheduled_date: string
+          scheduled_end_time: string
+          scheduled_start_time: string
+          status?: Database["public"]["Enums"]["meeting_status"]
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          actual_end?: string | null
+          actual_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          facilitator_id?: string
+          factory_id?: string
+          id?: string
+          location?: string | null
+          scheduled_date?: string
+          scheduled_end_time?: string
+          scheduled_start_time?: string
+          status?: Database["public"]["Enums"]["meeting_status"]
+          summary?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_facilitator_id_fkey"
+            columns: ["facilitator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          designation: string | null
+          email: string
+          employee_id: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          designation?: string | null
+          email: string
+          employee_id?: string | null
+          full_name: string
+          id: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          designation?: string | null
+          email?: string
+          employee_id?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_item_stage_updates: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          reporting_date: string
+          stage_name: string
+          update_note: string | null
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          reporting_date?: string
+          stage_name: string
+          update_note?: string | null
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          reporting_date?: string
+          stage_name?: string
+          update_note?: string | null
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_item_stage_updates_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "project_tracker_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_stage_updates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tracker_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string
+          description: string | null
+          display_order: number
+          id: string
+          kpi_id: string
+          status: Database["public"]["Enums"]["project_item_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          kpi_id: string
+          status?: Database["public"]["Enums"]["project_item_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          kpi_id?: string
+          status?: Database["public"]["Enums"]["project_item_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tracker_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tracker_items_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tracker_items_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_master"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_due_date_history: {
+        Row: {
+          changed_by: string
+          created_at: string
+          id: string
+          new_due_date: string
+          previous_due_date: string
+          reason: string
+          task_id: string
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          id?: string
+          new_due_date: string
+          previous_due_date: string
+          reason: string
+          task_id: string
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          id?: string
+          new_due_date?: string
+          previous_due_date?: string
+          reason?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_due_date_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_due_date_history_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_updates: {
+        Row: {
+          created_at: string
+          id: string
+          new_status: Database["public"]["Enums"]["task_status"]
+          previous_status: Database["public"]["Enums"]["task_status"] | null
+          task_id: string
+          update_note: string | null
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_status: Database["public"]["Enums"]["task_status"]
+          previous_status?: Database["public"]["Enums"]["task_status"] | null
+          task_id: string
+          update_note?: string | null
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["task_status"]
+          previous_status?: Database["public"]["Enums"]["task_status"] | null
+          task_id?: string
+          update_note?: string | null
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_updates_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_updates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_by: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          department_id: string
+          description: string | null
+          due_date: string
+          id: string
+          is_carryover: boolean
+          origin_kpi_entry_id: string | null
+          origin_meeting_id: string | null
+          origin_type: Database["public"]["Enums"]["task_origin"]
+          owner_id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          resolution_note: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          task_number: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id: string
+          description?: string | null
+          due_date: string
+          id?: string
+          is_carryover?: boolean
+          origin_kpi_entry_id?: string | null
+          origin_meeting_id?: string | null
+          origin_type?: Database["public"]["Enums"]["task_origin"]
+          owner_id: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          resolution_note?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_number?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          is_carryover?: boolean
+          origin_kpi_entry_id?: string | null
+          origin_meeting_id?: string | null
+          origin_type?: Database["public"]["Enums"]["task_origin"]
+          owner_id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          resolution_note?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_number?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_origin_kpi_entry_id_fkey"
+            columns: ["origin_kpi_entry_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_origin_meeting_id_fkey"
+            columns: ["origin_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_departments: {
+        Row: {
+          created_at: string
+          department_id: string
+          id: string
+          is_primary: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          id?: string
+          is_primary?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          id?: string
+          is_primary?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_departments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_departments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_user_departments: {
+        Args: { p_user_id: string }
+        Returns: {
+          department_id: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          p_user_id: string
+          required_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      is_dept_member: {
+        Args: { p_department_id: string; p_user_id: string }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      app_role:
+        | "super_admin"
+        | "factory_manager"
+        | "department_head"
+        | "team_member"
+      attendance_status: "present" | "absent" | "excused"
+      audit_action: "INSERT" | "UPDATE" | "DELETE"
+      kpi_direction: "higher_is_better" | "lower_is_better" | "target_is_exact"
+      kpi_frequency: "daily" | "weekly" | "monthly"
+      kpi_type: "numeric" | "descriptive" | "project_tracker"
+      meeting_status: "scheduled" | "in_progress" | "completed" | "cancelled"
+      project_item_status: "active" | "completed" | "on_hold" | "dropped"
+      rag_status: "red" | "amber" | "green"
+      task_origin: "meeting" | "kpi_red" | "standalone"
+      task_priority: "low" | "medium" | "high" | "critical"
+      task_status:
+        | "open"
+        | "in_progress"
+        | "blocked"
+        | "completed"
+        | "cancelled"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: [
+        "super_admin",
+        "factory_manager",
+        "department_head",
+        "team_member",
+      ],
+      attendance_status: ["present", "absent", "excused"],
+      audit_action: ["INSERT", "UPDATE", "DELETE"],
+      kpi_direction: ["higher_is_better", "lower_is_better", "target_is_exact"],
+      kpi_frequency: ["daily", "weekly", "monthly"],
+      kpi_type: ["numeric", "descriptive", "project_tracker"],
+      meeting_status: ["scheduled", "in_progress", "completed", "cancelled"],
+      project_item_status: ["active", "completed", "on_hold", "dropped"],
+      rag_status: ["red", "amber", "green"],
+      task_origin: ["meeting", "kpi_red", "standalone"],
+      task_priority: ["low", "medium", "high", "critical"],
+      task_status: ["open", "in_progress", "blocked", "completed", "cancelled"],
+    },
+  },
+} as const
