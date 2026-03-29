@@ -116,8 +116,13 @@ export default function MeetingWorkspace() {
   if (!meeting) return <p className="text-center py-12 text-muted-foreground">Meeting not found</p>;
 
   const isCompleted = meeting.status === 'completed' || meeting.status === 'cancelled';
+  const isScheduled = meeting.status === 'scheduled';
+  const isInProgress = meeting.status === 'in_progress';
   const canEditAfterComplete = hasAnyRole('super_admin', 'factory_manager');
   const readOnly = isCompleted && !canEditAfterComplete;
+  // Tabs that require meeting to be started
+  const tabsLocked = isScheduled; // Notes, Decisions, Tasks locked when scheduled
+  const tabsEditable = isInProgress || (isCompleted && canEditAfterComplete);
 
   return (
     <div className="flex flex-col h-full">
@@ -178,9 +183,30 @@ export default function MeetingWorkspace() {
           <div className="p-4 flex-1">
             <TabsContent value="kpi" className="mt-0"><KpiSnapshotTab meeting={meeting} /></TabsContent>
             <TabsContent value="attendance" className="mt-0"><AttendanceTab meeting={meeting} readOnly={readOnly} /></TabsContent>
-            <TabsContent value="notes" className="mt-0"><NotesTab meeting={meeting} readOnly={readOnly} /></TabsContent>
-            <TabsContent value="decisions" className="mt-0"><DecisionsTab meeting={meeting} readOnly={readOnly} /></TabsContent>
-            <TabsContent value="tasks" className="mt-0"><MeetingTasksTab meeting={meeting} /></TabsContent>
+            <TabsContent value="notes" className="mt-0">
+              {tabsLocked ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Clock className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="text-sm">Start the meeting to enable notes</p>
+                </div>
+              ) : <NotesTab meeting={meeting} readOnly={readOnly} />}
+            </TabsContent>
+            <TabsContent value="decisions" className="mt-0">
+              {tabsLocked ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Clock className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="text-sm">Start the meeting to record decisions</p>
+                </div>
+              ) : <DecisionsTab meeting={meeting} readOnly={readOnly} />}
+            </TabsContent>
+            <TabsContent value="tasks" className="mt-0">
+              {tabsLocked ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Clock className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="text-sm">Start the meeting to create tasks</p>
+                </div>
+              ) : <MeetingTasksTab meeting={meeting} />}
+            </TabsContent>
           </div>
         </Tabs>
       </div>

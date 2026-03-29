@@ -315,14 +315,22 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
 
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
   const [showDueDateChange, setShowDueDateChange] = useState(false);
   const [newDueDate, setNewDueDate] = useState('');
   const [dueDateReason, setDueDateReason] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDeptId, setEditDeptId] = useState('');
+  const [editOwnerId, setEditOwnerId] = useState('');
+  const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
+  const [editDueDate, setEditDueDate] = useState('');
   const today = format(new Date(), 'yyyy-MM-dd');
+  const canEdit = hasAnyRole('super_admin', 'factory_manager');
 
   const { data: freshTask } = useQuery({
     queryKey: ['task-detail', task.id],
@@ -334,6 +342,26 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         .single();
       return data;
     },
+  });
+
+  const { data: editDepartments } = useQuery({
+    queryKey: ['departments-edit-task'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true).order('display_order');
+      return data || [];
+    },
+    enabled: editMode,
+  });
+
+  const { data: editDeptUsers } = useQuery({
+    queryKey: ['dept-users-edit-task', editDeptId],
+    queryFn: async () => {
+      const { data: uds } = await supabase.from('user_departments').select('user_id').eq('department_id', editDeptId);
+      if (!uds?.length) return [];
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', uds.map((u) => u.user_id)).eq('is_active', true);
+      return data || [];
+    },
+    enabled: !!editDeptId && editMode,
   });
 
   const { data: statusHistory } = useQuery({
@@ -403,12 +431,89 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     },
   });
 
+  const editTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (editDueDate < today) throw new Error('Due date cannot be in the past');
+      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date };
+      const { error } = await supabase.from('tasks').update({
+        title: editTitle,
+        description: editDescription || null,
+        department_id: editDeptId,
+        owner_id: editOwnerId,
+        priority: editPriority,
+        due_date: editDueDate,
+        updated_at: new Date().toISOString(),
+      }).eq('id', task.id);
+      if (error) throw error;
+      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
+    },
+    onSuccess: () => {
+      toast({ title: 'Task updated' });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      setEditMode(false);
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const enterEditMode = () => {
+    const t = freshTask || task;
+    setEditTitle(t.title);
+    setEditDescription(t.description || '');
+    setEditDeptId(t.department_id);
+    setEditOwnerId(t.owner_id);
+    setEditPriority(t.priority);
+    setEditDueDate(t.due_date);
+    setEditMode(true);
+  };
+
   const t = freshTask || task;
   const isTerminal = t.status === 'completed' || t.status === 'cancelled';
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [completingAs, setCompletingAs] = useState<TaskStatus>('completed');
 
-  const content = (
+  const content = editMode ? (
+    <div className="space-y-4 pb-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold">Edit Task #{t.task_number}</h2>
+      </div>
+      <div><Label>Title *</Label><Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="h-11 mt-1" /></div>
+      <div><Label>Description</Label><Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2} className="mt-1" /></div>
+      <div>
+        <Label>Department *</Label>
+        <Select value={editDeptId} onValueChange={(v) => { setEditDeptId(v); setEditOwnerId(''); }}>
+          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+          <SelectContent>{editDepartments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Owner *</Label>
+        <Select value={editOwnerId} onValueChange={setEditOwnerId}>
+          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+          <SelectContent>{editDeptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Priority</Label>
+          <Select value={editPriority} onValueChange={(v) => setEditPriority(v as TaskPriority)}>
+            <SelectTrigger className="h-11 mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Due Date *</Label><Input type="date" min={today} value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="h-11 mt-1" /></div>
+      </div>
+      <div className="flex gap-2">
+        <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !editDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
+          {editTaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
+        </Button>
+        <Button variant="outline" onClick={() => setEditMode(false)} className="h-11">Cancel</Button>
+      </div>
+    </div>
+  ) : (
     <div className="space-y-6 pb-6">
       <div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -416,7 +521,14 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
           <Badge className={cn('text-[10px]', STATUS_COLORS[t.status])}>{t.status.replace('_', ' ')}</Badge>
           <Badge className={cn('text-[10px]', PRIORITY_COLORS[t.priority])}>{t.priority}</Badge>
         </div>
-        <h2 className="text-base font-bold mt-1">{t.title}</h2>
+        <div className="flex items-center justify-between mt-1">
+          <h2 className="text-base font-bold">{t.title}</h2>
+          {canEdit && !isTerminal && (
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={enterEditMode}>
+              Edit Task
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-y-2 text-sm">
