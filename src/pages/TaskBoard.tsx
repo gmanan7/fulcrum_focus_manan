@@ -97,7 +97,7 @@ export default function TaskBoard() {
 
       if (filterDept !== 'all') q = q.eq('department_id', filterDept);
       if (filterMyTasks && user) q = q.eq('owner_id', user.id);
-      if (filterPriority !== 'all') q = q.eq('priority', filterPriority);
+      if (filterPriority !== 'all') q = q.eq('priority', filterPriority as TaskPriority);
       if (!showCompleted) q = q.not('status', 'in', '("completed","cancelled")');
 
       const { data, error } = await q;
