@@ -454,6 +454,99 @@ export type Database = {
           },
         ]
       }
+      meeting_template_invitees: {
+        Row: {
+          created_at: string
+          id: string
+          is_mandatory: boolean
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_template_invitees_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_template_invitees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_duration_minutes: number
+          default_location: string | null
+          default_start_time: string | null
+          description: string | null
+          factory_id: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number
+          default_location?: string | null
+          default_start_time?: string | null
+          description?: string | null
+          factory_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number
+          default_location?: string | null
+          default_start_time?: string | null
+          description?: string | null
+          factory_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_templates_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meetings: {
         Row: {
           actual_end: string | null
