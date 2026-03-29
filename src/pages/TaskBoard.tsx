@@ -344,6 +344,26 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     },
   });
 
+  const { data: editDepartments } = useQuery({
+    queryKey: ['departments-edit-task'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true).order('display_order');
+      return data || [];
+    },
+    enabled: editMode,
+  });
+
+  const { data: editDeptUsers } = useQuery({
+    queryKey: ['dept-users-edit-task', editDeptId],
+    queryFn: async () => {
+      const { data: uds } = await supabase.from('user_departments').select('user_id').eq('department_id', editDeptId);
+      if (!uds?.length) return [];
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', uds.map((u) => u.user_id)).eq('is_active', true);
+      return data || [];
+    },
+    enabled: !!editDeptId && editMode,
+  });
+
   const { data: statusHistory } = useQuery({
     queryKey: ['task-updates', task.id],
     queryFn: async () => {
