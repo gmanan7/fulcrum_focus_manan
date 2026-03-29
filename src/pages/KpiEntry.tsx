@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CalendarIcon, Loader2, Save, AlertTriangle, Plus, MoreVertical, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { logAudit } from '@/lib/auditLog';
 
 type RagStatus = Database['public']['Enums']['rag_status'];
 type KpiDirection = Database['public']['Enums']['kpi_direction'];
@@ -184,6 +185,11 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
     onSuccess: () => {
       toast({ title: `Saved at ${format(new Date(), 'h:mm a')}` });
       queryClient.invalidateQueries({ queryKey: ['kpi-entries'] });
+      Object.values(entries).forEach((entry) => {
+        if (entry.actual_value || entry.text_value) {
+          logAudit('kpi_entries', entry.existing_id || entry.kpi_id, 'INSERT', null, { kpi_id: entry.kpi_id, reporting_date: reportingDate });
+        }
+      });
     },
     onError: (e: Error) => toast({ title: 'Error saving', description: e.message, variant: 'destructive' }),
   });

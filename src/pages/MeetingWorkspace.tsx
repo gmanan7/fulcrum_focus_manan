@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInSeconds } from 'date-fns';
+import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,8 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -40,7 +41,7 @@ const RAG_COLORS: Record<RagStatus, string> = {
 
 export default function MeetingWorkspace() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('kpi');
@@ -68,6 +69,7 @@ export default function MeetingWorkspace() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meeting', id] });
       toast({ title: 'Meeting started' });
+      logAudit('meetings', id!, 'UPDATE', { status: 'scheduled' }, { status: 'in_progress', actual_start: new Date().toISOString() });
     },
   });
 
@@ -83,11 +85,11 @@ export default function MeetingWorkspace() {
       queryClient.invalidateQueries({ queryKey: ['meeting', id] });
       toast({ title: 'Meeting completed' });
       setShowEndConfirm(false);
+      logAudit('meetings', id!, 'UPDATE', { status: 'in_progress' }, { status: 'completed', actual_end: new Date().toISOString() });
     },
   });
 
   const handleEnd = async () => {
-    // Check for red KPIs without tasks
     const { data: redEntries } = await supabase
       .from('kpi_entries')
       .select('id, kpi_id')
@@ -114,6 +116,8 @@ export default function MeetingWorkspace() {
   if (!meeting) return <p className="text-center py-12 text-muted-foreground">Meeting not found</p>;
 
   const isCompleted = meeting.status === 'completed' || meeting.status === 'cancelled';
+  const canEditAfterComplete = hasAnyRole('super_admin', 'factory_manager');
+  const readOnly = isCompleted && !canEditAfterComplete;
 
   return (
     <div className="flex flex-col h-full -m-4 sm:-m-6">
@@ -148,26 +152,34 @@ export default function MeetingWorkspace() {
             )}
           </div>
         </div>
+        {/* FIX 7: Post-completion editing banner */}
+        {isCompleted && canEditAfterComplete && (
+          <div className="flex items-center gap-1.5 text-xs text-rag-amber bg-rag-amber/10 px-2 py-1 rounded">
+            <Info className="h-3.5 w-3.5 shrink-0" /> Meeting completed — editing as privileged user
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
+      {/* FIX 1: Sticky tab bar with proper horizontal scroll */}
       <div className="flex-1 overflow-auto">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <div className="border-b px-4 overflow-x-auto">
-            <TabsList className="bg-transparent h-10 w-auto gap-0">
-              <TabsTrigger value="kpi" className="text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">KPI Snapshot</TabsTrigger>
-              <TabsTrigger value="attendance" className="text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Attendance</TabsTrigger>
-              <TabsTrigger value="notes" className="text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Notes</TabsTrigger>
-              <TabsTrigger value="decisions" className="text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Decisions</TabsTrigger>
-              <TabsTrigger value="tasks" className="text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Tasks</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <div className="sticky top-0 z-[5] bg-background border-b">
+            <div className="overflow-x-auto scrollbar-none">
+              <TabsList className="bg-transparent h-10 w-max min-w-full px-4 gap-0 rounded-none justify-start">
+                <TabsTrigger value="kpi" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">KPI Snapshot</TabsTrigger>
+                <TabsTrigger value="attendance" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Attendance</TabsTrigger>
+                <TabsTrigger value="notes" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Notes &amp; Discussion</TabsTrigger>
+                <TabsTrigger value="decisions" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Decisions</TabsTrigger>
+                <TabsTrigger value="tasks" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Tasks</TabsTrigger>
+              </TabsList>
+            </div>
           </div>
 
-          <div className="p-4">
+          <div className="p-4 flex-1">
             <TabsContent value="kpi" className="mt-0"><KpiSnapshotTab meeting={meeting} /></TabsContent>
-            <TabsContent value="attendance" className="mt-0"><AttendanceTab meeting={meeting} readOnly={isCompleted} /></TabsContent>
-            <TabsContent value="notes" className="mt-0"><NotesTab meeting={meeting} readOnly={isCompleted} /></TabsContent>
-            <TabsContent value="decisions" className="mt-0"><DecisionsTab meeting={meeting} readOnly={isCompleted} /></TabsContent>
+            <TabsContent value="attendance" className="mt-0"><AttendanceTab meeting={meeting} readOnly={readOnly} /></TabsContent>
+            <TabsContent value="notes" className="mt-0"><NotesTab meeting={meeting} readOnly={readOnly} /></TabsContent>
+            <TabsContent value="decisions" className="mt-0"><DecisionsTab meeting={meeting} readOnly={readOnly} /></TabsContent>
             <TabsContent value="tasks" className="mt-0"><MeetingTasksTab meeting={meeting} /></TabsContent>
           </div>
         </Tabs>
@@ -207,7 +219,6 @@ function ElapsedTimer({ start }: { start: string }) {
 
 // ─── KPI SNAPSHOT TAB ─────────────────────────────
 function KpiSnapshotTab({ meeting }: { meeting: any }) {
-  const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -332,6 +343,7 @@ function CreateTaskFromKpiModal({ open, onOpenChange, meetingId, kpiEntry, kpi }
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('high');
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: deptUsers } = useQuery({
     queryKey: ['dept-users', kpi.department_id],
@@ -346,26 +358,30 @@ function CreateTaskFromKpiModal({ open, onOpenChange, meetingId, kpiEntry, kpi }
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('tasks').insert({
+      const dueDateStr = format(dueDate!, 'yyyy-MM-dd');
+      if (dueDateStr < today) throw new Error('Due date cannot be in the past');
+      const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
         department_id: kpi.department_id,
         owner_id: ownerId,
         assigned_by: user!.id,
         priority,
-        due_date: format(dueDate!, 'yyyy-MM-dd'),
+        due_date: dueDateStr,
         origin_type: 'kpi_red',
         origin_meeting_id: meetingId,
         origin_kpi_entry_id: kpiEntry.id,
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: 'Task created' });
       queryClient.invalidateQueries({ queryKey: ['kpi-tasks-snapshot'] });
       queryClient.invalidateQueries({ queryKey: ['meeting-tasks'] });
       onOpenChange(false);
+      logAudit('tasks', data.id, 'INSERT', null, { title, origin_type: 'kpi_red', origin_meeting_id: meetingId });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -400,7 +416,7 @@ function CreateTaskFromKpiModal({ open, onOpenChange, meetingId, kpiEntry, kpi }
             </div>
             <div>
               <Label>Due Date *</Label>
-              <Input type="date" value={dueDate ? format(dueDate, 'yyyy-MM-dd') : ''} onChange={(e) => setDueDate(new Date(e.target.value))} className="h-11 mt-1" />
+              <Input type="date" min={today} value={dueDate ? format(dueDate, 'yyyy-MM-dd') : ''} onChange={(e) => setDueDate(new Date(e.target.value))} className="h-11 mt-1" />
             </div>
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
@@ -558,7 +574,6 @@ function AttendanceTab({ meeting, readOnly }: { meeting: any; readOnly: boolean 
         </div>
       )}
 
-      {/* Add Person Dialog */}
       <Dialog open={showAddPerson} onOpenChange={setShowAddPerson}>
         <DialogContent className={cn(isMobile && 'h-full max-h-full w-full max-w-full rounded-none border-0', 'sm:max-w-md')}>
           <DialogHeader><DialogTitle>Add Person</DialogTitle></DialogHeader>
@@ -581,7 +596,7 @@ function AttendanceTab({ meeting, readOnly }: { meeting: any; readOnly: boolean 
   );
 }
 
-// ─── NOTES TAB ─────────────────────────────
+// ─── NOTES & DISCUSSION TAB (FIX 2: merged) ─────────────────────────────
 function NotesTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -643,7 +658,8 @@ function NotesTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Meeting Notes */}
       <div>
         <Label className="text-sm font-semibold">Meeting Notes</Label>
         <Textarea
@@ -656,8 +672,9 @@ function NotesTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
         />
       </div>
 
+      {/* Discussion Points (optional) */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Discussion Points</h3>
+        <h3 className="text-sm font-semibold">Discussion Points <span className="text-muted-foreground font-normal">(optional)</span></h3>
         {points?.map((p, idx) => (
           <DiscussionPointCard
             key={p.id}
@@ -717,7 +734,7 @@ function DiscussionPointCard({ point, readOnly, onUpdateNotes, onMoveUp, onMoveD
   );
 }
 
-// ─── DECISIONS TAB ─────────────────────────────
+// ─── DECISIONS TAB (FIX 3: expandable decisions, FIX 5: validation) ─────────
 function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -731,11 +748,16 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
   const [taskDeptId, setTaskDeptId] = useState('');
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: decisions } = useQuery({
     queryKey: ['meeting-decisions', meeting.id],
     queryFn: async () => {
-      const { data } = await supabase.from('meeting_decisions').select('*, point:meeting_discussion_points(title), task:tasks!fk_decision_task(task_number)').eq('meeting_id', meeting.id).order('created_at');
+      const { data } = await supabase
+        .from('meeting_decisions')
+        .select('*, point:meeting_discussion_points(title), task:tasks!fk_decision_task(task_number, title, status)')
+        .eq('meeting_id', meeting.id).order('created_at');
       return data || [];
     },
   });
@@ -770,9 +792,17 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
 
   const addDecisionMutation = useMutation({
     mutationFn: async () => {
+      // FIX 5: Validate decision text
+      if (!decisionText.trim()) throw new Error('Please enter decision text first');
+
       let linkedTaskId: string | null = null;
 
-      if (createTask && taskTitle && taskOwnerId && taskDeptId && taskDueDate) {
+      if (createTask) {
+        if (!taskTitle || !taskOwnerId || !taskDeptId || !taskDueDate) {
+          throw new Error('Please fill all required task fields');
+        }
+        if (taskDueDate < today) throw new Error('Due date cannot be in the past');
+
         const { data: taskData, error: taskErr } = await supabase.from('tasks').insert({
           title: taskTitle,
           department_id: taskDeptId,
@@ -786,16 +816,18 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
         }).select('id').single();
         if (taskErr) throw taskErr;
         linkedTaskId = taskData.id;
+        logAudit('tasks', taskData.id, 'INSERT', null, { title: taskTitle, origin_type: 'meeting', origin_meeting_id: meeting.id });
       }
 
-      const { error } = await supabase.from('meeting_decisions').insert({
+      const { data, error } = await supabase.from('meeting_decisions').insert({
         meeting_id: meeting.id,
-        decision_text: decisionText,
-        discussion_point_id: linkedPointId || null,
+        decision_text: decisionText.trim(),
+        discussion_point_id: linkedPointId?.trim() || null,
         linked_task_id: linkedTaskId,
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast({ title: 'Decision recorded' });
@@ -803,7 +835,12 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
       queryClient.invalidateQueries({ queryKey: ['meeting-tasks', meeting.id] });
       setShowAdd(false);
       setDecisionText('');
+      setLinkedPointId('');
       setCreateTask(false);
+      setTaskTitle('');
+      setTaskOwnerId('');
+      setTaskDeptId('');
+      setTaskDueDate('');
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -814,18 +851,52 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
         <Button size="sm" variant="outline" onClick={() => setShowAdd(true)} className="h-9 gap-1"><Plus className="h-3.5 w-3.5" /> Add Decision</Button>
       )}
 
+      {/* FIX 3: Expandable decision cards */}
       <div className="space-y-2">
-        {decisions?.map((d) => (
-          <Card key={d.id}>
-            <CardContent className="p-3">
-              <p className="text-sm">{d.decision_text}</p>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {(d as any).point && <Badge variant="secondary" className="text-[10px]">Re: {(d as any).point.title}</Badge>}
-                {(d as any).task && <Badge className="text-[10px] bg-primary/10 text-primary">Task #{(d as any).task.task_number}</Badge>}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {decisions?.map((d) => {
+          const isExpanded = expandedId === d.id;
+          return (
+            <Card key={d.id} className="cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : d.id)}>
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className={cn('text-sm', !isExpanded && 'line-clamp-2')}>{d.decision_text}</p>
+                  </div>
+                  {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                </div>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {(d as any).point && <Badge variant="secondary" className="text-[10px]">Re: {(d as any).point.title}</Badge>}
+                  {(d as any).task && <Badge className="text-[10px] bg-primary/10 text-primary">Task #{(d as any).task.task_number}</Badge>}
+                </div>
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t space-y-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Full Decision</span>
+                      <p className="text-sm mt-0.5">{d.decision_text}</p>
+                    </div>
+                    {(d as any).point && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Linked Discussion Point</span>
+                        <p className="text-sm mt-0.5">{(d as any).point.title}</p>
+                      </div>
+                    )}
+                    {(d as any).task && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Linked Task</span>
+                        <p className="text-sm mt-0.5">
+                          #{(d as any).task.task_number} — {(d as any).task.title}
+                          <Badge className={cn('ml-2 text-[10px]', (d as any).task.status === 'completed' ? 'bg-rag-green/20 text-success' : 'bg-primary/10 text-primary')}>
+                            {(d as any).task.status?.replace('_', ' ')}
+                          </Badge>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
         {!decisions?.length && <p className="text-sm text-muted-foreground text-center py-4">No decisions recorded yet.</p>}
       </div>
 
@@ -833,9 +904,9 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
         <DialogContent className={cn(isMobile && 'h-full max-h-full w-full max-w-full rounded-none border-0', 'sm:max-w-lg')}>
           <DialogHeader><DialogTitle>Add Decision</DialogTitle></DialogHeader>
           <div className="space-y-3 overflow-y-auto">
-            <div><Label>Decision *</Label><Textarea value={decisionText} onChange={(e) => setDecisionText(e.target.value)} rows={2} className="mt-1" /></div>
+            <div><Label>Decision *</Label><Textarea value={decisionText} onChange={(e) => setDecisionText(e.target.value)} rows={2} className="mt-1" placeholder="Enter decision text..." /></div>
             <div>
-              <Label>Link to Discussion Point</Label>
+              <Label>Link to Discussion Point <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Select value={linkedPointId} onValueChange={setLinkedPointId}>
                 <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
@@ -852,16 +923,16 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
 
             {createTask && (
               <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
-                <div><Label>Task Title</Label><Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="h-11 mt-1" /></div>
+                <div><Label>Task Title *</Label><Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="h-11 mt-1" /></div>
                 <div>
-                  <Label>Department</Label>
+                  <Label>Department *</Label>
                   <Select value={taskDeptId} onValueChange={setTaskDeptId}>
                     <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Owner</Label>
+                  <Label>Owner *</Label>
                   <Select value={taskOwnerId} onValueChange={setTaskOwnerId}>
                     <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>{deptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
@@ -878,12 +949,12 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Due Date</Label><Input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="h-11 mt-1" /></div>
+                  <div><Label>Due Date *</Label><Input type="date" min={today} value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="h-11 mt-1" /></div>
                 </div>
               </div>
             )}
 
-            <Button onClick={() => addDecisionMutation.mutate()} disabled={!decisionText || addDecisionMutation.isPending} className="w-full h-12">
+            <Button onClick={() => addDecisionMutation.mutate()} disabled={!decisionText.trim() || addDecisionMutation.isPending} className="w-full h-12">
               {addDecisionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save Decision
             </Button>
           </div>
@@ -895,9 +966,6 @@ function DecisionsTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }
 
 // ─── MEETING TASKS TAB ─────────────────────────────
 function MeetingTasksTab({ meeting }: { meeting: any }) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   const [showCreate, setShowCreate] = useState(false);
 
   const { data: tasks, isLoading } = useQuery({
@@ -985,6 +1053,7 @@ function StandaloneTaskModal({ open, onOpenChange, meetingId }: { open: boolean;
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
     queryKey: ['departments-for-task-modal'],
@@ -1008,7 +1077,8 @@ function StandaloneTaskModal({ open, onOpenChange, meetingId }: { open: boolean;
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('tasks').insert({
+      if (dueDate < today) throw new Error('Due date cannot be in the past');
+      const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
         department_id: deptId,
@@ -1019,14 +1089,16 @@ function StandaloneTaskModal({ open, onOpenChange, meetingId }: { open: boolean;
         origin_type: meetingId ? 'meeting' : 'standalone',
         origin_meeting_id: meetingId || null,
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: 'Task created' });
       queryClient.invalidateQueries({ queryKey: ['meeting-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       onOpenChange(false);
+      logAudit('tasks', data.id, 'INSERT', null, { title, origin_type: meetingId ? 'meeting' : 'standalone' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -1064,7 +1136,7 @@ function StandaloneTaskModal({ open, onOpenChange, meetingId }: { open: boolean;
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Due Date *</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
+            <div><Label>Due Date *</Label><Input type="date" min={today} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task

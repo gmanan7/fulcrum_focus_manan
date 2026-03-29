@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, RotateCcw, Pencil, UserX, UserCheck, Loader2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
+import { logAudit } from '@/lib/auditLog';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -116,11 +117,12 @@ function CreateUserDialog() {
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: 'User created successfully' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setOpen(false);
       setForm({ full_name: '', email: '', password: '', role: 'team_member', department_ids: [], employee_id: '', designation: '' });
+      if (data?.user_id) logAudit('profiles', data.user_id, 'INSERT', null, { full_name: form.full_name, email: form.email, role: form.role });
     },
     onError: (err: Error) => {
       toast({ title: 'Error creating user', description: err.message, variant: 'destructive' });
@@ -383,9 +385,10 @@ export default function AdminUsers() {
       const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, userId) => {
       toast({ title: 'User deactivated' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      logAudit('profiles', userId, 'UPDATE', { is_active: true }, { is_active: false });
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -397,9 +400,10 @@ export default function AdminUsers() {
       const { error } = await supabase.from('profiles').update({ is_active: true }).eq('id', userId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, userId) => {
       toast({ title: 'User reactivated' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      logAudit('profiles', userId, 'UPDATE', { is_active: false }, { is_active: true });
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
