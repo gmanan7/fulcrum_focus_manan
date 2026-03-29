@@ -10,6 +10,7 @@ import {
   ScrollText,
   LogOut,
   Factory,
+  TrendingUp,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +32,7 @@ import { Button } from '@/components/ui/button';
 const mainNav = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null },
   { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null },
+  { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
@@ -65,19 +67,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarContent>
+      <SidebarContent className="bg-sidebar-background">
         {/* Brand */}
         {!collapsed && (
           <div className="flex items-center gap-2 px-4 py-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
               <Factory className="h-4 w-4" />
             </div>
-            <span className="text-sm font-bold text-sidebar-foreground">Fulcrum Hub</span>
+            <span className="text-sm font-bold text-white">Fulcrum Hub</span>
           </div>
         )}
 
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-slate-500 text-xs uppercase tracking-wider">Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleMain.map((item) => (
@@ -86,8 +88,8 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === '/dashboard'}
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      className="text-slate-300 hover:bg-slate-800 rounded-lg mx-2"
+                      activeClassName="bg-blue-600 text-white font-medium rounded-lg mx-2"
                     >
                       <item.icon className="mr-2 h-4 w-4 shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
@@ -101,7 +103,7 @@ export function AppSidebar() {
 
         {showAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-slate-500 text-xs uppercase tracking-wider">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {adminNav.map((item) => (
@@ -109,8 +111,8 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        className="hover:bg-sidebar-accent/50"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        className="text-slate-300 hover:bg-slate-800 rounded-lg mx-2"
+                        activeClassName="bg-blue-600 text-white font-medium rounded-lg mx-2"
                       >
                         <item.icon className="mr-2 h-4 w-4 shrink-0" />
                         {!collapsed && <span>{item.title}</span>}
@@ -124,21 +126,21 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="bg-sidebar-background">
         {!collapsed && profile && (
           <div className="px-2 pb-2">
-            <p className="truncate text-sm font-medium text-sidebar-foreground">
+            <p className="truncate text-sm font-medium text-white">
               {profile.full_name}
             </p>
             {primaryRole && (
-              <Badge variant="secondary" className="mt-1 text-[10px]">
+              <Badge className="mt-1 text-[10px] bg-slate-700 text-slate-300 border-0">
                 {roleLabels[primaryRole] || primaryRole}
               </Badge>
             )}
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              className="mt-2 w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800"
               onClick={signOut}
             >
               <LogOut className="mr-2 h-4 w-4" />
@@ -150,7 +152,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="mx-auto text-sidebar-foreground/70 hover:text-sidebar-foreground"
+            className="mx-auto text-slate-400 hover:text-white hover:bg-slate-800"
             onClick={signOut}
             title="Sign Out"
           >
