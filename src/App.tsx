@@ -8,6 +8,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import AdminUsers from "@/pages/AdminUsers";
+import AdminDepartments from "@/pages/AdminDepartments";
+import AdminAudit from "@/pages/AdminAudit";
+import KpiMaster from "@/pages/KpiMaster";
+import KpiEntry from "@/pages/KpiEntry";
 import Placeholder from "@/pages/Placeholder";
 import NotFound from "@/pages/NotFound";
 
@@ -31,14 +36,14 @@ const App = () => (
               }
             >
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/kpi/entry" element={<Placeholder />} />
-              <Route path="/kpi/master" element={<Placeholder />} />
+              <Route path="/kpi/entry" element={<KpiEntry />} />
+              <Route path="/kpi/master" element={<KpiMaster />} />
               <Route path="/meetings" element={<Placeholder />} />
               <Route path="/compliance" element={<Placeholder />} />
               <Route path="/tasks" element={<Placeholder />} />
-              <Route path="/admin/users" element={<Placeholder />} />
-              <Route path="/admin/departments" element={<Placeholder />} />
-              <Route path="/admin/audit" element={<Placeholder />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/departments" element={<AdminDepartments />} />
+              <Route path="/admin/audit" element={<AdminAudit />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
