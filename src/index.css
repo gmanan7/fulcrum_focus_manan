@@ -264,9 +264,23 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* Sidebar nav link theming */
+.sidebar-nav-link {
+  color: var(--text-sidebar);
+}
+.sidebar-nav-link:hover {
+  background: var(--bg-sidebar-hover);
+}
+.sidebar-nav-active,
+.sidebar-active-solid {
+  background: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+
 /* Sidebar active gradient for vibrant */
 .sidebar-active-vibrant {
   background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+  color: #ffffff !important;
 }
 
 /* Safe area padding for mobile bottom nav */
