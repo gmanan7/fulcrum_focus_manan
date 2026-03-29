@@ -117,11 +117,12 @@ function CreateUserDialog() {
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: 'User created successfully' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setOpen(false);
       setForm({ full_name: '', email: '', password: '', role: 'team_member', department_ids: [], employee_id: '', designation: '' });
+      if (data?.user_id) logAudit('profiles', data.user_id, 'INSERT', null, { full_name: form.full_name, email: form.email, role: form.role });
     },
     onError: (err: Error) => {
       toast({ title: 'Error creating user', description: err.message, variant: 'destructive' });
