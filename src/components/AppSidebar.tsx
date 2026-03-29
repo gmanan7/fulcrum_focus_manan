@@ -107,10 +107,8 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === '/dashboard'}
-                      className="rounded-lg mx-2"
-                      style={{ color: 'var(--text-sidebar)' }}
-                      activeClassName={cn('text-white font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : '')}
-                      activeStyle={!isVibrant ? { background: 'var(--bg-sidebar-active)', color: 'var(--text-sidebar-active)' } : { color: 'var(--text-sidebar-active)' }}
+                      className="rounded-lg mx-2 sidebar-nav-link"
+                      activeClassName={cn('sidebar-nav-active font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : 'sidebar-active-solid')}
                     >
                       <item.icon className="mr-2 h-4 w-4 shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
@@ -132,10 +130,8 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        className="rounded-lg mx-2"
-                        style={{ color: 'var(--text-sidebar)' }}
-                        activeClassName={cn('text-white font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : '')}
-                        activeStyle={!isVibrant ? { background: 'var(--bg-sidebar-active)', color: 'var(--text-sidebar-active)' } : { color: 'var(--text-sidebar-active)' }}
+                        className="rounded-lg mx-2 sidebar-nav-link"
+                        activeClassName={cn('sidebar-nav-active font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : 'sidebar-active-solid')}
                       >
                         <item.icon className="mr-2 h-4 w-4 shrink-0" />
                         {!collapsed && <span>{item.title}</span>}
