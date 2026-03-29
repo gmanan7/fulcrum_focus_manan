@@ -120,7 +120,7 @@ export default function MeetingWorkspace() {
   const readOnly = isCompleted && !canEditAfterComplete;
 
   return (
-    <div className="flex flex-col h-full -m-4 sm:-m-6">
+    <div className="flex flex-col h-full">
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 space-y-1">
         <div className="flex items-center justify-between gap-2">
