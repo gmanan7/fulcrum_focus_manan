@@ -15,6 +15,7 @@ import KpiMaster from "@/pages/KpiMaster";
 import KpiEntry from "@/pages/KpiEntry";
 import Meetings from "@/pages/Meetings";
 import MeetingWorkspace from "@/pages/MeetingWorkspace";
+import MeetingTemplates from "@/pages/MeetingTemplates";
 import TaskBoard from "@/pages/TaskBoard";
 import Placeholder from "@/pages/Placeholder";
 import NotFound from "@/pages/NotFound";
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/kpi/master" element={<KpiMaster />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/meetings/:id/workspace" element={<MeetingWorkspace />} />
+              <Route path="/meetings/templates" element={<MeetingTemplates />} />
               <Route path="/tasks" element={<TaskBoard />} />
               <Route path="/compliance" element={<Placeholder />} />
               <Route path="/admin/users" element={<AdminUsers />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, Loader2, Clock, MapPin } from 'lucide-react';
+import { CalendarIcon, Plus, Loader2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -56,7 +56,6 @@ export default function Meetings() {
         </Button>
       </div>
 
-      {/* Filter */}
       <Select value={statusFilter} onValueChange={setStatusFilter}>
         <SelectTrigger className="w-full sm:w-48 h-10">
           <SelectValue placeholder="All Statuses" />
@@ -124,16 +123,41 @@ export default function Meetings() {
   );
 }
 
+/* ── Helpers ── */
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+}
+
+/* ── Create Meeting Dialog ── */
 function CreateMeetingDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [templateId, setTemplateId] = useState<string>('custom');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('09:30');
   const [facilitatorId, setFacilitatorId] = useState(user?.id || '');
   const [location, setLocation] = useState('');
+
+  const { data: templates } = useQuery({
+    queryKey: ['active-meeting-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('meeting_templates')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
 
   const { data: facilitators } = useQuery({
     queryKey: ['facilitator-users'],
@@ -159,10 +183,33 @@ function CreateMeetingDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     enabled: open,
   });
 
+  // When template changes, auto-fill fields
+  useEffect(() => {
+    if (templateId === 'custom' || !templates) return;
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const dateStr = date ? format(date, 'dd MMM yyyy') : '';
+    setTitle(`${tpl.name} — ${dateStr}`);
+    if (tpl.default_start_time) {
+      const st = tpl.default_start_time.slice(0, 5);
+      setStartTime(st);
+      setEndTime(addMinutesToTime(st, tpl.default_duration_minutes));
+    }
+    if (tpl.default_location) setLocation(tpl.default_location);
+  }, [templateId, templates]);
+
+  // Update title date portion when date changes with template selected
+  useEffect(() => {
+    if (templateId === 'custom' || !templates || !date) return;
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    setTitle(`${tpl.name} — ${format(date, 'dd MMM yyyy')}`);
+  }, [date]);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!date || !factory) throw new Error('Missing required fields');
-      const { error } = await supabase.from('meetings').insert({
+      const { data: meeting, error } = await supabase.from('meetings').insert({
         title,
         scheduled_date: format(date, 'yyyy-MM-dd'),
         scheduled_start_time: startTime,
@@ -171,23 +218,59 @@ function CreateMeetingDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         factory_id: factory.id,
         location: location || null,
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Copy template invitees if template selected
+      if (templateId !== 'custom' && meeting) {
+        const { data: tplInvitees } = await supabase
+          .from('meeting_template_invitees')
+          .select('user_id, is_mandatory')
+          .eq('template_id', templateId);
+        if (tplInvitees?.length) {
+          const inviteeRows = tplInvitees.map((inv) => ({
+            meeting_id: meeting.id,
+            user_id: inv.user_id,
+            is_mandatory: inv.is_mandatory,
+          }));
+          await supabase.from('meeting_invitees').insert(inviteeRows);
+        }
+      }
     },
     onSuccess: () => {
       toast({ title: 'Meeting created' });
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
       onOpenChange(false);
-      setTitle('');
+      resetForm();
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
+
+  const resetForm = () => {
+    setTemplateId('custom'); setTitle(''); setDate(new Date());
+    setStartTime('09:00'); setEndTime('09:30'); setLocation('');
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(isMobile && 'h-full max-h-full w-full max-w-full rounded-none border-0 sm:rounded-none', 'sm:max-w-lg')}>
         <DialogHeader><DialogTitle>New Meeting</DialogTitle></DialogHeader>
         <div className="space-y-4 overflow-y-auto">
+          {/* Template selector */}
+          <div>
+            <Label>Template (optional)</Label>
+            <Select value={templateId} onValueChange={setTemplateId}>
+              <SelectTrigger className="h-11 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom">Custom (no template)</SelectItem>
+                {templates?.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {templateId !== 'custom' && (
+              <p className="text-xs text-muted-foreground mt-1">Template invitees will be added automatically</p>
+            )}
+          </div>
+
           <div><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder='e.g. "T4 Daily Review"' className="h-11 mt-1" /></div>
           <div>
             <Label>Date *</Label>
