@@ -1,0 +1,674 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from '@/hooks/use-toast';
+import { format, differenceInDays } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import {
+  Plus, Loader2, Filter, ChevronDown, CalendarIcon, AlertTriangle, Clock, User, Building2,
+  ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type TaskStatus = Database['public']['Enums']['task_status'];
+type TaskPriority = Database['public']['Enums']['task_priority'];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: 'bg-destructive text-destructive-foreground',
+  high: 'bg-rag-amber text-white',
+  medium: 'bg-primary/10 text-primary',
+  low: 'bg-muted text-muted-foreground',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  open: 'bg-primary/10 text-primary',
+  in_progress: 'bg-rag-amber/20 text-warning',
+  blocked: 'bg-destructive/10 text-destructive',
+  completed: 'bg-rag-green/20 text-success',
+  cancelled: 'bg-muted text-muted-foreground',
+};
+
+const COLUMNS: { status: TaskStatus; label: string }[] = [
+  { status: 'open', label: 'Open' },
+  { status: 'in_progress', label: 'In Progress' },
+  { status: 'blocked', label: 'Blocked' },
+  { status: 'completed', label: 'Completed' },
+];
+
+export default function TaskBoard() {
+  const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<'kanban' | 'list'>(isMobile ? 'list' : 'kanban');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+
+  // Filters
+  const [filterDept, setFilterDept] = useState<string>('all');
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
+  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [activeListTab, setActiveListTab] = useState<'active' | 'recent'>('active');
+
+  // Mark overdue tasks as carryover on load
+  useEffect(() => {
+    const markCarryover = async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      await supabase.from('tasks')
+        .update({ is_carryover: true })
+        .lt('due_date', today)
+        .not('status', 'in', '("completed","cancelled")')
+        .eq('is_carryover', false);
+    };
+    markCarryover();
+  }, []);
+
+  const { data: departments } = useQuery({
+    queryKey: ['departments-taskboard'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true).order('display_order');
+      return data || [];
+    },
+  });
+
+  const { data: tasks, isLoading } = useQuery({
+    queryKey: ['tasks', filterDept, filterMyTasks, filterPriority, showCompleted],
+    queryFn: async () => {
+      let q = supabase
+        .from('tasks')
+        .select('*, owner:profiles!tasks_owner_id_fkey(full_name), dept:department!tasks_department_id_fkey(name), meeting:meetings!tasks_origin_meeting_id_fkey(title, scheduled_date)')
+        .order('created_at', { ascending: false });
+
+      if (filterDept !== 'all') q = q.eq('department_id', filterDept);
+      if (filterMyTasks && user) q = q.eq('owner_id', user.id);
+      if (filterPriority !== 'all') q = q.eq('priority', filterPriority);
+      if (!showCompleted) q = q.not('status', 'in', '("completed","cancelled")');
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Recently closed tasks
+  const { data: recentlyClosed } = useQuery({
+    queryKey: ['recently-closed-tasks', filterDept],
+    queryFn: async () => {
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+      let q = supabase
+        .from('tasks')
+        .select('*, owner:profiles!tasks_owner_id_fkey(full_name), dept:department!tasks_department_id_fkey(name)')
+        .in('status', ['completed', 'cancelled'])
+        .gte('completed_at', twoWeeksAgo.toISOString())
+        .order('completed_at', { ascending: false });
+      if (filterDept !== 'all') q = q.eq('department_id', filterDept);
+      const { data } = await q;
+      return data || [];
+    },
+  });
+
+  const activeTasks = tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || [];
+  const completedTasks = tasks?.filter((t) => t.status === 'completed' || t.status === 'cancelled') || [];
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold text-foreground">Task Board</h1>
+        <div className="flex items-center gap-2">
+          {!isMobile && (
+            <div className="flex border rounded-md overflow-hidden">
+              <Button size="sm" variant={view === 'kanban' ? 'default' : 'ghost'} className="h-8 rounded-none gap-1" onClick={() => setView('kanban')}>
+                <Columns3 className="h-3.5 w-3.5" /> Kanban
+              </Button>
+              <Button size="sm" variant={view === 'list' ? 'default' : 'ghost'} className="h-8 rounded-none gap-1" onClick={() => setView('list')}>
+                <ListTodo className="h-3.5 w-3.5" /> List
+              </Button>
+            </div>
+          )}
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-3.5 w-3.5" /> Filters
+          </Button>
+          <Button onClick={() => setShowCreate(true)} className="h-8 gap-1 text-sm">
+            <Plus className="h-3.5 w-3.5" /> New Task
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Collapsible open={showFilters}>
+        <CollapsibleContent>
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Department</Label>
+                  <Select value={filterDept} onValueChange={setFilterDept}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Priority</Label>
+                  <Select value={filterPriority} onValueChange={setFilterPriority}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2 justify-end">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <Switch checked={filterMyTasks} onCheckedChange={setFilterMyTasks} className="scale-75" /> My Tasks Only
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <Switch checked={showCompleted} onCheckedChange={setShowCompleted} className="scale-75" /> Show Completed
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : view === 'kanban' && !isMobile ? (
+        /* Kanban View */
+        <div className="grid grid-cols-4 gap-3">
+          {COLUMNS.map((col) => {
+            const colTasks = (col.status === 'completed' ? completedTasks : activeTasks).filter((t) => t.status === col.status);
+            return (
+              <div key={col.status} className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{col.label}</h3>
+                  <Badge variant="secondary" className="text-[10px]">{colTasks.length}</Badge>
+                </div>
+                <div className="space-y-2 min-h-[100px] bg-muted/20 rounded-lg p-2">
+                  {colTasks.map((task) => (
+                    <KanbanCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* List View */
+        <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="active" className="text-xs">Active ({activeTasks.length})</TabsTrigger>
+            <TabsTrigger value="recent" className="text-xs">Recently Closed ({recentlyClosed?.length || 0})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="active" className="mt-3 space-y-2">
+            {activeTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No active tasks.</p>
+            ) : (
+              activeTasks.map((task) => (
+                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+              ))
+            )}
+          </TabsContent>
+          <TabsContent value="recent" className="mt-3 space-y-2">
+            {!recentlyClosed?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
+            ) : (
+              recentlyClosed.map((task) => (
+                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} readOnly />
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Task Detail Drawer */}
+      {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
+
+      {/* Create Task Modal */}
+      {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} />}
+    </div>
+  );
+}
+
+function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
+  const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  return (
+    <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
+      <CardContent className="p-3 space-y-1.5">
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] text-muted-foreground">#{task.task_number}</span>
+            <p className="text-sm font-medium leading-tight truncate">{task.title}</p>
+          </div>
+          <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-muted-foreground">{(task as any).owner?.full_name}</span>
+          {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
+        </div>
+        {isOverdue && (
+          <p className="text-[10px] text-destructive flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" /> {Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))} days overdue
+          </p>
+        )}
+        {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+        {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => void; readOnly?: boolean }) {
+  const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  return (
+    <Card className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')} onClick={onClick}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">#{task.task_number}</span>
+              <p className="text-sm font-medium truncate">{task.title}</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-xs text-muted-foreground">{(task as any).owner?.full_name}</span>
+              {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
+              {isOverdue && <span className="text-[10px] text-destructive">{Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))}d overdue</span>}
+              {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge className={cn('text-[10px]', STATUS_COLORS[task.status])}>{task.status.replace('_', ' ')}</Badge>
+            <Badge className={cn('text-[10px]', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
+          </div>
+        </div>
+        {readOnly && task.resolution_note && (
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.resolution_note}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [updateNote, setUpdateNote] = useState('');
+  const [showDueDateChange, setShowDueDateChange] = useState(false);
+  const [newDueDate, setNewDueDate] = useState('');
+  const [dueDateReason, setDueDateReason] = useState('');
+
+  const { data: freshTask } = useQuery({
+    queryKey: ['task-detail', task.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('tasks')
+        .select('*, owner:profiles!tasks_owner_id_fkey(full_name), dept:department!tasks_department_id_fkey(name), assignedBy:profiles!tasks_assigned_by_fkey(full_name), meeting:meetings!tasks_origin_meeting_id_fkey(id, title, scheduled_date)')
+        .eq('id', task.id)
+        .single();
+      return data;
+    },
+  });
+
+  const { data: statusHistory } = useQuery({
+    queryKey: ['task-updates', task.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('task_updates')
+        .select('*, updater:profiles!task_updates_updated_by_fkey(full_name)')
+        .eq('task_id', task.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    },
+  });
+
+  const changeStatusMutation = useMutation({
+    mutationFn: async ({ newStatus, note }: { newStatus: TaskStatus; note?: string }) => {
+      const updates: any = { status: newStatus, updated_at: new Date().toISOString() };
+      if (newStatus === 'completed' || newStatus === 'cancelled') {
+        updates.completed_at = new Date().toISOString();
+        updates.resolution_note = note || resolutionNote;
+      }
+
+      const { error: updateErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
+      if (updateErr) throw updateErr;
+
+      const { error: logErr } = await supabase.from('task_updates').insert({
+        task_id: task.id,
+        previous_status: freshTask?.status || task.status,
+        new_status: newStatus,
+        updated_by: user!.id,
+        update_note: note || updateNote || null,
+      });
+      if (logErr) throw logErr;
+    },
+    onSuccess: () => {
+      toast({ title: 'Status updated' });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['recently-closed-tasks'] });
+      setResolutionNote('');
+      setUpdateNote('');
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const changeDueDateMutation = useMutation({
+    mutationFn: async () => {
+      await supabase.from('task_due_date_history').insert({
+        task_id: task.id,
+        previous_due_date: freshTask?.due_date || task.due_date,
+        new_due_date: newDueDate,
+        reason: dueDateReason,
+        changed_by: user!.id,
+      });
+      await supabase.from('tasks').update({ due_date: newDueDate, updated_at: new Date().toISOString() }).eq('id', task.id);
+    },
+    onSuccess: () => {
+      toast({ title: 'Due date changed' });
+      queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      setShowDueDateChange(false);
+      setNewDueDate('');
+      setDueDateReason('');
+    },
+  });
+
+  const t = freshTask || task;
+  const isTerminal = t.status === 'completed' || t.status === 'cancelled';
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completingAs, setCompletingAs] = useState<TaskStatus>('completed');
+
+  const content = (
+    <div className="space-y-6 pb-6">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">#{t.task_number}</span>
+          <Badge className={cn('text-[10px]', STATUS_COLORS[t.status])}>{t.status.replace('_', ' ')}</Badge>
+          <Badge className={cn('text-[10px]', PRIORITY_COLORS[t.priority])}>{t.priority}</Badge>
+        </div>
+        <h2 className="text-base font-bold mt-1">{t.title}</h2>
+      </div>
+
+      {/* Meta */}
+      <div className="grid grid-cols-2 gap-y-2 text-sm">
+        <div><span className="text-muted-foreground text-xs">Department</span><p>{(t as any).dept?.name || '—'}</p></div>
+        <div><span className="text-muted-foreground text-xs">Owner</span><p>{(t as any).owner?.full_name || '—'}</p></div>
+        <div><span className="text-muted-foreground text-xs">Assigned by</span><p>{(t as any).assignedBy?.full_name || '—'}</p></div>
+        <div>
+          <span className="text-muted-foreground text-xs">Due Date</span>
+          <p className={cn(new Date(t.due_date) < new Date() && !isTerminal && 'text-destructive font-medium')}>
+            {format(new Date(t.due_date), 'dd MMM yyyy')}
+          </p>
+        </div>
+      </div>
+
+      {/* Change Due Date */}
+      {!isTerminal && (
+        <div>
+          <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowDueDateChange(!showDueDateChange)}>Change Due Date</Button>
+          {showDueDateChange && (
+            <div className="mt-2 space-y-2 border rounded-lg p-3 bg-muted/30">
+              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="h-10" />
+              <Input value={dueDateReason} onChange={(e) => setDueDateReason(e.target.value)} placeholder="Reason for change (required)" className="h-10" />
+              <Button size="sm" onClick={() => changeDueDateMutation.mutate()} disabled={!newDueDate || !dueDateReason || changeDueDateMutation.isPending} className="h-9">Update</Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Description */}
+      {t.description && (
+        <div>
+          <span className="text-muted-foreground text-xs">Description</span>
+          <p className="text-sm mt-0.5">{t.description}</p>
+        </div>
+      )}
+
+      {/* Status Actions */}
+      {!isTerminal && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
+          <div className="flex flex-wrap gap-2">
+            {t.status === 'open' && (
+              <>
+                <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                  <Play className="h-3.5 w-3.5" /> Start Work
+                </Button>
+                <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
+                  <XCircle className="h-3.5 w-3.5" /> Cancel
+                </Button>
+              </>
+            )}
+            {t.status === 'in_progress' && (
+              <>
+                <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
+                  <Pause className="h-3.5 w-3.5" /> Mark Blocked
+                </Button>
+                <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                </Button>
+              </>
+            )}
+            {t.status === 'blocked' && (
+              <>
+                <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                  <Play className="h-3.5 w-3.5" /> Resume
+                </Button>
+                <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Resolution Note (if completed/cancelled) */}
+      {isTerminal && t.resolution_note && (
+        <div>
+          <span className="text-muted-foreground text-xs">Resolution Note</span>
+          <p className="text-sm mt-0.5">{t.resolution_note}</p>
+        </div>
+      )}
+
+      {/* Origin */}
+      {(t as any).meeting && (
+        <div>
+          <span className="text-muted-foreground text-xs">Origin</span>
+          <p className="text-sm">Created in: <a href={`/meetings/${(t as any).meeting.id}/workspace`} className="text-primary underline">{(t as any).meeting.title} ({format(new Date((t as any).meeting.scheduled_date), 'dd MMM')})</a></p>
+        </div>
+      )}
+
+      {/* Status History */}
+      <div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status History</h3>
+        {statusHistory?.length ? (
+          <div className="space-y-2">
+            {statusHistory.map((h) => (
+              <div key={h.id} className="flex items-start gap-2 text-xs border-l-2 border-muted pl-3 py-1">
+                <div className="flex-1">
+                  <span className="font-medium">{h.previous_status || '—'}</span>
+                  <ArrowRight className="h-3 w-3 inline mx-1" />
+                  <span className="font-medium">{h.new_status}</span>
+                  {h.update_note && <p className="text-muted-foreground mt-0.5">{h.update_note}</p>}
+                </div>
+                <div className="text-right shrink-0 text-muted-foreground">
+                  <p>{(h as any).updater?.full_name}</p>
+                  <p>{format(new Date(h.created_at), 'dd MMM HH:mm')}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No status changes recorded.</p>
+        )}
+      </div>
+
+      {/* Complete/Cancel Dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{completingAs === 'completed' ? 'Complete Task' : 'Cancel Task'}</DialogTitle></DialogHeader>
+          <div>
+            <Label>Resolution Note *</Label>
+            <Textarea value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} placeholder="What was done / why cancelled?" rows={3} className="mt-1" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCompleteDialog(false)}>Back</Button>
+            <Button
+              onClick={() => { changeStatusMutation.mutate({ newStatus: completingAs, note: resolutionNote }); setShowCompleteDialog(false); }}
+              disabled={!resolutionNote}
+              className={completingAs === 'completed' ? 'bg-rag-green hover:bg-rag-green/90 text-white' : ''}
+            >
+              {completingAs === 'completed' ? 'Complete' : 'Cancel Task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
+          <SheetHeader><SheetTitle className="sr-only">Task Detail</SheetTitle></SheetHeader>
+          {content}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto">
+        <SheetHeader><SheetTitle className="sr-only">Task Detail</SheetTitle></SheetHeader>
+        {content}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [deptId, setDeptId] = useState('');
+  const [ownerId, setOwnerId] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [dueDate, setDueDate] = useState('');
+
+  const { data: departments } = useQuery({
+    queryKey: ['departments-create-task'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true).order('display_order');
+      return data || [];
+    },
+    enabled: open,
+  });
+
+  const { data: deptUsers } = useQuery({
+    queryKey: ['dept-users-create-task', deptId],
+    queryFn: async () => {
+      const { data: uds } = await supabase.from('user_departments').select('user_id').eq('department_id', deptId);
+      if (!uds?.length) return [];
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', uds.map((u) => u.user_id)).eq('is_active', true);
+      return data || [];
+    },
+    enabled: !!deptId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('tasks').insert({
+        title,
+        description: description || null,
+        department_id: deptId,
+        owner_id: ownerId,
+        assigned_by: user!.id,
+        priority,
+        due_date: dueDate,
+        origin_type: 'standalone',
+        created_by: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Task created' });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={cn(isMobile && 'h-full max-h-full w-full max-w-full rounded-none border-0', 'sm:max-w-lg')}>
+        <DialogHeader><DialogTitle>Create Task</DialogTitle></DialogHeader>
+        <div className="space-y-3 overflow-y-auto">
+          <div><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-11 mt-1" /></div>
+          <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1" /></div>
+          <div>
+            <Label>Department *</Label>
+            <Select value={deptId} onValueChange={setDeptId}>
+              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Owner *</Label>
+            <Select value={ownerId} onValueChange={setOwnerId}>
+              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>{deptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Priority</Label>
+              <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
+                <SelectTrigger className="h-11 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Due Date *</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
+          </div>
+          <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
+            {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
