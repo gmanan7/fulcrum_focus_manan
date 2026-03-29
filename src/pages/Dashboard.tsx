@@ -348,7 +348,9 @@ export default function Dashboard() {
                             </>
                           )}
                           {hasNoAction && (
-                            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" title="No action assigned" />
+                            <span title="No action assigned">
+                              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                            </span>
                           )}
                           <ChevronRight className={cn('h-4 w-4 text-slate-300 shrink-0 transition-transform', isExpanded && 'rotate-90')} />
                         </div>

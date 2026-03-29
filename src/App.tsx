@@ -13,11 +13,12 @@ import AdminDepartments from "@/pages/AdminDepartments";
 import AdminAudit from "@/pages/AdminAudit";
 import KpiMaster from "@/pages/KpiMaster";
 import KpiEntry from "@/pages/KpiEntry";
+import KpiTrends from "@/pages/KpiTrends";
 import Meetings from "@/pages/Meetings";
 import MeetingWorkspace from "@/pages/MeetingWorkspace";
 import MeetingTemplates from "@/pages/MeetingTemplates";
 import TaskBoard from "@/pages/TaskBoard";
-import Placeholder from "@/pages/Placeholder";
+import Compliance from "@/pages/Compliance";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,11 +43,12 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/kpi/entry" element={<KpiEntry />} />
               <Route path="/kpi/master" element={<KpiMaster />} />
+              <Route path="/kpi/trends" element={<KpiTrends />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/meetings/:id/workspace" element={<MeetingWorkspace />} />
               <Route path="/meetings/templates" element={<MeetingTemplates />} />
               <Route path="/tasks" element={<TaskBoard />} />
-              <Route path="/compliance" element={<Placeholder />} />
+              <Route path="/compliance" element={<Compliance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/departments" element={<AdminDepartments />} />
               <Route path="/admin/audit" element={<AdminAudit />} />
