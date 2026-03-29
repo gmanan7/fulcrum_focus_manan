@@ -13,6 +13,9 @@ import AdminDepartments from "@/pages/AdminDepartments";
 import AdminAudit from "@/pages/AdminAudit";
 import KpiMaster from "@/pages/KpiMaster";
 import KpiEntry from "@/pages/KpiEntry";
+import Meetings from "@/pages/Meetings";
+import MeetingWorkspace from "@/pages/MeetingWorkspace";
+import TaskBoard from "@/pages/TaskBoard";
 import Placeholder from "@/pages/Placeholder";
 import NotFound from "@/pages/NotFound";
 
@@ -38,9 +41,10 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/kpi/entry" element={<KpiEntry />} />
               <Route path="/kpi/master" element={<KpiMaster />} />
-              <Route path="/meetings" element={<Placeholder />} />
+              <Route path="/meetings" element={<Meetings />} />
+              <Route path="/meetings/:id/workspace" element={<MeetingWorkspace />} />
+              <Route path="/tasks" element={<TaskBoard />} />
               <Route path="/compliance" element={<Placeholder />} />
-              <Route path="/tasks" element={<Placeholder />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/departments" element={<AdminDepartments />} />
               <Route path="/admin/audit" element={<AdminAudit />} />
