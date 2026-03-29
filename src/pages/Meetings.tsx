@@ -40,7 +40,7 @@ export default function Meetings() {
         .from('meetings')
         .select('*, facilitator:profiles!meetings_facilitator_id_fkey(full_name)')
         .order('scheduled_date', { ascending: false });
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter as Database['public']['Enums']['meeting_status']);
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter as any);
       const { data, error } = await q;
       if (error) throw error;
       return data;
