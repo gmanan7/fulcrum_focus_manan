@@ -388,6 +388,7 @@ export default function AdminUsers() {
     onSuccess: () => {
       toast({ title: 'User deactivated' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      logAudit('profiles', u.id, 'UPDATE', { is_active: true }, { is_active: false });
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -402,6 +403,7 @@ export default function AdminUsers() {
     onSuccess: () => {
       toast({ title: 'User reactivated' });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      logAudit('profiles', u.id, 'UPDATE', { is_active: false }, { is_active: true });
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
