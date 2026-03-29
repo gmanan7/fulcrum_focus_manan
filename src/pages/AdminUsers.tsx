@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, RotateCcw, Pencil, UserX, UserCheck, Loader2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
+import { logAudit } from '@/lib/auditLog';
 
 type AppRole = Database['public']['Enums']['app_role'];
 

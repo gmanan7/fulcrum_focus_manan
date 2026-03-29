@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CalendarIcon, Loader2, Save, AlertTriangle, Plus, MoreVertical, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { logAudit } from '@/lib/auditLog';
 
 type RagStatus = Database['public']['Enums']['rag_status'];
 type KpiDirection = Database['public']['Enums']['kpi_direction'];
