@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInDays } from 'date-fns';
+import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,11 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import {
-  Plus, Loader2, Filter, ChevronDown, CalendarIcon, AlertTriangle, Clock, User, Building2,
+  Plus, Loader2, Filter, AlertTriangle, Clock,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,11 +43,13 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-muted text-muted-foreground',
 };
 
+// FIX 6: 5 columns including completed and cancelled
 const COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: 'open', label: 'Open' },
   { status: 'in_progress', label: 'In Progress' },
   { status: 'blocked', label: 'Blocked' },
   { status: 'completed', label: 'Completed' },
+  { status: 'cancelled', label: 'Cancelled' },
 ];
 
 export default function TaskBoard() {
@@ -59,14 +61,12 @@ export default function TaskBoard() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
-  // Filters
   const [filterDept, setFilterDept] = useState<string>('all');
   const [filterMyTasks, setFilterMyTasks] = useState(false);
   const [filterPriority, setFilterPriority] = useState<string>('all');
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true); // FIX 6: default visible
   const [activeListTab, setActiveListTab] = useState<'active' | 'recent'>('active');
 
-  // Mark overdue tasks as carryover on load
   useEffect(() => {
     const markCarryover = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -87,8 +87,9 @@ export default function TaskBoard() {
     },
   });
 
+  // FIX 6: Always fetch ALL tasks (never filter out completed/cancelled from query)
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ['tasks', filterDept, filterMyTasks, filterPriority, showCompleted],
+    queryKey: ['tasks', filterDept, filterMyTasks, filterPriority],
     queryFn: async () => {
       let q = supabase
         .from('tasks')
@@ -98,7 +99,6 @@ export default function TaskBoard() {
       if (filterDept !== 'all') q = q.eq('department_id', filterDept);
       if (filterMyTasks && user) q = q.eq('owner_id', user.id);
       if (filterPriority !== 'all') q = q.eq('priority', filterPriority as TaskPriority);
-      if (!showCompleted) q = q.not('status', 'in', '("completed","cancelled")');
 
       const { data, error } = await q;
       if (error) throw error;
@@ -106,7 +106,6 @@ export default function TaskBoard() {
     },
   });
 
-  // Recently closed tasks
   const { data: recentlyClosed } = useQuery({
     queryKey: ['recently-closed-tasks', filterDept],
     queryFn: async () => {
@@ -125,11 +124,11 @@ export default function TaskBoard() {
   });
 
   const activeTasks = tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || [];
-  const completedTasks = tasks?.filter((t) => t.status === 'completed' || t.status === 'cancelled') || [];
+  const completedTasks = tasks?.filter((t) => t.status === 'completed') || [];
+  const cancelledTasks = tasks?.filter((t) => t.status === 'cancelled') || [];
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-foreground">Task Board</h1>
         <div className="flex items-center gap-2">
@@ -152,7 +151,6 @@ export default function TaskBoard() {
         </div>
       </div>
 
-      {/* Filters */}
       <Collapsible open={showFilters}>
         <CollapsibleContent>
           <Card>
@@ -198,10 +196,16 @@ export default function TaskBoard() {
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : view === 'kanban' && !isMobile ? (
-        /* Kanban View */
-        <div className="grid grid-cols-4 gap-3">
-          {COLUMNS.map((col) => {
-            const colTasks = (col.status === 'completed' ? completedTasks : activeTasks).filter((t) => t.status === col.status);
+        /* FIX 6: Kanban with 5 columns, completed/cancelled controlled by toggle */
+        <div className={cn('grid gap-3', showCompleted ? 'grid-cols-5' : 'grid-cols-3')}>
+          {COLUMNS.filter((col) => {
+            if (!showCompleted && (col.status === 'completed' || col.status === 'cancelled')) return false;
+            return true;
+          }).map((col) => {
+            let colTasks: any[];
+            if (col.status === 'completed') colTasks = completedTasks;
+            else if (col.status === 'cancelled') colTasks = cancelledTasks;
+            else colTasks = activeTasks.filter((t) => t.status === col.status);
             return (
               <div key={col.status} className="space-y-2">
                 <div className="flex items-center justify-between px-1">
@@ -218,7 +222,6 @@ export default function TaskBoard() {
           })}
         </div>
       ) : (
-        /* List View */
         <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="active" className="text-xs">Active ({activeTasks.length})</TabsTrigger>
@@ -245,10 +248,7 @@ export default function TaskBoard() {
         </Tabs>
       )}
 
-      {/* Task Detail Drawer */}
       {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
-
-      {/* Create Task Modal */}
       {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} />}
     </div>
   );
@@ -322,6 +322,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [showDueDateChange, setShowDueDateChange] = useState(false);
   const [newDueDate, setNewDueDate] = useState('');
   const [dueDateReason, setDueDateReason] = useState('');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: freshTask } = useQuery({
     queryKey: ['task-detail', task.id],
@@ -367,7 +368,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       });
       if (logErr) throw logErr;
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       toast({ title: 'Status updated' });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
@@ -375,6 +376,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       queryClient.invalidateQueries({ queryKey: ['recently-closed-tasks'] });
       setResolutionNote('');
       setUpdateNote('');
+      logAudit('tasks', task.id, 'UPDATE', { status: freshTask?.status || task.status }, { status: vars.newStatus });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -397,6 +399,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       setShowDueDateChange(false);
       setNewDueDate('');
       setDueDateReason('');
+      logAudit('tasks', task.id, 'UPDATE', { due_date: freshTask?.due_date || task.due_date }, { due_date: newDueDate });
     },
   });
 
@@ -407,7 +410,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const content = (
     <div className="space-y-6 pb-6">
-      {/* Header */}
       <div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-muted-foreground">#{t.task_number}</span>
@@ -417,7 +419,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         <h2 className="text-base font-bold mt-1">{t.title}</h2>
       </div>
 
-      {/* Meta */}
       <div className="grid grid-cols-2 gap-y-2 text-sm">
         <div><span className="text-muted-foreground text-xs">Department</span><p>{(t as any).dept?.name || '—'}</p></div>
         <div><span className="text-muted-foreground text-xs">Owner</span><p>{(t as any).owner?.full_name || '—'}</p></div>
@@ -430,13 +431,12 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       </div>
 
-      {/* Change Due Date */}
       {!isTerminal && (
         <div>
           <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowDueDateChange(!showDueDateChange)}>Change Due Date</Button>
           {showDueDateChange && (
             <div className="mt-2 space-y-2 border rounded-lg p-3 bg-muted/30">
-              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="h-10" />
+              <Input type="date" min={today} value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="h-10" />
               <Input value={dueDateReason} onChange={(e) => setDueDateReason(e.target.value)} placeholder="Reason for change (required)" className="h-10" />
               <Button size="sm" onClick={() => changeDueDateMutation.mutate()} disabled={!newDueDate || !dueDateReason || changeDueDateMutation.isPending} className="h-9">Update</Button>
             </div>
@@ -444,7 +444,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {/* Description */}
       {t.description && (
         <div>
           <span className="text-muted-foreground text-xs">Description</span>
@@ -452,7 +451,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {/* Status Actions */}
       {!isTerminal && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
@@ -491,7 +489,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {/* Resolution Note (if completed/cancelled) */}
       {isTerminal && t.resolution_note && (
         <div>
           <span className="text-muted-foreground text-xs">Resolution Note</span>
@@ -499,7 +496,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {/* Origin */}
       {(t as any).meeting && (
         <div>
           <span className="text-muted-foreground text-xs">Origin</span>
@@ -507,7 +503,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {/* Status History */}
       <div>
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status History</h3>
         {statusHistory?.length ? (
@@ -532,7 +527,6 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         )}
       </div>
 
-      {/* Complete/Cancel Dialog */}
       <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>{completingAs === 'completed' ? 'Complete Task' : 'Cancel Task'}</DialogTitle></DialogHeader>
@@ -586,6 +580,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
     queryKey: ['departments-create-task'],
@@ -609,7 +604,8 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('tasks').insert({
+      if (dueDate < today) throw new Error('Due date cannot be in the past');
+      const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
         department_id: deptId,
@@ -619,13 +615,15 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         due_date: dueDate,
         origin_type: 'standalone',
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: 'Task created' });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       onOpenChange(false);
+      logAudit('tasks', data.id, 'INSERT', null, { title, origin_type: 'standalone' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -662,7 +660,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Due Date *</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
+            <div><Label>Due Date *</Label><Input type="date" min={today} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
