@@ -20,7 +20,7 @@ const mainItems = [
 ];
 
 const moreItems = [
-  { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: ['super_admin', 'factory_manager'] },
+  { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null },
   { label: 'KPI Master', icon: Settings2, path: '/kpi/master', roles: ['super_admin', 'factory_manager'] },
   { label: 'Templates', icon: Settings2, path: '/meetings/templates', roles: ['super_admin', 'factory_manager'] },
   { label: 'Compliance', icon: ShieldCheck, path: '/compliance', roles: ['super_admin', 'factory_manager'] },

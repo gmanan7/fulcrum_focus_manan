@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils';
 const mainNav = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null },
   { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null },
-  { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: ['super_admin', 'factory_manager'] as const },
+  { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null },
   { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
