@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { format } from 'date-fns';
+import { format, isYesterday, isToday } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,11 +35,21 @@ function ragBadgeStyle(status: RagStatus): React.CSSProperties {
   };
 }
 
+function getKpiSubtitle(date: Date): string {
+  if (isYesterday(date)) return "Showing yesterday's data · T4 reviews cover the previous day";
+  if (isToday(date)) return "⚠ Today's production is ongoing — data may be incomplete";
+  return `Showing data for ${format(date, 'EEEE, dd MMM yyyy')}`;
+}
+
 export default function Dashboard() {
   const { profile } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  });
   const [calOpen, setCalOpen] = useState(false);
   const [detailKpi, setDetailKpi] = useState<any>(null);
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -171,43 +181,56 @@ export default function Dashboard() {
   const isLoading = kpisLoading || entriesLoading;
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Welcome back{profile ? `, ${profile.full_name}` : ''}.
-          </p>
-        </div>
-        <Popover open={calOpen} onOpenChange={setCalOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full sm:w-auto justify-start gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              {format(selectedDate, 'dd MMM yyyy')}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
+  const operationsSection = (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Operations Overview</h2>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>As of today, {format(new Date(), 'dd MMM yyyy')}</span>
       </div>
-
-      {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatTile label="Overdue Tasks" value={overdueTasks ?? '—'} accentColor="var(--rag-red-border)" icon={<AlertTriangle className="h-5 w-5" style={{ color: 'var(--rag-red-border)' }} />} onClick={() => navigate('/tasks')} />
         <StatTile label="Open Tasks" value={openTasks ?? '—'} accentColor="var(--color-primary)" icon={<ListTodo className="h-5 w-5" style={{ color: 'var(--color-primary)' }} />} onClick={() => navigate('/tasks')} />
-        <StatTile label="Red KPIs Today" value={redKpisToday} accentColor="var(--rag-amber-border)" icon={<AlertCircle className="h-5 w-5" style={{ color: 'var(--rag-amber-border)' }} />} onClick={() => navigate('/kpi/entry')} />
+        <StatTile label="Red KPIs" value={redKpisToday} accentColor="var(--rag-amber-border)" icon={<AlertCircle className="h-5 w-5" style={{ color: 'var(--rag-amber-border)' }} />} onClick={() => navigate('/kpi/entry')} />
         <StatTile label="Next Meeting" value={nextMeeting ? format(new Date(nextMeeting.scheduled_date + 'T00:00'), 'dd MMM') : '—'} accentColor="var(--rag-green-border)" icon={<CalendarDays className="h-5 w-5" style={{ color: 'var(--rag-green-border)' }} />} onClick={() => navigate('/meetings')} subtitle={nextMeeting?.title} />
       </div>
+    </section>
+  );
 
-      {/* KPI Status Grid */}
+  const kpiSection = (
+    <section>
+      {/* KPI Section Header */}
+      <div
+        className="rounded-lg px-4 py-3 mb-4"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>KPI Performance</h2>
+            <p className="text-xs mt-0.5" style={{ color: isToday(selectedDate) ? 'var(--rag-amber-border)' : 'var(--text-muted)' }}>
+              {getKpiSubtitle(selectedDate)}
+            </p>
+          </div>
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0 gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {format(selectedDate, 'dd MMM yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
+                disabled={(d) => d >= new Date(new Date().toDateString())}
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {/* KPI Grid */}
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
@@ -322,6 +345,33 @@ export default function Dashboard() {
             );
           })}
         </div>
+      )}
+    </section>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Welcome back{profile ? `, ${profile.full_name}` : ''}.
+        </p>
+      </div>
+
+      {/* Mobile: Operations first, then KPI. Desktop: KPI first, then Operations */}
+      {isMobile ? (
+        <>
+          {operationsSection}
+          <div className="h-px" style={{ background: 'var(--border-card)' }} />
+          {kpiSection}
+        </>
+      ) : (
+        <>
+          {kpiSection}
+          <div className="h-px" style={{ background: 'var(--border-card)' }} />
+          {operationsSection}
+        </>
       )}
 
       {/* Mobile KPI detail sheet */}
