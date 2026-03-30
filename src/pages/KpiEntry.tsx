@@ -593,7 +593,11 @@ function TrackerItemCard({ item, reportingDate, onStatusChange, onDelete }: {
 }
 
 export default function KpiEntry() {
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  });
   const [selectedDept, setSelectedDept] = useState<string>('');
   const { data: departments, isLoading: deptsLoading } = useUserDepartments();
 
@@ -622,10 +626,10 @@ export default function KpiEntry() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
+              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} disabled={(d) => d >= new Date(new Date().toDateString())} className="p-3 pointer-events-auto" />
             </PopoverContent>
           </Popover>
-          <p className="text-xs text-muted-foreground">You can enter or edit data for any past date.</p>
+          <p className="text-xs text-muted-foreground">Reporting date — defaults to yesterday. T4 reviews cover the previous day's performance.</p>
         </div>
 
         <div className="space-y-1">
