@@ -1,23 +1,14 @@
-import { supabase } from '@/integrations/supabase/client';
+// Audit logging is now handled server-side via database triggers.
+// This file is kept for backward compatibility but is a no-op.
 
 type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE';
 
 export async function logAudit(
-  tableName: string,
-  recordId: string,
-  action: AuditAction,
-  oldValues: Record<string, any> | null = null,
-  newValues: Record<string, any> | null = null,
+  _tableName: string,
+  _recordId: string,
+  _action: AuditAction,
+  _oldValues: Record<string, any> | null = null,
+  _newValues: Record<string, any> | null = null,
 ) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-
-  await supabase.from('audit_logs').insert({
-    table_name: tableName,
-    record_id: recordId,
-    action,
-    old_values: oldValues as any,
-    new_values: newValues as any,
-    performed_by: user.id,
-  });
+  // No-op: audit_logs are now populated by PostgreSQL triggers (audit_trigger_fn)
 }
