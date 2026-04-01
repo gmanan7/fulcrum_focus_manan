@@ -94,8 +94,13 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const isLate = reportingDate < today;
+  const diffDays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(reportingDate + 'T00:00:00');
+    return Math.floor((today.getTime() - selected.getTime()) / (1000 * 60 * 60 * 24));
+  }, [reportingDate]);
+  const isLate = diffDays >= 2;
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['kpis-for-entry', departmentId],
@@ -204,7 +209,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
       {isLate && (
         <div className="flex items-center gap-2 rounded-md bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          Entering data for a past date — will be marked as late entry
+          Entering data for {diffDays} days ago — this will be marked as a late entry
         </div>
       )}
 

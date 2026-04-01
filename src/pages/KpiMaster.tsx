@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { logAudit } from '@/lib/auditLog';
 import type { Database } from '@/integrations/supabase/types';
 
 type KpiType = Database['public']['Enums']['kpi_type'];
@@ -111,9 +112,11 @@ function KpiFormDialog({ initial, departments, onClose }: { initial?: KpiForm; d
       if (isEdit) {
         const { error } = await supabase.from('kpi_master').update(payload).eq('id', form.id!);
         if (error) throw error;
+        try { await logAudit('kpi_master', form.id!, 'UPDATE', null, payload); } catch (e) { console.warn('Audit log failed:', e); }
       } else {
-        const { error } = await supabase.from('kpi_master').insert(payload);
+        const { data: inserted, error } = await supabase.from('kpi_master').insert(payload).select('id').single();
         if (error) throw error;
+        try { await logAudit('kpi_master', inserted.id, 'INSERT', null, payload); } catch (e) { console.warn('Audit log failed:', e); }
       }
     },
     onSuccess: () => {
@@ -240,14 +243,16 @@ export default function KpiMaster() {
       if (count && count > 0) {
         const deactivate = confirm('This KPI has entries. Deactivate instead of deleting?');
         if (deactivate) {
-          const { error } = await supabase.from('kpi_master').update({ is_active: false }).eq('id', id);
-          if (error) throw error;
+        const { error } = await supabase.from('kpi_master').update({ is_active: false }).eq('id', id);
+        if (error) throw error;
+        try { await logAudit('kpi_master', id, 'UPDATE', { is_active: true }, { is_active: false }); } catch (e) { console.warn('Audit log failed:', e); }
           return;
         }
         throw new Error('Cannot delete KPI with existing entries');
       }
       const { error } = await supabase.from('kpi_master').delete().eq('id', id);
       if (error) throw error;
+      try { await logAudit('kpi_master', id, 'DELETE', null, null); } catch (e) { console.warn('Audit log failed:', e); }
     },
     onSuccess: () => {
       toast({ title: 'KPI removed' });
