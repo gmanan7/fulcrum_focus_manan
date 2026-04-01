@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { logAudit } from '@/lib/auditLog';
 import type { Database } from '@/integrations/supabase/types';
 
 type KpiType = Database['public']['Enums']['kpi_type'];
