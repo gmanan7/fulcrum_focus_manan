@@ -209,7 +209,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
       {isLate && (
         <div className="flex items-center gap-2 rounded-md bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          Entering data for a past date — will be marked as late entry
+          Entering data for {diffDays} days ago — this will be marked as a late entry
         </div>
       )}
 
