@@ -39,8 +39,18 @@ const ITEM_STATUS_COLORS: Record<ProjectItemStatus, string> = {
   dropped: 'bg-muted text-muted-foreground',
 };
 
-function computeRag(actual: number | null, green: number | null, amber: number | null, direction: KpiDirection): RagStatus | null {
-  if (actual == null || green == null || amber == null) return null;
+function computeRag(actual: number | null, greenRaw: number | null, amberRaw: number | null, direction: KpiDirection, target: number | null = null): RagStatus | null {
+  if (actual == null) return null;
+  // Fallback thresholds when not explicitly set
+  let green = greenRaw;
+  let amber = amberRaw;
+  if (green == null && target != null) green = target;
+  if (amber == null && target != null) {
+    if (direction === 'higher_is_better') amber = target * 0.85;
+    else if (direction === 'lower_is_better') amber = target * 1.15;
+    else amber = target;
+  }
+  if (green == null || amber == null) return null;
   if (direction === 'higher_is_better') {
     if (actual >= green) return 'green';
     if (actual >= amber) return 'amber';
@@ -164,7 +174,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
 
         const actualNum = entry.actual_value ? parseFloat(entry.actual_value) : null;
         const status = kpi.kpi_type === 'numeric'
-          ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction)
+          ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction, kpi.target_value as number | null)
           : null;
 
         return {
@@ -220,7 +230,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
             if (!entry) return null;
             const isNumeric = kpi.kpi_type === 'numeric';
             const actualNum = entry.actual_value ? parseFloat(entry.actual_value) : null;
-            const rag = isNumeric ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction) : null;
+            const rag = isNumeric ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction, kpi.target_value as number | null) : null;
 
             return (
               <Card key={kpi.id}>
@@ -280,7 +290,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
                 if (!entry) return null;
                 const isNumeric = kpi.kpi_type === 'numeric';
                 const actualNum = entry.actual_value ? parseFloat(entry.actual_value) : null;
-                const rag = isNumeric ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction) : null;
+                const rag = isNumeric ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction, kpi.target_value as number | null) : null;
 
                 return (
                   <tr key={kpi.id} className="border-b last:border-0">
