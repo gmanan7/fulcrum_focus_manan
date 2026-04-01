@@ -174,7 +174,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
 
         const actualNum = entry.actual_value ? parseFloat(entry.actual_value) : null;
         const status = kpi.kpi_type === 'numeric'
-          ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction)
+          ? computeRag(actualNum, kpi.green_threshold as number | null, kpi.amber_threshold as number | null, kpi.direction, kpi.target_value as number | null)
           : null;
 
         return {
