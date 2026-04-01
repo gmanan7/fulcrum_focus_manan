@@ -252,6 +252,7 @@ export default function KpiMaster() {
       }
       const { error } = await supabase.from('kpi_master').delete().eq('id', id);
       if (error) throw error;
+      try { await logAudit('kpi_master', id, 'DELETE', null, null); } catch (e) { console.warn('Audit log failed:', e); }
     },
     onSuccess: () => {
       toast({ title: 'KPI removed' });
