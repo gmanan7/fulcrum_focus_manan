@@ -111,9 +111,11 @@ function KpiFormDialog({ initial, departments, onClose }: { initial?: KpiForm; d
       if (isEdit) {
         const { error } = await supabase.from('kpi_master').update(payload).eq('id', form.id!);
         if (error) throw error;
+        try { await logAudit('kpi_master', form.id!, 'UPDATE', null, payload); } catch (e) { console.warn('Audit log failed:', e); }
       } else {
-        const { error } = await supabase.from('kpi_master').insert(payload);
+        const { data: inserted, error } = await supabase.from('kpi_master').insert(payload).select('id').single();
         if (error) throw error;
+        try { await logAudit('kpi_master', inserted.id, 'INSERT', null, payload); } catch (e) { console.warn('Audit log failed:', e); }
       }
     },
     onSuccess: () => {
