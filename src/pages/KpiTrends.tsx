@@ -393,8 +393,9 @@ function KpiChartCard({ kpi, entries }: { kpi: any; entries: any[] }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-[200px]" style={{ background: 'var(--rag-missing-bg)', borderRadius: 8 }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No data for this period</p>
+          <div className="flex flex-col items-center justify-center h-[200px] gap-2" style={{ background: 'var(--rag-missing-bg)', borderRadius: 8 }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No entries for this period</p>
+            <a href={`/kpi/entry?dept=${kpi.department_id}`} className="text-xs font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>Enter KPIs →</a>
           </div>
         )}
 

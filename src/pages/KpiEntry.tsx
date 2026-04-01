@@ -39,8 +39,18 @@ const ITEM_STATUS_COLORS: Record<ProjectItemStatus, string> = {
   dropped: 'bg-muted text-muted-foreground',
 };
 
-function computeRag(actual: number | null, green: number | null, amber: number | null, direction: KpiDirection): RagStatus | null {
-  if (actual == null || green == null || amber == null) return null;
+function computeRag(actual: number | null, greenRaw: number | null, amberRaw: number | null, direction: KpiDirection, target: number | null = null): RagStatus | null {
+  if (actual == null) return null;
+  // Fallback thresholds when not explicitly set
+  let green = greenRaw;
+  let amber = amberRaw;
+  if (green == null && target != null) green = target;
+  if (amber == null && target != null) {
+    if (direction === 'higher_is_better') amber = target * 0.85;
+    else if (direction === 'lower_is_better') amber = target * 1.15;
+    else amber = target;
+  }
+  if (green == null || amber == null) return null;
   if (direction === 'higher_is_better') {
     if (actual >= green) return 'green';
     if (actual >= amber) return 'amber';
