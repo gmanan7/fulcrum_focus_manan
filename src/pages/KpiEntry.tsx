@@ -94,8 +94,13 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const isLate = reportingDate < today;
+  const diffDays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(reportingDate + 'T00:00:00');
+    return Math.floor((today.getTime() - selected.getTime()) / (1000 * 60 * 60 * 24));
+  }, [reportingDate]);
+  const isLate = diffDays >= 2;
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['kpis-for-entry', departmentId],
