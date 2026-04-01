@@ -242,8 +242,9 @@ export default function KpiMaster() {
       if (count && count > 0) {
         const deactivate = confirm('This KPI has entries. Deactivate instead of deleting?');
         if (deactivate) {
-          const { error } = await supabase.from('kpi_master').update({ is_active: false }).eq('id', id);
-          if (error) throw error;
+        const { error } = await supabase.from('kpi_master').update({ is_active: false }).eq('id', id);
+        if (error) throw error;
+        try { await logAudit('kpi_master', id, 'UPDATE', { is_active: true }, { is_active: false }); } catch (e) { console.warn('Audit log failed:', e); }
           return;
         }
         throw new Error('Cannot delete KPI with existing entries');
