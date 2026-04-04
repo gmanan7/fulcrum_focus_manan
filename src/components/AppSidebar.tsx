@@ -3,6 +3,7 @@ import {
   BarChart3,
   Settings2,
   CalendarDays,
+  BookCheck,
   ShieldCheck,
   ListTodo,
   Users,
@@ -43,6 +44,7 @@ import { cn } from '@/lib/utils';
 const mainNav = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null },
   { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null },
+  { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null },
   { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null },
   { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
   { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const },

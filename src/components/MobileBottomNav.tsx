@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
-  LayoutDashboard, BarChart3, CalendarDays, ListTodo, MoreHorizontal,
-  Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp,
+  LayoutDashboard, BarChart3, BookCheck, ListTodo, MoreHorizontal,
+  Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp, CalendarDays,
   LogOut, Sun, Moon, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,11 +15,12 @@ import { cn } from '@/lib/utils';
 const mainItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
-  { label: 'Meetings', icon: CalendarDays, path: '/meetings' },
+  { label: 'My Planner', icon: BookCheck, path: '/planner' },
   { label: 'Tasks', icon: ListTodo, path: '/tasks' },
 ];
 
 const moreItems = [
+  { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: ['super_admin', 'factory_manager'] },
   { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null },
   { label: 'KPI Master', icon: Settings2, path: '/kpi/master', roles: ['super_admin', 'factory_manager'] },
   { label: 'Templates', icon: Settings2, path: '/meetings/templates', roles: ['super_admin', 'factory_manager'] },
