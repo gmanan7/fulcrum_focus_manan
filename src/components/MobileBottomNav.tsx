@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
-  LayoutDashboard, BarChart3, CalendarDays, ListTodo, MoreHorizontal,
+  LayoutDashboard, BarChart3, BookCheck, ListTodo, MoreHorizontal,
   Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp,
   LogOut, Sun, Moon, Sparkles,
 } from 'lucide-react';
