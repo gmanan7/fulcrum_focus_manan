@@ -19,6 +19,7 @@ import MeetingWorkspace from "@/pages/MeetingWorkspace";
 import MeetingTemplates from "@/pages/MeetingTemplates";
 import TaskBoard from "@/pages/TaskBoard";
 import Compliance from "@/pages/Compliance";
+import Planner from "@/pages/Planner";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
