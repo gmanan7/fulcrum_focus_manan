@@ -43,6 +43,7 @@ const App = () => (
             >
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/kpi/entry" element={<KpiEntry />} />
+              <Route path="/planner" element={<Planner />} />
               <Route path="/kpi/master" element={<KpiMaster />} />
               <Route path="/kpi/trends" element={<KpiTrends />} />
               <Route path="/meetings" element={<Meetings />} />

@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 const mainItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
-  { label: 'Meetings', icon: CalendarDays, path: '/meetings' },
+  { label: 'My Planner', icon: BookCheck, path: '/planner' },
   { label: 'Tasks', icon: ListTodo, path: '/tasks' },
 ];
 
