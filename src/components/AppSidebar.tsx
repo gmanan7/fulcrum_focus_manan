@@ -3,6 +3,7 @@ import {
   BarChart3,
   Settings2,
   CalendarDays,
+  BookCheck,
   ShieldCheck,
   ListTodo,
   Users,
