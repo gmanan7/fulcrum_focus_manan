@@ -1111,6 +1111,7 @@ export type Database = {
         | "factory_manager"
         | "department_head"
         | "team_member"
+        | "shop_floor"
       attendance_status: "present" | "absent" | "excused"
       audit_action: "INSERT" | "UPDATE" | "DELETE"
       kpi_direction: "higher_is_better" | "lower_is_better" | "target_is_exact"
@@ -1259,6 +1260,7 @@ export const Constants = {
         "factory_manager",
         "department_head",
         "team_member",
+        "shop_floor",
       ],
       attendance_status: ["present", "absent", "excused"],
       audit_action: ["INSERT", "UPDATE", "DELETE"],
