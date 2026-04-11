@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
-import { format, differenceInSeconds } from 'date-fns';
+import { format, differenceInSeconds, parseISO } from 'date-fns';
 import { getMeetingKpiReportingDate } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
