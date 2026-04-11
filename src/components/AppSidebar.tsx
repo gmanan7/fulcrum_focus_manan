@@ -88,7 +88,7 @@ export function AppSidebar() {
     }
   );
 
-  const showAdmin = hasRole('super_admin');
+  const showAdmin = hasRole('super_admin') && !isShopFloorOnly;
   const primaryRole = roles[0];
 
   return (

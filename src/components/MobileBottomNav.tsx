@@ -35,6 +35,7 @@ const roleLabels: Record<string, string> = {
   factory_manager: 'Manager',
   department_head: 'Dept Head',
   team_member: 'Member',
+  shop_floor: 'Shop Floor',
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -50,10 +51,19 @@ export function MobileBottomNav() {
   const { theme, setTheme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
 
+  const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
+
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const visibleMore = moreItems.filter((item) => !item.roles || hasAnyRole(...(item.roles as any)));
+  const visibleMore = isShopFloorOnly ? [] : moreItems.filter((item) => !item.roles || hasAnyRole(...(item.roles as any)));
   const primaryRole = roles[0];
+
+  const bottomItems = isShopFloorOnly
+    ? [
+        { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
+        { label: 'My Planner', icon: BookCheck, path: '/planner' },
+      ]
+    : mainItems;
 
   return (
     <>
@@ -62,7 +72,7 @@ export function MobileBottomNav() {
         style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-card)' }}
       >
         <div className="flex items-stretch justify-around">
-          {mainItems.map((item) => (
+          {bottomItems.map((item) => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
@@ -75,14 +85,16 @@ export function MobileBottomNav() {
               <span>{item.label}</span>
             </button>
           ))}
-          <button
-            onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"
-            style={{ color: moreOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
-          >
-            <MoreHorizontal className="h-5 w-5" />
-            <span>More</span>
-          </button>
+          {!isShopFloorOnly && (
+            <button
+              onClick={() => setMoreOpen(true)}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"
+              style={{ color: moreOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+              <span>More</span>
+            </button>
+          )}
         </div>
       </nav>
 
