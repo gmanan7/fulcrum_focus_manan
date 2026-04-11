@@ -17,6 +17,7 @@ import KpiTrends from "@/pages/KpiTrends";
 import Meetings from "@/pages/Meetings";
 import MeetingWorkspace from "@/pages/MeetingWorkspace";
 import MeetingTemplates from "@/pages/MeetingTemplates";
+import DecisionLog from "@/pages/DecisionLog";
 import TaskBoard from "@/pages/TaskBoard";
 import Compliance from "@/pages/Compliance";
 import Planner from "@/pages/Planner";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/meetings/:id/workspace" element={<MeetingWorkspace />} />
               <Route path="/meetings/templates" element={<MeetingTemplates />} />
+              <Route path="/meetings/decisions" element={<DecisionLog />} />
               <Route path="/tasks" element={<TaskBoard />} />
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
