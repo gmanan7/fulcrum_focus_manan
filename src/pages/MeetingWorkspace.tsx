@@ -252,6 +252,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskKpiEntry, setTaskKpiEntry] = useState<any>(null);
   const [taskKpi, setTaskKpi] = useState<any>(null);
+  const kpiDate = getMeetingKpiReportingDate(meeting.scheduled_date);
 
   const { data: departments } = useQuery({
     queryKey: ['all-departments'],
@@ -270,15 +271,15 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   });
 
   const { data: entries } = useQuery({
-    queryKey: ['kpi-entries-snapshot', meeting.scheduled_date],
+    queryKey: ['kpi-entries-snapshot', kpiDate],
     queryFn: async () => {
-      const { data } = await supabase.from('kpi_entries').select('*').eq('reporting_date', meeting.scheduled_date);
+      const { data } = await supabase.from('kpi_entries').select('*').eq('reporting_date', kpiDate);
       return data || [];
     },
   });
 
   const { data: tasks } = useQuery({
-    queryKey: ['kpi-tasks-snapshot', meeting.scheduled_date],
+    queryKey: ['kpi-tasks-snapshot', kpiDate],
     queryFn: async () => {
       const entryIds = entries?.map((e) => e.id) || [];
       if (!entryIds.length) return [];
