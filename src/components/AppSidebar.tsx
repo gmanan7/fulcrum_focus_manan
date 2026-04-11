@@ -42,15 +42,15 @@ import {
 import { cn } from '@/lib/utils';
 
 const mainNav = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null },
-  { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null },
-  { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null },
-  { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null },
-  { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
-  { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const },
-  { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const },
-  { title: 'Compliance', url: '/compliance', icon: ShieldCheck, roles: ['super_admin', 'factory_manager'] as const },
-  { title: 'Task Board', url: '/tasks', icon: ListTodo, roles: null },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null, hideForShopFloor: true },
+  { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null, hideForShopFloor: false },
+  { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null, hideForShopFloor: false },
+  { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null, hideForShopFloor: true },
+  { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
+  { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
+  { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
+  { title: 'Compliance', url: '/compliance', icon: ShieldCheck, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
+  { title: 'Task Board', url: '/tasks', icon: ListTodo, roles: null, hideForShopFloor: true },
 ];
 
 const adminNav = [
@@ -64,6 +64,7 @@ const roleLabels: Record<string, string> = {
   factory_manager: 'Manager',
   department_head: 'Dept Head',
   team_member: 'Member',
+  shop_floor: 'Shop Floor',
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -79,8 +80,12 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const isVibrant = theme === 'vibrant';
 
+  const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   const visibleMain = mainNav.filter(
-    (item) => !item.roles || hasAnyRole(...(item.roles as any))
+    (item) => {
+      if (isShopFloorOnly && item.hideForShopFloor) return false;
+      return !item.roles || hasAnyRole(...(item.roles as any));
+    }
   );
 
   const showAdmin = hasRole('super_admin');

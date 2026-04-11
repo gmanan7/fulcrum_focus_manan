@@ -11,7 +11,7 @@ const BodySchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
   full_name: z.string().min(1).max(255),
-  role: z.enum(["super_admin", "factory_manager", "department_head", "team_member"]),
+  role: z.enum(["super_admin", "factory_manager", "department_head", "team_member", "shop_floor"]),
   department_ids: z.array(z.string().uuid()).min(0),
   employee_id: z.string().max(50).optional(),
   designation: z.string().max(255).optional(),
