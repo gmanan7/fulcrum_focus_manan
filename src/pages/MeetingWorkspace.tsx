@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
-import { format, differenceInSeconds } from 'date-fns';
+import { format, differenceInSeconds, parseISO } from 'date-fns';
+import { getMeetingKpiReportingDate } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,10 +91,11 @@ export default function MeetingWorkspace() {
   });
 
   const handleEnd = async () => {
+    const kpiDate = getMeetingKpiReportingDate(meeting!.scheduled_date);
     const { data: redEntries } = await supabase
       .from('kpi_entries')
       .select('id, kpi_id')
-      .eq('reporting_date', meeting!.scheduled_date)
+      .eq('reporting_date', kpiDate)
       .eq('computed_status', 'red');
 
     if (redEntries?.length) {
@@ -250,6 +252,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskKpiEntry, setTaskKpiEntry] = useState<any>(null);
   const [taskKpi, setTaskKpi] = useState<any>(null);
+  const kpiDate = getMeetingKpiReportingDate(meeting.scheduled_date);
 
   const { data: departments } = useQuery({
     queryKey: ['all-departments'],
@@ -268,15 +271,15 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   });
 
   const { data: entries } = useQuery({
-    queryKey: ['kpi-entries-snapshot', meeting.scheduled_date],
+    queryKey: ['kpi-entries-snapshot', kpiDate],
     queryFn: async () => {
-      const { data } = await supabase.from('kpi_entries').select('*').eq('reporting_date', meeting.scheduled_date);
+      const { data } = await supabase.from('kpi_entries').select('*').eq('reporting_date', kpiDate);
       return data || [];
     },
   });
 
   const { data: tasks } = useQuery({
-    queryKey: ['kpi-tasks-snapshot', meeting.scheduled_date],
+    queryKey: ['kpi-tasks-snapshot', kpiDate],
     queryFn: async () => {
       const entryIds = entries?.map((e) => e.id) || [];
       if (!entryIds.length) return [];
@@ -296,8 +299,18 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   if (!departments || !kpis) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
+  
+
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-foreground">
+          KPI Performance — {format(new Date(kpiDate + 'T00:00:00'), 'dd MMM yyyy')}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Showing previous day's data · T4 reviews cover the day before the meeting date
+        </p>
+      </div>
       {departments.map((dept) => {
         const deptKpis = kpis.filter((k) => k.department_id === dept.id);
         if (!deptKpis.length) return null;

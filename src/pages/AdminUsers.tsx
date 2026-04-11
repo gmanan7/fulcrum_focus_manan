@@ -25,6 +25,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   factory_manager: 'Factory Manager',
   department_head: 'Dept Head',
   team_member: 'Team Member',
+  shop_floor: 'Shop Floor',
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -32,6 +33,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   factory_manager: 'bg-primary/10 text-primary',
   department_head: 'bg-warning/10 text-warning',
   team_member: 'bg-muted text-muted-foreground',
+  shop_floor: 'bg-teal-100 text-teal-700',
 };
 
 interface UserRow {
