@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInSeconds } from 'date-fns';
+import { getMeetingKpiReportingDate } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,10 +91,11 @@ export default function MeetingWorkspace() {
   });
 
   const handleEnd = async () => {
+    const kpiDate = getMeetingKpiReportingDate(meeting!.scheduled_date);
     const { data: redEntries } = await supabase
       .from('kpi_entries')
       .select('id, kpi_id')
-      .eq('reporting_date', meeting!.scheduled_date)
+      .eq('reporting_date', kpiDate)
       .eq('computed_status', 'red');
 
     if (redEntries?.length) {
