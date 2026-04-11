@@ -20,6 +20,7 @@ import MeetingTemplates from "@/pages/MeetingTemplates";
 import TaskBoard from "@/pages/TaskBoard";
 import Compliance from "@/pages/Compliance";
 import Planner from "@/pages/Planner";
+import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
