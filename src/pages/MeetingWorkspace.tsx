@@ -299,7 +299,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   if (!departments || !kpis) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  const { parseISO: pi } = require('date-fns');
+  
 
   return (
     <div className="space-y-6">
