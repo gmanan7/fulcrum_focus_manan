@@ -299,8 +299,18 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   if (!departments || !kpis) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
+  const { parseISO: pi } = require('date-fns');
+
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-foreground">
+          KPI Performance — {format(new Date(kpiDate + 'T00:00:00'), 'dd MMM yyyy')}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Showing previous day's data · T4 reviews cover the day before the meeting date
+        </p>
+      </div>
       {departments.map((dept) => {
         const deptKpis = kpis.filter((k) => k.department_id === dept.id);
         if (!deptKpis.length) return null;
