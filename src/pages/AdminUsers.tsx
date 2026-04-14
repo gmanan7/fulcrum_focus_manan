@@ -410,12 +410,13 @@ function ResetPasswordDialog({ user, onClose }: { user: UserRow; onClose: () => 
 }
 
 /* ─── User Card (mobile) ─── */
-function UserCard({ user, currentUserId, onDeactivate, onReactivate, onEdit }: {
+function UserCard({ user, currentUserId, onDeactivate, onReactivate, onEdit, onResetPassword }: {
   user: UserRow;
   currentUserId: string;
   onDeactivate: (id: string) => void;
   onReactivate: (id: string) => void;
   onEdit: (u: UserRow) => void;
+  onResetPassword: (u: UserRow) => void;
 }) {
   const isSelf = user.id === currentUserId;
   return (
@@ -437,8 +438,8 @@ function UserCard({ user, currentUserId, onDeactivate, onReactivate, onEdit }: {
           <p className="text-xs text-muted-foreground">{user.departments.map((d) => d.name).join(', ')}</p>
         )}
         <div className="flex gap-2 pt-1">
-          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" disabled>
-            <RotateCcw className="h-3 w-3" /> Reset PW
+          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => onResetPassword(user)}>
+            <KeyRound className="h-3 w-3" /> Reset PW
           </Button>
           {user.is_active && (
             <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => onEdit(user)}>
@@ -527,6 +528,7 @@ export default function AdminUsers() {
               onDeactivate={(id) => deactivateMutation.mutate(id)}
               onReactivate={(id) => reactivateMutation.mutate(id)}
               onEdit={(u) => setEditingUser(u)}
+              onResetPassword={(u) => setResetPwUser(u)}
             />
           ))}
           {users?.length === 0 && <p className="text-center text-muted-foreground py-8">No users found</p>}
@@ -564,7 +566,7 @@ export default function AdminUsers() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Reset Password" disabled><RotateCcw className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" title="Reset Password" onClick={() => setResetPwUser(u)}><KeyRound className="h-4 w-4" /></Button>
                       {u.is_active && (
                         <Button variant="ghost" size="icon" title="Edit" onClick={() => setEditingUser(u)}><Pencil className="h-4 w-4" /></Button>
                       )}
@@ -602,6 +604,7 @@ export default function AdminUsers() {
       )}
 
       {editingUser && <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />}
+      {resetPwUser && <ResetPasswordDialog user={resetPwUser} onClose={() => setResetPwUser(null)} />}
     </div>
   );
 }
