@@ -356,6 +356,18 @@ export default function Dashboard() {
         </Card>
       ) : (
         <div className="space-y-4">
+          {/* Column header row */}
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider font-semibold"
+            style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border-card)' }}
+          >
+            <div className="flex-1 min-w-0">KPI Name</div>
+            <span className="hidden sm:inline w-12 text-right">Target</span>
+            <span className="w-16 text-right">Yesterday</span>
+            <span className="hidden sm:inline w-16 text-right">MTD</span>
+            <span className="w-16 text-center">Status</span>
+            <span className="w-4" />
+          </div>
           {grouped.map(({ dept, kpis: deptKpis }) => {
             const deptEntries = deptKpis.map((k) => ({ kpi: k, entry: entryMap[k.id] }));
             const redCount = deptEntries.filter((d) => d.entry?.computed_status === 'red').length;
@@ -382,8 +394,14 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     {isCollapsed ? (
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        {summary.total} KPIs{summary.red > 0 && <> · <span style={{ color: 'var(--rag-red-border)' }}>🔴{summary.red}</span></>}{summary.amber > 0 && <> · <span style={{ color: 'var(--rag-amber-border)' }}>🟡{summary.amber}</span></>}{summary.green > 0 && <> · <span style={{ color: 'var(--rag-green-border)' }}>🟢{summary.green}</span></>}
+                      <span className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        {summary.total} KPIs
+                        {summary.red > 0 && <><span style={{ color: 'var(--rag-red-border)' }}>🔴 {summary.red}</span></>}
+                        {summary.amber > 0 && <><span style={{ color: 'var(--rag-amber-border)' }}>🟡 {summary.amber}</span></>}
+                        {summary.green > 0 && <><span style={{ color: 'var(--rag-green-border)' }}>🟢 {summary.green}</span></>}
+                        {summary.red === 0 && summary.amber === 0 && summary.green === 0 && summary.total > 0 && (
+                          <span style={{ color: 'var(--text-muted)' }}>— {summary.total} no data</span>
+                        )}
                       </span>
                     ) : (
                       <>
@@ -437,11 +455,12 @@ export default function Dashboard() {
                             </span>
                           ) : (
                             <>
-                              <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>T: {kpi.target_value ?? '—'}</span>
+                              <span className="text-xs hidden sm:inline w-12 text-right" style={{ color: 'var(--text-muted)' }}>{kpi.target_value ?? '—'}</span>
                               <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{entry?.actual_value ?? '—'}</span>
                               <span className="text-xs hidden sm:inline w-16 text-right" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : 'var(--text-muted)' }}>
                                 {mtdVal !== null ? (Number.isInteger(mtdVal) ? mtdVal : mtdVal.toFixed(1)) : '—'}
                               </span>
+                              <span className="w-16 flex justify-center">
                               {status ? (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={ragBadgeStyle(status)}>
                                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -449,6 +468,7 @@ export default function Dashboard() {
                               ) : (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)', border: '1px solid var(--border-card)' }}>Missing</Badge>
                               )}
+                              </span>
                             </>
                           )}
                           {hasNoAction && (
