@@ -467,6 +467,7 @@ export default function AdminUsers() {
   const { user: currentUser } = useAuth();
   const [showInactive, setShowInactive] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [resetPwUser, setResetPwUser] = useState<UserRow | null>(null);
   const { data: users, isLoading } = useUsers(showInactive);
 
   const deactivateMutation = useMutation({
