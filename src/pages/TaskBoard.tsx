@@ -230,6 +230,7 @@ export default function TaskBoard() {
         </button>
       </div>
 
+      {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : view === 'kanban' && !isMobile ? (
         /* FIX 6: Kanban with 5 columns, completed/cancelled controlled by toggle */
