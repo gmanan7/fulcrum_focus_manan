@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { format, differenceInSeconds, parseISO } from 'date-fns';
 import { getMeetingKpiReportingDate } from '@/lib/utils';
 import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { buildSnapshotCollapseSummary, getMeetingSnapshotCollapseKey, setAllCollapseStates } from '@/lib/dashboardUtils';
 import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Info, CheckCircle2 } from 'lucide-react';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -258,6 +259,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
     if (typeof window !== 'undefined') return localStorage.getItem('fulcrum-meeting-oot-filter') === 'true';
     return false;
   });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const kpiDate = getMeetingKpiReportingDate(meeting.scheduled_date);
 
   const { data: departments } = useQuery({
@@ -320,6 +322,39 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   const linkedEntryIds = new Set(tasks?.map((t) => t.origin_kpi_entry_id));
 
+  // Initialize collapse state from localStorage once departments load
+  useEffect(() => {
+    if (!departments?.length) return;
+    const initial: Record<string, boolean> = {};
+    departments.forEach((d) => {
+      const stored = localStorage.getItem(getMeetingSnapshotCollapseKey(d.code));
+      initial[d.code] = stored === 'true';
+    });
+    setCollapsed(initial);
+  }, [departments]);
+
+  const toggleDept = (code: string) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [code]: !prev[code] };
+      localStorage.setItem(getMeetingSnapshotCollapseKey(code), String(next[code]));
+      return next;
+    });
+  };
+
+  const collapseAll = () => {
+    if (!departments) return;
+    const codes = departments.map((d) => d.code);
+    const result = setAllCollapseStates(codes, true, getMeetingSnapshotCollapseKey);
+    setCollapsed(result);
+  };
+
+  const expandAll = () => {
+    if (!departments) return;
+    const codes = departments.map((d) => d.code);
+    const result = setAllCollapseStates(codes, false, getMeetingSnapshotCollapseKey);
+    setCollapsed(result);
+  };
+
   const openCreateTask = (entry: any, kpi: any) => {
     setTaskKpiEntry(entry);
     setTaskKpi(kpi);
@@ -346,9 +381,16 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
             Showing previous day's data · T4 reviews cover the day before the meeting date
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <label htmlFor="oot-toggle" className="text-xs text-muted-foreground cursor-pointer select-none">Out-of-target only</label>
-          <Switch id="oot-toggle" checked={ootFilter} onCheckedChange={toggleOot} />
+        <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+          <div className="flex items-center gap-1">
+            <button onClick={collapseAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Collapse All</button>
+            <span className="text-xs text-muted-foreground">·</span>
+            <button onClick={expandAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Expand All</button>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="oot-toggle" className="text-xs text-muted-foreground cursor-pointer select-none">Out-of-target only</label>
+            <Switch id="oot-toggle" checked={ootFilter} onCheckedChange={toggleOot} />
+          </div>
         </div>
       </div>
       {ootFilter && !hasAnyOot ? (
@@ -365,63 +407,94 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
             })
           : deptKpis;
         if (!filteredKpis.length) return null;
+
+        const isCollapsed = collapsed[dept.code] ?? false;
+        const statuses = filteredKpis.map((kpi) => {
+          const entry = entries?.find((e) => e.kpi_id === kpi.id);
+          return entry?.computed_status ?? null;
+        });
+        const summary = buildSnapshotCollapseSummary(statuses);
+
         return (
           <div key={dept.id}>
-            <h3 className="text-sm font-semibold text-foreground mb-2">{dept.name}</h3>
-            <div className="space-y-2">
-              {filteredKpis.map((kpi) => {
-                const entry = entries?.find((e) => e.kpi_id === kpi.id);
-                const isRed = entry?.computed_status === 'red';
-                const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
-                const isNumeric = kpi.kpi_type === 'numeric';
-                const mtdVal = isNumeric ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
-                const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
-                const targetDisplay = isNumeric ? (kpi.target_value != null ? `${kpi.target_value}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
-                const mtdDisplay = mtdVal !== null ? (Number.isInteger(mtdVal) ? String(mtdVal) : mtdVal.toFixed(1)) : '—';
-                return (
-                  <Card key={kpi.id} className={cn(isRed && !hasTask && 'border-destructive/50')}>
-                    <CardContent className="p-3 flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{kpi.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {isNumeric && <span className="text-xs text-muted-foreground">Target: {targetDisplay}</span>}
-                          {entry ? (
+            <button
+              onClick={() => toggleDept(dept.code)}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50 transition-colors group"
+            >
+              <h3 className="text-sm font-semibold text-foreground">{dept.name}</h3>
+              <div className="flex items-center gap-2">
+                {isCollapsed && (
+                  <span className="flex items-center gap-1.5 text-xs">
+                    {summary.red === 0 && summary.amber === 0 && summary.green === 0 ? (
+                      <span className="text-muted-foreground">— {summary.total} KPIs</span>
+                    ) : (
+                      <>
+                        {summary.red > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-red" />{summary.red}</span>}
+                        {summary.amber > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-amber" />{summary.amber}</span>}
+                        {summary.green > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-green" />{summary.green}</span>}
+                      </>
+                    )}
+                  </span>
+                )}
+                {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </button>
+            {!isCollapsed && (
+              <div className="space-y-2 mt-1">
+                {filteredKpis.map((kpi) => {
+                  const entry = entries?.find((e) => e.kpi_id === kpi.id);
+                  const isRed = entry?.computed_status === 'red';
+                  const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
+                  const isNumeric = kpi.kpi_type === 'numeric';
+                  const mtdVal = isNumeric ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                  const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
+                  const targetDisplay = isNumeric ? (kpi.target_value != null ? `${kpi.target_value}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
+                  const mtdDisplay = mtdVal !== null ? (Number.isInteger(mtdVal) ? String(mtdVal) : mtdVal.toFixed(1)) : '—';
+                  return (
+                    <Card key={kpi.id} className={cn(isRed && !hasTask && 'border-destructive/50')}>
+                      <CardContent className="p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{kpi.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {isNumeric && <span className="text-xs text-muted-foreground">Target: {targetDisplay}</span>}
+                            {entry ? (
+                              <>
+                                <span className="text-xs">Actual: {entry.actual_value ?? entry.text_value ?? '—'}</span>
+                                {isNumeric && (
+                                  <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
+                                    MTD: {mtdDisplay}
+                                  </span>
+                                )}
+                                {entry.computed_status && <Badge className={cn('text-[10px]', RAG_COLORS[entry.computed_status as RagStatus])}>{entry.computed_status.toUpperCase()}</Badge>}
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs text-muted-foreground italic">Not Submitted</span>
+                                {isNumeric && mtdVal !== null && (
+                                  <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
+                                    MTD: {mtdDisplay}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isRed && !hasTask && (
                             <>
-                              <span className="text-xs">Actual: {entry.actual_value ?? entry.text_value ?? '—'}</span>
-                              {isNumeric && (
-                                <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
-                                  MTD: {mtdDisplay}
-                                </span>
-                              )}
-                              {entry.computed_status && <Badge className={cn('text-[10px]', RAG_COLORS[entry.computed_status as RagStatus])}>{entry.computed_status.toUpperCase()}</Badge>}
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-xs text-muted-foreground italic">Not Submitted</span>
-                              {isNumeric && mtdVal !== null && (
-                                <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
-                                  MTD: {mtdDisplay}
-                                </span>
-                              )}
+                              <Badge variant="destructive" className="text-[10px]">⚠ No Action</Badge>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openCreateTask(entry, kpi)}>
+                                <Plus className="h-3 w-3 mr-1" />Task
+                              </Button>
                             </>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {isRed && !hasTask && (
-                          <>
-                            <Badge variant="destructive" className="text-[10px]">⚠ No Action</Badge>
-                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openCreateTask(entry, kpi)}>
-                              <Plus className="h-3 w-3 mr-1" />Task
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
