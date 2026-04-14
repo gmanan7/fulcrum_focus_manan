@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
+import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
 
 type RagStatus = 'red' | 'amber' | 'green';
 
