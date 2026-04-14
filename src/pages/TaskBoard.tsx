@@ -205,7 +205,31 @@ export default function TaskBoard() {
         </CollapsibleContent>
       </Collapsible>
 
-      {isLoading ? (
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setChipOverdue(!chipOverdue)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipOverdue
+              ? 'bg-destructive text-destructive-foreground border-destructive'
+              : 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+          )}
+        >
+          <AlertTriangle className="h-3 w-3" /> Overdue ({overdueCount})
+        </button>
+        <button
+          onClick={() => setChipDueToday(!chipDueToday)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipDueToday
+              ? 'bg-rag-amber text-white border-rag-amber'
+              : 'bg-rag-amber/10 text-warning border-rag-amber/30 hover:bg-rag-amber/20'
+          )}
+        >
+          <Clock className="h-3 w-3" /> Due Today ({dueTodayCount})
+        </button>
+      </div>
+
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : view === 'kanban' && !isMobile ? (
         /* FIX 6: Kanban with 5 columns, completed/cancelled controlled by toggle */
