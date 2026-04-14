@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -278,6 +278,29 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
       return data || [];
     },
   });
+
+  const mtdRange = useMemo(() => getMtdDateRange(kpiDate), [kpiDate]);
+
+  const { data: mtdEntries } = useQuery({
+    queryKey: ['kpi-mtd-snapshot', mtdRange.from, mtdRange.to],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('kpi_entries')
+        .select('kpi_id, actual_value')
+        .gte('reporting_date', mtdRange.from)
+        .lte('reporting_date', mtdRange.to);
+      return data || [];
+    },
+  });
+
+  const mtdByKpi = useMemo(() => {
+    const m: Record<string, { actual_value: number | null }[]> = {};
+    mtdEntries?.forEach((e) => {
+      if (!m[e.kpi_id]) m[e.kpi_id] = [];
+      m[e.kpi_id].push({ actual_value: e.actual_value });
+    });
+    return m;
+  }, [mtdEntries]);
 
   const { data: tasks } = useQuery({
     queryKey: ['kpi-tasks-snapshot', kpiDate],
