@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -66,6 +66,8 @@ export default function TaskBoard() {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [showCompleted, setShowCompleted] = useState(true); // FIX 6: default visible
   const [activeListTab, setActiveListTab] = useState<'active' | 'recent'>('active');
+  const [chipOverdue, setChipOverdue] = useState(false);
+  const [chipDueToday, setChipDueToday] = useState(false);
 
   useEffect(() => {
     const markCarryover = async () => {
