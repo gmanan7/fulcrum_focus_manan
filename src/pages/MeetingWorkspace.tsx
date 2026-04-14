@@ -500,7 +500,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                 })}
               </div>
             )}
-          </div>
+          </Card>
         );
       })}
 
