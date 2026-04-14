@@ -52,6 +52,15 @@ export function isTaskDueToday(task: { due_date: string; status: string }): bool
   return due.getTime() === today.getTime();
 }
 
+/**
+ * Validates reset password inputs. Returns error string or null if valid.
+ */
+export function validateResetPassword(password: string, confirmPassword: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (password !== confirmPassword) return 'Passwords do not match';
+  return null;
+}
+
 export function getDecisionTaskStatus(linkedTask: {
   status: string;
   due_date: string;
