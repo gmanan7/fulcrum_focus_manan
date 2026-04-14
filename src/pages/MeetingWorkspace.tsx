@@ -19,7 +19,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Info, CheckCircle2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -253,6 +254,10 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskKpiEntry, setTaskKpiEntry] = useState<any>(null);
   const [taskKpi, setTaskKpi] = useState<any>(null);
+  const [ootFilter, setOotFilter] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('fulcrum-meeting-oot-filter') === 'true';
+    return false;
+  });
   const kpiDate = getMeetingKpiReportingDate(meeting.scheduled_date);
 
   const { data: departments } = useQuery({
@@ -323,26 +328,48 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   if (!departments || !kpis) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  
+  const toggleOot = (val: boolean) => {
+    setOotFilter(val);
+    localStorage.setItem('fulcrum-meeting-oot-filter', String(val));
+  };
+
+  const hasAnyOot = entries?.some((e) => e.computed_status === 'red' || e.computed_status === 'amber') ?? false;
 
   return (
     <div className="space-y-6">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-foreground">
-          KPI Performance — {format(new Date(kpiDate + 'T00:00:00'), 'dd MMM yyyy')}
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Showing previous day's data · T4 reviews cover the day before the meeting date
-        </p>
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            KPI Performance — {format(new Date(kpiDate + 'T00:00:00'), 'dd MMM yyyy')}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Showing previous day's data · T4 reviews cover the day before the meeting date
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <label htmlFor="oot-toggle" className="text-xs text-muted-foreground cursor-pointer select-none">Out-of-target only</label>
+          <Switch id="oot-toggle" checked={ootFilter} onCheckedChange={toggleOot} />
+        </div>
       </div>
-      {departments.map((dept) => {
+      {ootFilter && !hasAnyOot ? (
+        <div className="flex items-center justify-center gap-2 py-8">
+          <CheckCircle2 className="h-5 w-5" style={{ color: 'var(--rag-green-border)' }} />
+          <span className="text-sm font-medium" style={{ color: 'var(--rag-green-border)' }}>All KPIs are on target ✓</span>
+        </div>
+      ) : departments.map((dept) => {
         const deptKpis = kpis.filter((k) => k.department_id === dept.id);
-        if (!deptKpis.length) return null;
+        const filteredKpis = ootFilter
+          ? deptKpis.filter((kpi) => {
+              const entry = entries?.find((e) => e.kpi_id === kpi.id);
+              return entry?.computed_status === 'red' || entry?.computed_status === 'amber';
+            })
+          : deptKpis;
+        if (!filteredKpis.length) return null;
         return (
           <div key={dept.id}>
             <h3 className="text-sm font-semibold text-foreground mb-2">{dept.name}</h3>
             <div className="space-y-2">
-              {deptKpis.map((kpi) => {
+              {filteredKpis.map((kpi) => {
                 const entry = entries?.find((e) => e.kpi_id === kpi.id);
                 const isRed = entry?.computed_status === 'red';
                 const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
