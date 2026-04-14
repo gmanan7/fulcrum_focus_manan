@@ -254,6 +254,10 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskKpiEntry, setTaskKpiEntry] = useState<any>(null);
   const [taskKpi, setTaskKpi] = useState<any>(null);
+  const [ootFilter, setOotFilter] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('fulcrum-meeting-oot-filter') === 'true';
+    return false;
+  });
   const kpiDate = getMeetingKpiReportingDate(meeting.scheduled_date);
 
   const { data: departments } = useQuery({
