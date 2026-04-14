@@ -455,11 +455,12 @@ export default function Dashboard() {
                             </span>
                           ) : (
                             <>
-                              <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>T: {kpi.target_value ?? '—'}</span>
+                              <span className="text-xs hidden sm:inline w-12 text-right" style={{ color: 'var(--text-muted)' }}>{kpi.target_value ?? '—'}</span>
                               <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{entry?.actual_value ?? '—'}</span>
                               <span className="text-xs hidden sm:inline w-16 text-right" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : 'var(--text-muted)' }}>
                                 {mtdVal !== null ? (Number.isInteger(mtdVal) ? mtdVal : mtdVal.toFixed(1)) : '—'}
                               </span>
+                              <span className="w-16 flex justify-center">
                               {status ? (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={ragBadgeStyle(status)}>
                                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -467,6 +468,7 @@ export default function Dashboard() {
                               ) : (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)', border: '1px solid var(--border-card)' }}>Missing</Badge>
                               )}
+                              </span>
                             </>
                           )}
                           {hasNoAction && (
