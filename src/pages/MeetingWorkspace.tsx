@@ -7,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInSeconds, parseISO } from 'date-fns';
 import { getMeetingKpiReportingDate } from '@/lib/utils';
+import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
 import { logAudit } from '@/lib/auditLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
