@@ -407,6 +407,8 @@ export default function Dashboard() {
                     const completedItems = items.filter((i) => i.status === 'completed').length;
                     const hasNoAction = status === 'red' && entry && !taskEntryIds.has(entry.id);
                     const isExpanded = expandedRow === kpi.id;
+                    const mtdVal = (!isProjectTracker && !isDescriptive) ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                    const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
 
                     const rowStyle: React.CSSProperties = status
                       ? ragRowStyle(status)
