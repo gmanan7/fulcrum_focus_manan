@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -66,6 +66,8 @@ export default function TaskBoard() {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [showCompleted, setShowCompleted] = useState(true); // FIX 6: default visible
   const [activeListTab, setActiveListTab] = useState<'active' | 'recent'>('active');
+  const [chipOverdue, setChipOverdue] = useState(false);
+  const [chipDueToday, setChipDueToday] = useState(false);
 
   useEffect(() => {
     const markCarryover = async () => {
@@ -123,9 +125,19 @@ export default function TaskBoard() {
     },
   });
 
-  const activeTasks = tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || [];
-  const completedTasks = tasks?.filter((t) => t.status === 'completed') || [];
-  const cancelledTasks = tasks?.filter((t) => t.status === 'cancelled') || [];
+  const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
+  const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
+
+  const applyChipFilters = (list: any[]) => {
+    let result = list;
+    if (chipOverdue) result = result.filter(isTaskOverdue);
+    if (chipDueToday) result = result.filter(isTaskDueToday);
+    return result;
+  };
+
+  const activeTasks = applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []);
+  const completedTasks = applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []);
+  const cancelledTasks = applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []);
 
   return (
     <div className="space-y-4">
@@ -192,6 +204,31 @@ export default function TaskBoard() {
           </Card>
         </CollapsibleContent>
       </Collapsible>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setChipOverdue(!chipOverdue)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipOverdue
+              ? 'bg-destructive text-destructive-foreground border-destructive'
+              : 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+          )}
+        >
+          <AlertTriangle className="h-3 w-3" /> Overdue ({overdueCount})
+        </button>
+        <button
+          onClick={() => setChipDueToday(!chipDueToday)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipDueToday
+              ? 'bg-rag-amber text-white border-rag-amber'
+              : 'bg-rag-amber/10 text-warning border-rag-amber/30 hover:bg-rag-amber/20'
+          )}
+        >
+          <Clock className="h-3 w-3" /> Due Today ({dueTodayCount})
+        </button>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>

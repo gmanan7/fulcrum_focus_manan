@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,9 +14,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   CalendarIcon, AlertTriangle, ListTodo, AlertCircle,
-  CalendarDays, ChevronRight, FileWarning,
+  CalendarDays, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
+import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
 
 type RagStatus = 'red' | 'amber' | 'green';
 
@@ -78,6 +80,30 @@ export default function Dashboard() {
       return data;
     },
   });
+
+  const mtdRange = useMemo(() => getMtdDateRange(dateStr), [dateStr]);
+
+  const { data: mtdEntries } = useQuery({
+    queryKey: ['dashboard-mtd-entries', mtdRange.from, mtdRange.to],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_entries')
+        .select('kpi_id, actual_value, reporting_date')
+        .gte('reporting_date', mtdRange.from)
+        .lte('reporting_date', mtdRange.to);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const mtdByKpi = useMemo(() => {
+    const m: Record<string, { actual_value: number | null }[]> = {};
+    mtdEntries?.forEach((e) => {
+      if (!m[e.kpi_id]) m[e.kpi_id] = [];
+      m[e.kpi_id].push({ actual_value: e.actual_value });
+    });
+    return m;
+  }, [mtdEntries]);
 
   const { data: projectItems } = useQuery({
     queryKey: ['dashboard-project-items'],
@@ -181,6 +207,62 @@ export default function Dashboard() {
   const isLoading = kpisLoading || entriesLoading;
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+  // Department collapse state, initialized from localStorage
+  const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>(() => {
+    const state: Record<string, boolean> = {};
+    if (typeof window !== 'undefined') {
+      grouped.forEach(({ dept }) => {
+        const key = getDeptCollapseKey(dept.code);
+        state[dept.id] = localStorage.getItem(key) === 'true';
+      });
+    }
+    return state;
+  });
+
+  // Re-sync when grouped changes (lazy init only runs once)
+  useMemo(() => {
+    if (typeof window === 'undefined') return;
+    setCollapsedDepts((prev) => {
+      const next = { ...prev };
+      grouped.forEach(({ dept }) => {
+        if (!(dept.id in next)) {
+          next[dept.id] = localStorage.getItem(getDeptCollapseKey(dept.code)) === 'true';
+        }
+      });
+      return next;
+    });
+  }, [grouped]);
+
+  const toggleDept = useCallback((deptId: string, deptCode: string) => {
+    setCollapsedDepts((prev) => {
+      const newVal = !prev[deptId];
+      localStorage.setItem(getDeptCollapseKey(deptCode), String(newVal));
+      return { ...prev, [deptId]: newVal };
+    });
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setCollapsedDepts((prev) => {
+      const next = { ...prev };
+      grouped.forEach(({ dept }) => {
+        next[dept.id] = true;
+        localStorage.setItem(getDeptCollapseKey(dept.code), 'true');
+      });
+      return next;
+    });
+  }, [grouped]);
+
+  const expandAll = useCallback(() => {
+    setCollapsedDepts((prev) => {
+      const next = { ...prev };
+      grouped.forEach(({ dept }) => {
+        next[dept.id] = false;
+        localStorage.setItem(getDeptCollapseKey(dept.code), 'false');
+      });
+      return next;
+    });
+  }, [grouped]);
+
   const operationsSection = (
     <section>
       <div className="flex items-center justify-between mb-3">
@@ -230,6 +312,27 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Collapse/Expand All */}
+      {!isLoading && grouped.length > 0 && (
+        <div className="flex justify-end gap-2 mb-2">
+          <button
+            onClick={collapseAll}
+            className="text-xs font-medium hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Collapse All
+          </button>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>|</span>
+          <button
+            onClick={expandAll}
+            className="text-xs font-medium hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Expand All
+          </button>
+        </div>
+      )}
+
       {/* KPI Grid */}
       {isLoading ? (
         <div className="space-y-4">
@@ -253,26 +356,65 @@ export default function Dashboard() {
         </Card>
       ) : (
         <div className="space-y-4">
+          {/* Column header row */}
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider font-semibold"
+            style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border-card)' }}
+          >
+            <div className="flex-1 min-w-0">KPI Name</div>
+            <span className="hidden sm:inline w-12 text-right">Target</span>
+            <span className="w-16 text-right">Yesterday</span>
+            <span className="hidden sm:inline w-16 text-right">MTD</span>
+            <span className="w-16 text-center">Status</span>
+            <span className="w-4" />
+          </div>
           {grouped.map(({ dept, kpis: deptKpis }) => {
             const deptEntries = deptKpis.map((k) => ({ kpi: k, entry: entryMap[k.id] }));
             const redCount = deptEntries.filter((d) => d.entry?.computed_status === 'red').length;
             const amberCount = deptEntries.filter((d) => d.entry?.computed_status === 'amber').length;
             const greenCount = deptEntries.filter((d) => d.entry?.computed_status === 'green').length;
             const missingCount = deptEntries.filter((d) => d.kpi.kpi_type === 'numeric' && !d.entry).length;
+            const isCollapsed = !!collapsedDepts[dept.id];
+            const summary = buildCollapseSummary(deptEntries.map(d => d.entry?.computed_status ?? null));
 
             return (
               <Card key={dept.id} className="themed-card overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
-                <div className="pl-3 pr-4 py-3 flex items-center justify-between" style={{ borderLeft: '4px solid var(--color-primary)' }}>
-                  <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{dept.name}</h2>
+                <div
+                  className="pl-3 pr-4 py-3 flex items-center justify-between cursor-pointer select-none hover:opacity-80 transition-opacity"
+                  style={{ borderLeft: '4px solid var(--color-primary)' }}
+                  onClick={() => toggleDept(dept.id, dept.code)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                    )}
+                    <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{dept.name}</h2>
+                  </div>
                   <div className="flex items-center gap-2 text-xs">
-                    {redCount > 0 && <span style={{ color: 'var(--rag-red-border)' }}>🔴 {redCount}</span>}
-                    {amberCount > 0 && <span style={{ color: 'var(--rag-amber-border)' }}>🟡 {amberCount}</span>}
-                    {greenCount > 0 && <span style={{ color: 'var(--rag-green-border)' }}>🟢 {greenCount}</span>}
-                    {missingCount > 0 && <span style={{ color: 'var(--text-muted)' }}>⬜ {missingCount}</span>}
+                    {isCollapsed ? (
+                      <span className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        {summary.total} KPIs
+                        {summary.red > 0 && <><span style={{ color: 'var(--rag-red-border)' }}>🔴 {summary.red}</span></>}
+                        {summary.amber > 0 && <><span style={{ color: 'var(--rag-amber-border)' }}>🟡 {summary.amber}</span></>}
+                        {summary.green > 0 && <><span style={{ color: 'var(--rag-green-border)' }}>🟢 {summary.green}</span></>}
+                        {summary.red === 0 && summary.amber === 0 && summary.green === 0 && summary.total > 0 && (
+                          <span style={{ color: 'var(--text-muted)' }}>— {summary.total} no data</span>
+                        )}
+                      </span>
+                    ) : (
+                      <>
+                        {redCount > 0 && <span style={{ color: 'var(--rag-red-border)' }}>🔴 {redCount}</span>}
+                        {amberCount > 0 && <span style={{ color: 'var(--rag-amber-border)' }}>🟡 {amberCount}</span>}
+                        {greenCount > 0 && <span style={{ color: 'var(--rag-green-border)' }}>🟢 {greenCount}</span>}
+                        {missingCount > 0 && <span style={{ color: 'var(--text-muted)' }}>⬜ {missingCount}</span>}
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px solid var(--border-card)' }}>
+                {!isCollapsed && <div style={{ borderTop: '1px solid var(--border-card)' }}>
                   {deptKpis.map((kpi) => {
                     const entry = entryMap[kpi.id];
                     const status = entry?.computed_status as RagStatus | null;
@@ -283,6 +425,8 @@ export default function Dashboard() {
                     const completedItems = items.filter((i) => i.status === 'completed').length;
                     const hasNoAction = status === 'red' && entry && !taskEntryIds.has(entry.id);
                     const isExpanded = expandedRow === kpi.id;
+                    const mtdVal = (!isProjectTracker && !isDescriptive) ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                    const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
 
                     const rowStyle: React.CSSProperties = status
                       ? ragRowStyle(status)
@@ -311,8 +455,12 @@ export default function Dashboard() {
                             </span>
                           ) : (
                             <>
-                              <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>T: {kpi.target_value ?? '—'}</span>
+                              <span className="text-xs hidden sm:inline w-12 text-right" style={{ color: 'var(--text-muted)' }}>{kpi.target_value ?? '—'}</span>
                               <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{entry?.actual_value ?? '—'}</span>
+                              <span className="text-xs hidden sm:inline w-16 text-right" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : 'var(--text-muted)' }}>
+                                {mtdVal !== null ? (Number.isInteger(mtdVal) ? mtdVal : mtdVal.toFixed(1)) : '—'}
+                              </span>
+                              <span className="w-16 flex justify-center">
                               {status ? (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={ragBadgeStyle(status)}>
                                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -320,6 +468,7 @@ export default function Dashboard() {
                               ) : (
                                 <Badge className="text-xs rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)', border: '1px solid var(--border-card)' }}>Missing</Badge>
                               )}
+                              </span>
                             </>
                           )}
                           {hasNoAction && (
@@ -340,7 +489,7 @@ export default function Dashboard() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </Card>
             );
           })}
