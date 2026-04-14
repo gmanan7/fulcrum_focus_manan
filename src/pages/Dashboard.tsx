@@ -81,6 +81,30 @@ export default function Dashboard() {
     },
   });
 
+  const mtdRange = useMemo(() => getMtdDateRange(dateStr), [dateStr]);
+
+  const { data: mtdEntries } = useQuery({
+    queryKey: ['dashboard-mtd-entries', mtdRange.from, mtdRange.to],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_entries')
+        .select('kpi_id, actual_value, reporting_date')
+        .gte('reporting_date', mtdRange.from)
+        .lte('reporting_date', mtdRange.to);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const mtdByKpi = useMemo(() => {
+    const m: Record<string, { actual_value: number | null }[]> = {};
+    mtdEntries?.forEach((e) => {
+      if (!m[e.kpi_id]) m[e.kpi_id] = [];
+      m[e.kpi_id].push({ actual_value: e.actual_value });
+    });
+    return m;
+  }, [mtdEntries]);
+
   const { data: projectItems } = useQuery({
     queryKey: ['dashboard-project-items'],
     queryFn: async () => {
