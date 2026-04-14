@@ -125,9 +125,19 @@ export default function TaskBoard() {
     },
   });
 
-  const activeTasks = tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || [];
-  const completedTasks = tasks?.filter((t) => t.status === 'completed') || [];
-  const cancelledTasks = tasks?.filter((t) => t.status === 'cancelled') || [];
+  const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
+  const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
+
+  const applyChipFilters = (list: any[]) => {
+    let result = list;
+    if (chipOverdue) result = result.filter(isTaskOverdue);
+    if (chipDueToday) result = result.filter(isTaskDueToday);
+    return result;
+  };
+
+  const activeTasks = applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []);
+  const completedTasks = applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []);
+  const cancelledTasks = applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []);
 
   return (
     <div className="space-y-4">
