@@ -30,6 +30,28 @@ export function getDefaultRouteForRoles(roles: string[]): string {
  */
 export type DecisionTaskStatus = 'resolved' | 'overdue' | 'active' | 'no_task';
 
+/**
+ * Returns true if a task is overdue: due_date < today and not completed/cancelled.
+ */
+export function isTaskOverdue(task: { due_date: string; status: string }): boolean {
+  if (task.status === 'completed' || task.status === 'cancelled') return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(task.due_date + 'T00:00:00');
+  return due < today;
+}
+
+/**
+ * Returns true if a task is due today and not completed/cancelled.
+ */
+export function isTaskDueToday(task: { due_date: string; status: string }): boolean {
+  if (task.status === 'completed' || task.status === 'cancelled') return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(task.due_date + 'T00:00:00');
+  return due.getTime() === today.getTime();
+}
+
 export function getDecisionTaskStatus(linkedTask: {
   status: string;
   due_date: string;
