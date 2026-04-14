@@ -416,31 +416,36 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
         const summary = buildSnapshotCollapseSummary(statuses);
 
         return (
-          <div key={dept.id}>
-            <button
+          <Card key={dept.id} className="themed-card overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
+            <div
+              className="pl-3 pr-4 py-3 flex items-center justify-between cursor-pointer select-none hover:opacity-80 transition-opacity"
+              style={{ borderLeft: '4px solid var(--color-primary)' }}
               onClick={() => toggleDept(dept.code)}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50 transition-colors group"
             >
-              <h3 className="text-sm font-semibold text-foreground">{dept.name}</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isCollapsed ? (
+                  <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                )}
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{dept.name}</h3>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
                 {isCollapsed && (
-                  <span className="flex items-center gap-1.5 text-xs">
-                    {summary.red === 0 && summary.amber === 0 && summary.green === 0 ? (
-                      <span className="text-muted-foreground">— {summary.total} KPIs</span>
-                    ) : (
-                      <>
-                        {summary.red > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-red" />{summary.red}</span>}
-                        {summary.amber > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-amber" />{summary.amber}</span>}
-                        {summary.green > 0 && <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-rag-green" />{summary.green}</span>}
-                      </>
+                  <span className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                    {summary.total} KPIs
+                    {summary.red > 0 && <span style={{ color: 'var(--rag-red-border)' }}>🔴 {summary.red}</span>}
+                    {summary.amber > 0 && <span style={{ color: 'var(--rag-amber-border)' }}>🟡 {summary.amber}</span>}
+                    {summary.green > 0 && <span style={{ color: 'var(--rag-green-border)' }}>🟢 {summary.green}</span>}
+                    {summary.red === 0 && summary.amber === 0 && summary.green === 0 && summary.total > 0 && (
+                      <span style={{ color: 'var(--text-muted)' }}>— {summary.total} no data</span>
                     )}
                   </span>
                 )}
-                {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
               </div>
-            </button>
+            </div>
             {!isCollapsed && (
-              <div className="space-y-2 mt-1">
+              <div style={{ borderTop: '1px solid var(--border-card)' }} className="space-y-2 p-3">
                 {filteredKpis.map((kpi) => {
                   const entry = entries?.find((e) => e.kpi_id === kpi.id);
                   const isRed = entry?.computed_status === 'red';
