@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, RotateCcw, Pencil, UserX, UserCheck, Loader2 } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, UserX, UserCheck, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { logAudit } from '@/lib/auditLog';
+import { validateResetPassword } from '@/lib/utils';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -315,6 +316,92 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
           <Button type="submit" className="w-full h-11" disabled={updateMutation.isPending}>
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Reset Password Dialog ─── */
+function ResetPasswordDialog({ user, onClose }: { user: UserRow; onClose: () => void }) {
+  const isMobile = useIsMobile();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const err = validateResetPassword(password, confirmPassword);
+      if (err) { setValidationError(err); throw new Error(err); }
+      setValidationError(null);
+      const { data, error } = await supabase.functions.invoke('reset_password', {
+        body: { user_id: user.id, new_password: password },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: 'Password reset successfully' });
+      onClose();
+    },
+    onError: (err: Error) => {
+      if (!validationError) {
+        toast({ title: 'Error resetting password', description: err.message, variant: 'destructive' });
+      }
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className={isMobile ? 'h-full max-h-full w-full max-w-full rounded-none' : 'max-w-sm'}>
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm font-medium text-foreground">{user.full_name}</p>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => { e.preventDefault(); resetMutation.mutate(); }}
+        >
+          <div className="space-y-2">
+            <Label>New Password</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setValidationError(null); }}
+                required
+                minLength={8}
+                className="h-11 pr-10"
+              />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-11 w-10" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Confirm Password</Label>
+            <div className="relative">
+              <Input
+                type={showConfirm ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setValidationError(null); }}
+                required
+                minLength={8}
+                className="h-11 pr-10"
+              />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-11 w-10" onClick={() => setShowConfirm(!showConfirm)}>
+                {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          {validationError && <p className="text-sm text-destructive">{validationError}</p>}
+          <Button type="submit" className="w-full h-11" disabled={resetMutation.isPending}>
+            {resetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Reset Password
           </Button>
         </form>
       </DialogContent>
