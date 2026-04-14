@@ -346,20 +346,37 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                 const entry = entries?.find((e) => e.kpi_id === kpi.id);
                 const isRed = entry?.computed_status === 'red';
                 const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
+                const isNumeric = kpi.kpi_type === 'numeric';
+                const mtdVal = isNumeric ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
+                const targetDisplay = isNumeric ? (kpi.target_value != null ? `${kpi.target_value}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
+                const mtdDisplay = mtdVal !== null ? (Number.isInteger(mtdVal) ? String(mtdVal) : mtdVal.toFixed(1)) : '—';
                 return (
                   <Card key={kpi.id} className={cn(isRed && !hasTask && 'border-destructive/50')}>
                     <CardContent className="p-3 flex items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{kpi.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {kpi.kpi_type === 'numeric' && <span className="text-xs text-muted-foreground">Target: {kpi.target_value ?? '—'}</span>}
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {isNumeric && <span className="text-xs text-muted-foreground">Target: {targetDisplay}</span>}
                           {entry ? (
                             <>
                               <span className="text-xs">Actual: {entry.actual_value ?? entry.text_value ?? '—'}</span>
+                              {isNumeric && (
+                                <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
+                                  MTD: {mtdDisplay}
+                                </span>
+                              )}
                               {entry.computed_status && <Badge className={cn('text-[10px]', RAG_COLORS[entry.computed_status as RagStatus])}>{entry.computed_status.toUpperCase()}</Badge>}
                             </>
                           ) : (
-                            <span className="text-xs text-muted-foreground italic">Not Submitted</span>
+                            <>
+                              <span className="text-xs text-muted-foreground italic">Not Submitted</span>
+                              {isNumeric && mtdVal !== null && (
+                                <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
+                                  MTD: {mtdDisplay}
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
