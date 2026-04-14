@@ -328,17 +328,11 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
 
   if (!departments || !kpis) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  const [ootFilter, setOotFilter] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('fulcrum-meeting-oot-filter') === 'true';
-    return false;
-  });
-
   const toggleOot = (val: boolean) => {
     setOotFilter(val);
     localStorage.setItem('fulcrum-meeting-oot-filter', String(val));
   };
 
-  // Check if any KPI across all depts is out-of-target
   const hasAnyOot = entries?.some((e) => e.computed_status === 'red' || e.computed_status === 'amber') ?? false;
 
   return (
