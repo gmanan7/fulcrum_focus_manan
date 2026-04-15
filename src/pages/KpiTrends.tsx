@@ -438,7 +438,24 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
           </div>
         )}
 
-        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>{entries.length} entries</p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{entries.length} entries</p>
+          {gapInfo && gapInfo.missingDates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{gapInfo.summary}</span>
+              <button
+                onClick={() => onNavigateToEntry?.(gapInfo.missingDates[0])}
+                className="text-xs font-medium hover:underline"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                Enter missing data →
+              </button>
+            </div>
+          )}
+          {gapInfo && gapInfo.missingDates.length === 0 && (
+            <span className="text-xs" style={{ color: 'var(--rag-green-badge-text)' }}>✓ All days entered</span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
