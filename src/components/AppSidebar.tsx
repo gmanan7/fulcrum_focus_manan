@@ -43,7 +43,8 @@ import {
 import { cn } from '@/lib/utils';
 
 const mainNav = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, roles: null, hideForShopFloor: true },
+  { title: 'My View', url: '/my-view', icon: LayoutDashboard, roles: null, hideForShopFloor: true },
+  { title: 'Dashboard', url: '/dashboard', icon: BarChart3, roles: null, hideForShopFloor: true },
   { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null, hideForShopFloor: false },
   { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null, hideForShopFloor: false },
   { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null, hideForShopFloor: false },

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const mainItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { label: 'My View', icon: LayoutDashboard, path: '/my-view' },
   { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
   { label: 'My Planner', icon: BookCheck, path: '/planner' },
   { label: 'Tasks', icon: ListTodo, path: '/tasks' },
