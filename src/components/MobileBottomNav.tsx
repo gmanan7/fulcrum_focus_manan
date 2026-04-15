@@ -20,6 +20,7 @@ const mainItems = [
 ];
 
 const moreItems = [
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null },
   { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: ['super_admin', 'factory_manager'] },
   { label: 'Decision Log', icon: ClipboardList, path: '/meetings/decisions', roles: ['super_admin', 'factory_manager'] },
   { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null },
