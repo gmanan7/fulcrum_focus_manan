@@ -316,10 +316,10 @@ export default function KpiTrends() {
                 {!isCollapsed && (
                   <div className="mt-3 space-y-4">
                     {/* Numeric KPI Chart Grid */}
-                    {numericKpis.length > 0 && (
+                {numericKpis.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {numericKpis.map((kpi) => (
-                          <KpiChartCard key={kpi.id} kpi={kpi} entries={entriesByKpi[kpi.id] || []} />
+                          <KpiChartCard key={kpi.id} kpi={kpi} entries={entriesByKpi[kpi.id] || []} isShopFloor={isShopFloorOnly} rangeFrom={rangeFrom} rangeTo={rangeTo} onNavigateToEntry={(date) => navigate(`/kpi/entry?date=${date}`)} />
                         ))}
                       </div>
                     )}
@@ -345,7 +345,16 @@ export default function KpiTrends() {
 }
 
 /* ── KPI Chart Card ── */
-function KpiChartCard({ kpi, entries }: { kpi: any; entries: any[] }) {
+function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigateToEntry }: {
+  kpi: any; entries: any[]; isShopFloor?: boolean; rangeFrom?: Date; rangeTo?: Date;
+  onNavigateToEntry?: (date: string) => void;
+}) {
+  const gapInfo = useMemo(() => {
+    if (!isShopFloor || !rangeFrom || !rangeTo) return null;
+    const enteredDates = entries.map((e) => e.reporting_date);
+    return calculateEntryGaps(rangeFrom, rangeTo, enteredDates);
+  }, [isShopFloor, rangeFrom, rangeTo, entries]);
+
   const chartData = entries.map((e) => ({
     date: format(new Date(e.reporting_date), 'dd/MM'),
     actual: e.actual_value,
