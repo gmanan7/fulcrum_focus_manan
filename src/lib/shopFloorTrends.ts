@@ -3,17 +3,17 @@ import { eachDayOfInterval, format, parseISO } from 'date-fns';
 /**
  * Filters KPIs to only numeric type (for shop_floor trend view).
  */
-export function filterKpisForShopFloor(kpis: { kpi_type: string }[]) {
+export function filterKpisForShopFloor<T extends { kpi_type: string }>(kpis: T[]): T[] {
   return kpis.filter((k) => k.kpi_type === 'numeric');
 }
 
 /**
  * Filters departments to only those the user belongs to.
  */
-export function filterDepartmentsForUser(
-  allDepartments: { id: string }[],
+export function filterDepartmentsForUser<T extends { id: string }>(
+  allDepartments: T[],
   userDepartmentIds: string[]
-) {
+): T[] {
   return allDepartments.filter((d) => userDepartmentIds.includes(d.id));
 }
 
