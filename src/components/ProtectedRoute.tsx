@@ -6,7 +6,6 @@ const SHOP_FLOOR_RESTRICTED = [
   '/tasks',
   '/meetings',
   '/compliance',
-  '/kpi/trends',
   '/kpi/master',
   '/admin',
 ];

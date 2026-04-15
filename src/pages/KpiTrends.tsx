@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subWeeks, startOfYear } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -59,6 +62,9 @@ const itemStatusStyle: Record<string, React.CSSProperties> = {
 
 export default function KpiTrends() {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const { user, roles } = useAuth();
+  const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   const [period, setPeriod] = useState<Period>('this_month');
   const [customFrom, setCustomFrom] = useState<Date>();
   const [customTo, setCustomTo] = useState<Date>();
@@ -66,6 +72,17 @@ export default function KpiTrends() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const [rangeFrom, rangeTo] = getDateRange(period, customFrom, customTo);
+
+  // User departments (for shop_floor filtering)
+  const { data: userDepartmentIds } = useQuery({
+    queryKey: ['user-departments', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('user_departments').select('department_id').eq('user_id', user.id);
+      return (data || []).map((d) => d.department_id);
+    },
+    enabled: !!user && isShopFloorOnly,
+  });
 
   // All departments
   const { data: departments } = useQuery({
@@ -122,9 +139,13 @@ export default function KpiTrends() {
   // Default: all depts selected; mobile: all collapsed
   useEffect(() => {
     if (departments?.length && selectedDepts.length === 0) {
-      setSelectedDepts(departments.map((d) => d.id));
+      if (isShopFloorOnly && userDepartmentIds?.length) {
+        setSelectedDepts(userDepartmentIds);
+      } else if (!isShopFloorOnly) {
+        setSelectedDepts(departments.map((d) => d.id));
+      }
     }
-  }, [departments]);
+  }, [departments, userDepartmentIds, isShopFloorOnly]);
 
   useEffect(() => {
     if (isMobile && departments?.length) {
@@ -132,17 +153,23 @@ export default function KpiTrends() {
     }
   }, [isMobile, departments]);
 
-  // Group data
+  // Group data — shop_floor only sees their departments + numeric KPIs
   const grouped = useMemo(() => {
     if (!departments || !allKpis) return [];
-    return departments
-      .filter((d) => selectedDepts.includes(d.id))
+    let filteredDepts = departments.filter((d) => selectedDepts.includes(d.id));
+    if (isShopFloorOnly && userDepartmentIds) {
+      filteredDepts = filterDepartmentsForUser(filteredDepts, userDepartmentIds);
+    }
+    return filteredDepts
       .map((dept) => {
-        const deptKpis = allKpis.filter((k) => k.department_id === dept.id);
+        let deptKpis = allKpis.filter((k) => k.department_id === dept.id);
+        if (isShopFloorOnly) {
+          deptKpis = filterKpisForShopFloor(deptKpis);
+        }
         return { dept, kpis: deptKpis };
       })
       .filter((g) => g.kpis.length > 0);
-  }, [departments, allKpis, selectedDepts]);
+  }, [departments, allKpis, selectedDepts, isShopFloorOnly, userDepartmentIds]);
 
   const entriesByKpi = useMemo(() => {
     const m: Record<string, any[]> = {};
@@ -186,6 +213,9 @@ export default function KpiTrends() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>KPI Trends</h1>
+      {isShopFloorOnly && (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
+      )}
 
       {/* Filter bar */}
       <div className="space-y-3">
@@ -286,10 +316,10 @@ export default function KpiTrends() {
                 {!isCollapsed && (
                   <div className="mt-3 space-y-4">
                     {/* Numeric KPI Chart Grid */}
-                    {numericKpis.length > 0 && (
+                {numericKpis.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {numericKpis.map((kpi) => (
-                          <KpiChartCard key={kpi.id} kpi={kpi} entries={entriesByKpi[kpi.id] || []} />
+                          <KpiChartCard key={kpi.id} kpi={kpi} entries={entriesByKpi[kpi.id] || []} isShopFloor={isShopFloorOnly} rangeFrom={rangeFrom} rangeTo={rangeTo} onNavigateToEntry={(date) => navigate(`/kpi/entry?date=${date}`)} />
                         ))}
                       </div>
                     )}
@@ -315,7 +345,16 @@ export default function KpiTrends() {
 }
 
 /* ── KPI Chart Card ── */
-function KpiChartCard({ kpi, entries }: { kpi: any; entries: any[] }) {
+function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigateToEntry }: {
+  kpi: any; entries: any[]; isShopFloor?: boolean; rangeFrom?: Date; rangeTo?: Date;
+  onNavigateToEntry?: (date: string) => void;
+}) {
+  const gapInfo = useMemo(() => {
+    if (!isShopFloor || !rangeFrom || !rangeTo) return null;
+    const enteredDates = entries.map((e) => e.reporting_date);
+    return calculateEntryGaps(rangeFrom, rangeTo, enteredDates);
+  }, [isShopFloor, rangeFrom, rangeTo, entries]);
+
   const chartData = entries.map((e) => ({
     date: format(new Date(e.reporting_date), 'dd/MM'),
     actual: e.actual_value,
@@ -399,7 +438,24 @@ function KpiChartCard({ kpi, entries }: { kpi: any; entries: any[] }) {
           </div>
         )}
 
-        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>{entries.length} entries</p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{entries.length} entries</p>
+          {gapInfo && gapInfo.missingDates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{gapInfo.summary}</span>
+              <button
+                onClick={() => onNavigateToEntry?.(gapInfo.missingDates[0])}
+                className="text-xs font-medium hover:underline"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                Enter missing data →
+              </button>
+            </div>
+          )}
+          {gapInfo && gapInfo.missingDates.length === 0 && (
+            <span className="text-xs" style={{ color: 'var(--rag-green-badge-text)' }}>✓ All days entered</span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
