@@ -620,6 +620,45 @@ export type Database = {
           },
         ]
       }
+      my_view_items: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          kpi_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          kpi_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          kpi_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "my_view_items_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "my_view_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planner_items: {
         Row: {
           completed_at: string | null

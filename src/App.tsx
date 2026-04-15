@@ -21,6 +21,7 @@ import DecisionLog from "@/pages/DecisionLog";
 import TaskBoard from "@/pages/TaskBoard";
 import Compliance from "@/pages/Compliance";
 import Planner from "@/pages/Planner";
+import MyView from "@/pages/MyView";
 import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
 
@@ -43,6 +44,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
+              <Route path="/my-view" element={<MyView />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/kpi/entry" element={<KpiEntry />} />
               <Route path="/planner" element={<Planner />} />
