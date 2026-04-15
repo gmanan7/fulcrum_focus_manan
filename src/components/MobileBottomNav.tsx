@@ -62,6 +62,7 @@ export function MobileBottomNav() {
   const bottomItems = isShopFloorOnly
     ? [
         { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
+        { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends' },
         { label: 'My Planner', icon: BookCheck, path: '/planner' },
       ]
     : mainItems;
