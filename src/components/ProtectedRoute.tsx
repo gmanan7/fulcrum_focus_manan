@@ -3,10 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 const SHOP_FLOOR_RESTRICTED = [
   '/dashboard',
+  '/my-view',
   '/tasks',
   '/meetings',
   '/compliance',
-  '/kpi/trends',
   '/kpi/master',
   '/admin',
 ];
