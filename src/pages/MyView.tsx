@@ -538,7 +538,14 @@ function KpiTrendCard({
                   stroke={lineColor}
                   strokeWidth={2}
                   connectNulls={false}
-                  dot={<CustomDot />}
+                  isAnimationActive={false}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (cx == null || cy == null) return null;
+                    const color = RAG_DOT_COLORS[payload.status] || lineColor;
+                    return <circle cx={cx} cy={cy} r={4} fill={color} strokeWidth={0} />;
+                  }}
+                  activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
