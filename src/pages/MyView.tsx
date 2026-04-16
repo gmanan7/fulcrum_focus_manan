@@ -337,17 +337,44 @@ export default function MyView() {
   // POPULATED VIEW
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>My View</h1>
-        <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
-          <Pencil className="mr-2 h-3.5 w-3.5" />
-          Edit My View
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1">
+            {PERIODS.filter(p => p.value !== 'custom').map((p) => (
+              <Button
+                key={p.value}
+                size="sm"
+                variant={period === p.value ? 'default' : 'outline'}
+                onClick={() => setPeriod(p.value)}
+                className="h-8 text-xs"
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Edit My View
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {sorted.map((item, index) => (
           <KpiTrendCard
+            key={item.kpi_id}
+            kpiId={item.kpi_id}
+            allKpis={allKpis}
+            departments={departments}
+            index={index}
+            total={sorted.length}
+            onMoveUp={() => handleMove(index, -1)}
+            onMoveDown={() => handleMove(index, 1)}
+            onUnpin={() => unpinMutation.mutate(item.kpi_id)}
+            startDate={startDate}
+            endDate={endDate}
+          />
             key={item.kpi_id}
             kpiId={item.kpi_id}
             allKpis={allKpis}
