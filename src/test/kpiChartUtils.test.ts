@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatChartDate, getLineColour, getTooltipRagLabel, calculateDateRange } from '@/lib/kpiChartUtils';
+import { formatChartDate, getLineColour, getTooltipRagLabel, calculateDateRange, calculateYMax } from '@/lib/kpiChartUtils';
 import { format, subDays } from 'date-fns';
 
 describe('formatChartDate', () => {
@@ -72,5 +72,32 @@ describe('calculateDateRange', () => {
   it('endDate is always yesterday', () => {
     const result = calculateDateRange(30, today);
     expect(result.endDate).toBe('2026-04-15');
+  });
+});
+
+describe('calculateYMax', () => {
+  it('data=[{value:100}], target=90 → 120', () => {
+    expect(calculateYMax([{ value: 100 }], 90)).toBe(120);
+  });
+  it('data=[{value:50}], target=200 → 240', () => {
+    expect(calculateYMax([{ value: 50 }], 200)).toBe(240);
+  });
+  it('data=[{value:50}], target=null → 60', () => {
+    expect(calculateYMax([{ value: 50 }], null)).toBe(60);
+  });
+  it('data=[], target=null → 100 (fallback)', () => {
+    expect(calculateYMax([], null)).toBe(100);
+  });
+  it('data=[], target=50 → 60', () => {
+    expect(calculateYMax([], 50)).toBe(60);
+  });
+  it('data=[{value:null},{value:30}], target=null → 36', () => {
+    expect(calculateYMax([{ value: null }, { value: 30 }], null)).toBe(36);
+  });
+  it('data=[{value:0}], target=0 → 100 (fallback)', () => {
+    expect(calculateYMax([{ value: 0 }], 0)).toBe(100);
+  });
+  it('returns Math.ceil (no decimals)', () => {
+    expect(calculateYMax([{ value: 33 }], null)).toBe(Math.ceil(33 * 1.2));
   });
 });
