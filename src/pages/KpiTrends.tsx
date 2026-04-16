@@ -15,7 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
-import { type Period, PERIODS, getDateRange } from '@/lib/kpiChartUtils';
+import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS } from '@/lib/kpiChartUtils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -345,7 +345,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (cx == null || cy == null) return null;
-    const color = ragDotColor[payload.status] || 'var(--chart-line)';
+    const color = RAG_DOT_COLORS[payload.status] || 'var(--chart-line)';
     return <circle cx={cx} cy={cy} r={4} fill={color} stroke="white" strokeWidth={1.5} />;
   };
 
