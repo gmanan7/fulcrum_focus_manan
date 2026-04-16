@@ -229,30 +229,74 @@ export default function MyView() {
         </div>
 
         <div className="space-y-4">
-          {groupedKpis.map(({ dept, kpis }) => (
-            <Card key={dept.id} className="overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-card)' }}>
-              <div className="px-4 py-2 font-medium text-sm" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-card)' }}>
-                {dept.name}
-              </div>
-              <div className="divide-y" style={{ borderColor: 'var(--border-card)' }}>
-                {kpis.map((kpi) => (
-                  <label
-                    key={kpi.id}
-                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                  >
-                    <Checkbox
-                      checked={pinnedKpiIds.has(kpi.id)}
-                      onCheckedChange={() => handleTogglePin(kpi.id)}
-                    />
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      {kpi.name}
-                      {kpi.unit && <span className="ml-1 text-xs" style={{ color: 'var(--text-muted)' }}>({kpi.unit})</span>}
+          {groupedKpis.map(({ dept, kpis }) => {
+            const allInDeptPinned = kpis.every((k) => pinnedKpiIds.has(k.id));
+            const someInDeptPinned = kpis.some((k) => pinnedKpiIds.has(k.id));
+
+            const handleSelectAllDept = () => {
+              if (allInDeptPinned) {
+                // Unpin all in this department
+                kpis.forEach((k) => {
+                  if (pinnedKpiIds.has(k.id)) unpinMutation.mutate(k.id);
+                });
+              } else {
+                const result = selectAllInDepartment(
+                  kpis.map((k) => k.id),
+                  pinnedKpiIds,
+                  pinnedItems.length
+                );
+                result.added.forEach((id) => pinMutation.mutate(id));
+                if (result.warning) {
+                  toast.warning('Maximum 12 KPIs. Unpin one to add another.');
+                }
+              }
+            };
+
+            return (
+              <Card key={dept.id} className="overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-card)' }}>
+                <div
+                  className="px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                  style={{ borderBottom: '1px solid var(--border-card)' }}
+                  onClick={handleSelectAllDept}
+                >
+                  <Checkbox
+                    checked={allInDeptPinned}
+                    {...(someInDeptPinned && !allInDeptPinned ? { 'data-state': 'indeterminate' } : {})}
+                    onCheckedChange={handleSelectAllDept}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {dept.name}
                     </span>
-                  </label>
-                ))}
-              </div>
-            </Card>
-          ))}
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      •  {dept.code}
+                    </span>
+                  </div>
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
+                    {kpis.filter((k) => pinnedKpiIds.has(k.id)).length}/{kpis.length}
+                  </span>
+                </div>
+                <div className="divide-y" style={{ borderColor: 'var(--border-card)' }}>
+                  {kpis.map((kpi) => (
+                    <label
+                      key={kpi.id}
+                      className="flex items-center gap-3 px-4 pl-10 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    >
+                      <Checkbox
+                        checked={pinnedKpiIds.has(kpi.id)}
+                        onCheckedChange={() => handleTogglePin(kpi.id)}
+                      />
+                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {kpi.name}
+                        {kpi.unit && <span className="ml-1 text-xs" style={{ color: 'var(--text-muted)' }}>({kpi.unit})</span>}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
           {groupedKpis.length === 0 && (
             <p className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
               No KPIs found.
