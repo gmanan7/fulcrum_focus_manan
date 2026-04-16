@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subWeeks, startOfYear } from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,35 +15,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
+import { type Period, PERIODS, getDateRange } from '@/lib/kpiChartUtils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
-
-type Period = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'custom';
-
-const PERIODS: { value: Period; label: string }[] = [
-  { value: 'this_week', label: 'This Week' },
-  { value: 'last_week', label: 'Last Week' },
-  { value: 'this_month', label: 'This Month' },
-  { value: 'last_month', label: 'Last Month' },
-  { value: 'this_year', label: 'This Year' },
-  { value: 'custom', label: 'Custom' },
-];
-
-function getDateRange(period: Period, customFrom?: Date, customTo?: Date): [Date, Date] {
-  const now = new Date();
-  switch (period) {
-    case 'this_week': return [startOfWeek(now, { weekStartsOn: 1 }), now];
-    case 'last_week': { const lw = subWeeks(now, 1); return [startOfWeek(lw, { weekStartsOn: 1 }), endOfWeek(lw, { weekStartsOn: 1 })]; }
-    case 'this_month': return [startOfMonth(now), now];
-    case 'last_month': { const lm = subMonths(now, 1); return [startOfMonth(lm), endOfMonth(lm)]; }
-    case 'this_year': return [startOfYear(now), now];
-    case 'custom': return [customFrom || subDays(now, 30), customTo || now];
-    default: return [startOfMonth(now), now];
-  }
-}
-
-const ragDotColor: Record<string, string> = { red: '#ef4444', amber: '#f59e0b', green: '#10b981' };
 
 function ragBadgeStyle(status: string): React.CSSProperties {
   return {
