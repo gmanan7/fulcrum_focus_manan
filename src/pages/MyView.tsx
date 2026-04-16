@@ -433,10 +433,10 @@ function KpiTrendCard({
     const d = payload[0].payload;
     const ragLabel = getTooltipRagLabel(
       d.actual,
-      (kpi as any)?.target_value,
-      (kpi as any)?.green_threshold,
-      (kpi as any)?.amber_threshold,
-      (kpi as any)?.direction || 'higher_is_better'
+      kpi?.target_value,
+      kpi?.green_threshold,
+      kpi?.amber_threshold,
+      kpi?.direction || 'higher_is_better'
     );
     return (
       <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
@@ -508,17 +508,17 @@ function KpiTrendCard({
                   padding={{ top: 10, bottom: 10 }}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                {(kpi as any)?.green_threshold != null && (
+                {kpi?.green_threshold != null && (
                   <ReferenceLine
-                    y={(kpi as any).green_threshold}
+                    y={kpi!.green_threshold}
                     stroke="var(--chart-green-ref)"
                     strokeDasharray="4 2"
                     label={{ value: 'Green', position: 'right', fontSize: 9, fill: 'var(--chart-green-ref)' }}
                   />
                 )}
-                {(kpi as any)?.amber_threshold != null && (
+                {kpi?.amber_threshold != null && (
                   <ReferenceLine
-                    y={(kpi as any).amber_threshold}
+                    y={kpi!.amber_threshold}
                     stroke="var(--chart-amber-ref)"
                     strokeDasharray="4 2"
                     label={{ value: 'Amber', position: 'right', fontSize: 9, fill: 'var(--chart-amber-ref)' }}
