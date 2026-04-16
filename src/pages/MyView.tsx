@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
-import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection } from '@/lib/kpiChartUtils';
+import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection, type Period, PERIODS, getDateRange } from '@/lib/kpiChartUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +57,11 @@ export default function MyView() {
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
   const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<Period>('this_month');
+
+  const [rangeFrom, rangeTo] = getDateRange(period);
+  const startDate = format(rangeFrom, 'yyyy-MM-dd');
+  const endDate = format(rangeTo, 'yyyy-MM-dd');
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   const primaryRole = roles[0] || 'team_member';
@@ -332,12 +337,27 @@ export default function MyView() {
   // POPULATED VIEW
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>My View</h1>
-        <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
-          <Pencil className="mr-2 h-3.5 w-3.5" />
-          Edit My View
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1">
+            {PERIODS.filter(p => p.value !== 'custom').map((p) => (
+              <Button
+                key={p.value}
+                size="sm"
+                variant={period === p.value ? 'default' : 'outline'}
+                onClick={() => setPeriod(p.value)}
+                className="h-8 text-xs"
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Edit My View
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -352,6 +372,8 @@ export default function MyView() {
             onMoveUp={() => handleMove(index, -1)}
             onMoveDown={() => handleMove(index, 1)}
             onUnpin={() => unpinMutation.mutate(item.kpi_id)}
+            startDate={startDate}
+            endDate={endDate}
           />
         ))}
       </div>
@@ -370,6 +392,8 @@ function KpiTrendCard({
   onMoveUp,
   onMoveDown,
   onUnpin,
+  startDate,
+  endDate,
 }: {
   kpiId: string;
   allKpis: KpiMasterRow[];
@@ -379,21 +403,21 @@ function KpiTrendCard({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onUnpin: () => void;
+  startDate: string;
+  endDate: string;
 }) {
   const kpi = allKpis.find((k) => k.id === kpiId);
   const dept = departments.find((d) => d.id === kpi?.department_id);
-  const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
   const { data: entries = [] } = useQuery({
-    queryKey: ['my-view-trend', kpiId],
+    queryKey: ['my-view-trend', kpiId, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_entries')
         .select('reporting_date, actual_value, computed_status, remarks, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
         .eq('kpi_id', kpiId)
-        .gte('reporting_date', thirtyDaysAgo)
-        .lte('reporting_date', yesterday)
+        .gte('reporting_date', startDate)
+        .lte('reporting_date', endDate)
         .order('reporting_date');
       if (error) throw error;
       return data || [];
