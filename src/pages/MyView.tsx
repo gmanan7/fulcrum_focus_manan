@@ -56,7 +56,7 @@ export default function MyView() {
   const [search, setSearch] = useState('');
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
-  const isDeptHead = roles.length === 1 && roles[0] === 'department_head';
+  const primaryRole = roles[0] || 'team_member';
 
   // Fetch pinned items
   const { data: pinnedItems = [], isLoading: loadingPinned } = useQuery({
