@@ -1,23 +1,23 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
+import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS } from '@/lib/kpiChartUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ChevronUp, ChevronDown, X, Pin, Search, Pencil, ArrowLeft,
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, ReferenceLine, ResponsiveContainer, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip,
 } from 'recharts';
-import { subDays, format, parseISO } from 'date-fns';
+import { subDays, format } from 'date-fns';
 
 type RagStatus = 'red' | 'amber' | 'green' | null;
 
