@@ -57,6 +57,11 @@ export default function MyView() {
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
   const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<Period>('this_month');
+
+  const [rangeFrom, rangeTo] = getDateRange(period);
+  const startDate = format(rangeFrom, 'yyyy-MM-dd');
+  const endDate = format(rangeTo, 'yyyy-MM-dd');
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   const primaryRole = roles[0] || 'team_member';
