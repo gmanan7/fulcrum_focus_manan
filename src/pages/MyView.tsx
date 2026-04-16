@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
-import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection } from '@/lib/kpiChartUtils';
+import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection, type Period, PERIODS, getDateRange } from '@/lib/kpiChartUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
