@@ -375,16 +375,6 @@ export default function MyView() {
             startDate={startDate}
             endDate={endDate}
           />
-            key={item.kpi_id}
-            kpiId={item.kpi_id}
-            allKpis={allKpis}
-            departments={departments}
-            index={index}
-            total={sorted.length}
-            onMoveUp={() => handleMove(index, -1)}
-            onMoveDown={() => handleMove(index, 1)}
-            onUnpin={() => unpinMutation.mutate(item.kpi_id)}
-          />
         ))}
       </div>
     </div>
