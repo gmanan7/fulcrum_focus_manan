@@ -528,7 +528,7 @@ function KpiTrendCard({
                   axisLine={false}
                   tickLine={false}
                   width={30}
-                  domain={['auto', 'auto']}
+                  domain={[0, calculateYMax(chartData.map(d => ({ value: d.actual })), kpi?.target_value)]}
                   padding={{ top: 10, bottom: 10 }}
                 />
                 <Tooltip content={<CustomTooltip />} />
