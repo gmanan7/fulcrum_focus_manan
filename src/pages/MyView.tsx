@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
-import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS } from '@/lib/kpiChartUtils';
+import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection } from '@/lib/kpiChartUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -436,7 +436,7 @@ function KpiTrendCard({
       kpi?.target_value,
       kpi?.green_threshold,
       kpi?.amber_threshold,
-      kpi?.direction || 'higher_is_better'
+      (kpi?.direction || 'higher_is_better') as KpiDirection
     );
     return (
       <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
@@ -538,7 +538,14 @@ function KpiTrendCard({
                   stroke={lineColor}
                   strokeWidth={2}
                   connectNulls={false}
-                  dot={<CustomDot />}
+                  isAnimationActive={false}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (cx == null || cy == null) return null;
+                    const color = RAG_DOT_COLORS[payload.status] || lineColor;
+                    return <circle cx={cx} cy={cy} r={4} fill={color} strokeWidth={0} />;
+                  }}
+                  activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
