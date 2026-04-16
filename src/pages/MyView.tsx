@@ -32,6 +32,9 @@ interface KpiMasterRow {
   name: string;
   unit: string | null;
   target_value: number | null;
+  green_threshold: number | null;
+  amber_threshold: number | null;
+  direction: string;
   department_id: string;
   kpi_type: string;
 }
