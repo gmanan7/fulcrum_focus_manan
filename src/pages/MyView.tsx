@@ -392,6 +392,8 @@ function KpiTrendCard({
   onMoveUp,
   onMoveDown,
   onUnpin,
+  startDate,
+  endDate,
 }: {
   kpiId: string;
   allKpis: KpiMasterRow[];
@@ -401,21 +403,21 @@ function KpiTrendCard({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onUnpin: () => void;
+  startDate: string;
+  endDate: string;
 }) {
   const kpi = allKpis.find((k) => k.id === kpiId);
   const dept = departments.find((d) => d.id === kpi?.department_id);
-  const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
   const { data: entries = [] } = useQuery({
-    queryKey: ['my-view-trend', kpiId],
+    queryKey: ['my-view-trend', kpiId, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_entries')
         .select('reporting_date, actual_value, computed_status, remarks, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
         .eq('kpi_id', kpiId)
-        .gte('reporting_date', thirtyDaysAgo)
-        .lte('reporting_date', yesterday)
+        .gte('reporting_date', startDate)
+        .lte('reporting_date', endDate)
         .order('reporting_date');
       if (error) throw error;
       return data || [];
