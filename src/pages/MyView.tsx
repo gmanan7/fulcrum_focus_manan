@@ -82,7 +82,7 @@ export default function MyView() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_master')
-        .select('id, name, unit, target_value, department_id, kpi_type')
+        .select('id, name, unit, target_value, green_threshold, amber_threshold, direction, department_id, kpi_type')
         .eq('is_active', true)
         .eq('kpi_type', 'numeric')
         .order('display_order');
