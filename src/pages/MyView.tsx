@@ -436,7 +436,7 @@ function KpiTrendCard({
       kpi?.target_value,
       kpi?.green_threshold,
       kpi?.amber_threshold,
-      kpi?.direction || 'higher_is_better'
+      (kpi?.direction || 'higher_is_better') as KpiDirection
     );
     return (
       <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
