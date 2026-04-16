@@ -102,7 +102,7 @@ export default function MyView() {
     },
   });
 
-  // For department_head: get user's departments
+  // For shop_floor: get user's departments (defensive, they don't have My View)
   const { data: userDeptIds = [] } = useQuery({
     queryKey: ['user-departments', userId],
     queryFn: async () => {
@@ -113,28 +113,18 @@ export default function MyView() {
       if (error) throw error;
       return (data || []).map((d) => d.department_id);
     },
-    enabled: !!userId && isDeptHead,
+    enabled: !!userId && isShopFloorOnly,
   });
 
-  // Visible KPIs for edit mode (dept_head sees own dept only)
+  // Visible KPIs for edit mode — all roles see all KPIs, shop_floor restricted
   const visibleKpis = useMemo(() => {
-    let kpis = allKpis;
-    if (isDeptHead && userDeptIds.length > 0) {
-      kpis = kpis.filter((k) => userDeptIds.includes(k.department_id));
-    }
-    return filterAvailableKpis(kpis, search);
-  }, [allKpis, search, isDeptHead, userDeptIds]);
+    const roleFiltered = getAllKpisForMyView(allKpis, primaryRole, userDeptIds);
+    return filterKpisBySearch(roleFiltered, departments, search);
+  }, [allKpis, search, primaryRole, userDeptIds, departments]);
 
   // Group by department
   const groupedKpis = useMemo(() => {
-    const groups: Record<string, { dept: DeptRow; kpis: KpiMasterRow[] }> = {};
-    visibleKpis.forEach((kpi) => {
-      const dept = departments.find((d) => d.id === kpi.department_id);
-      if (!dept) return;
-      if (!groups[dept.id]) groups[dept.id] = { dept, kpis: [] };
-      groups[dept.id].kpis.push(kpi);
-    });
-    return Object.values(groups);
+    return groupKpisByDepartment(visibleKpis, departments);
   }, [visibleKpis, departments]);
 
   const pinnedKpiIds = new Set(pinnedItems.map((p) => p.kpi_id));
