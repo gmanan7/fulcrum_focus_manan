@@ -13,7 +13,6 @@ export interface KpiItem {
   name: string;
   department_id: string;
   kpi_type: string;
-  [key: string]: unknown;
 }
 
 export interface DeptItem {
