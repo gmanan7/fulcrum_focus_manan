@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatChartDate, getLineColour, getTooltipRagLabel } from '@/lib/kpiChartUtils';
+import { formatChartDate, getLineColour, getTooltipRagLabel, calculateDateRange } from '@/lib/kpiChartUtils';
+import { format, subDays } from 'date-fns';
 
 describe('formatChartDate', () => {
   it('"2026-04-14" → "14 Apr"', () => {
@@ -46,5 +47,30 @@ describe('getTooltipRagLabel', () => {
   });
   it('lower_is_better, value above amber → "Above Target"', () => {
     expect(getTooltipRagLabel(15, 10, 8, 12, 'lower_is_better')).toBe('Above Target');
+  });
+});
+
+describe('calculateDateRange', () => {
+  const today = new Date('2026-04-16');
+
+  it('7 days → startDate is today minus 7', () => {
+    const result = calculateDateRange(7, today);
+    expect(result.startDate).toBe(format(subDays(today, 7), 'yyyy-MM-dd'));
+    expect(result.endDate).toBe(format(subDays(today, 1), 'yyyy-MM-dd'));
+  });
+
+  it('30 days → startDate is today minus 30', () => {
+    const result = calculateDateRange(30, today);
+    expect(result.startDate).toBe('2026-03-17');
+  });
+
+  it('90 days → startDate is today minus 90', () => {
+    const result = calculateDateRange(90, today);
+    expect(result.startDate).toBe('2026-01-16');
+  });
+
+  it('endDate is always yesterday', () => {
+    const result = calculateDateRange(30, today);
+    expect(result.endDate).toBe('2026-04-15');
   });
 });
