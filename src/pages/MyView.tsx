@@ -1,23 +1,23 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
+import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS } from '@/lib/kpiChartUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ChevronUp, ChevronDown, X, Pin, Search, Pencil, ArrowLeft,
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, ReferenceLine, ResponsiveContainer, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip,
 } from 'recharts';
-import { subDays, format, parseISO } from 'date-fns';
+import { subDays, format } from 'date-fns';
 
 type RagStatus = 'red' | 'amber' | 'green' | null;
 
@@ -32,6 +32,9 @@ interface KpiMasterRow {
   name: string;
   unit: string | null;
   target_value: number | null;
+  green_threshold: number | null;
+  amber_threshold: number | null;
+  direction: string;
   department_id: string;
   kpi_type: string;
 }
@@ -79,7 +82,7 @@ export default function MyView() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_master')
-        .select('id, name, unit, target_value, department_id, kpi_type')
+        .select('id, name, unit, target_value, green_threshold, amber_threshold, direction, department_id, kpi_type')
         .eq('is_active', true)
         .eq('kpi_type', 'numeric')
         .order('display_order');
@@ -387,7 +390,7 @@ function KpiTrendCard({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_entries')
-        .select('reporting_date, actual_value, computed_status')
+        .select('reporting_date, actual_value, computed_status, remarks, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
         .eq('kpi_id', kpiId)
         .gte('reporting_date', thirtyDaysAgo)
         .lte('reporting_date', yesterday)
@@ -399,20 +402,55 @@ function KpiTrendCard({
     staleTime: 5 * 60 * 1000,
   });
 
-  const chartData = entries.map((e) => ({
-    date: format(parseISO(e.reporting_date), 'dd'),
-    value: e.actual_value,
+  const chartData = entries.map((e: any) => ({
+    date: formatAxisDate(e.reporting_date),
+    actual: e.actual_value,
+    status: e.computed_status,
+    remarks: e.remarks,
+    submitter: e.submitter?.full_name,
+    fullDate: formatChartDate(e.reporting_date),
   }));
 
-  const latestStatus: RagStatus = entries.length > 0
-    ? (entries[entries.length - 1].computed_status as RagStatus)
-    : null;
+  const latest = entries[entries.length - 1] as any;
+  const latestStatus: RagStatus = latest?.computed_status || null;
+  const lineColor = getLineColour(latestStatus);
 
-  const lineColor = latestStatus ? (RAG_COLORS[latestStatus] || 'var(--text-muted)') : 'var(--text-muted)';
+  const ragBadgeStyle = (status: string): React.CSSProperties => ({
+    background: `var(--rag-${status}-badge-bg)`,
+    color: `var(--rag-${status}-badge-text)`,
+    border: `1px solid var(--rag-${status}-badge-border)`,
+  });
 
-  const statusLabel = latestStatus
-    ? { red: '🔴', amber: '🟡', green: '🟢' }[latestStatus]
-    : null;
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return null;
+    const color = RAG_DOT_COLORS[payload.status] || 'var(--chart-line)';
+    return <circle cx={cx} cy={cy} r={4} fill={color} stroke="white" strokeWidth={1.5} />;
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    const ragLabel = getTooltipRagLabel(
+      d.actual,
+      kpi?.target_value,
+      kpi?.green_threshold,
+      kpi?.amber_threshold,
+      kpi?.direction || 'higher_is_better'
+    );
+    return (
+      <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
+        <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{d.fullDate}</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Actual: <span className="font-semibold">{d.actual}</span>{kpi?.unit ? ` ${kpi.unit}` : ''}</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Target: <span className="font-semibold">{kpi?.target_value != null ? `${kpi.target_value}${kpi?.unit ? ` ${kpi.unit}` : ''}` : '—'}</span></p>
+        {d.status && (
+          <p style={{ color: 'var(--text-secondary)' }}>Status: <Badge className="text-xs ml-1" style={ragBadgeStyle(d.status)}>{ragLabel}</Badge></p>
+        )}
+        {d.remarks && <p className="mt-1" style={{ color: 'var(--text-muted)' }}>{d.remarks}</p>}
+        {d.submitter && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>By: {d.submitter}</p>}
+      </div>
+    );
+  };
 
   return (
     <Card
@@ -426,86 +464,85 @@ function KpiTrendCard({
           </p>
           <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
             {kpi?.name || 'Unknown KPI'}
-            {statusLabel && <span className="ml-1.5">{statusLabel}</span>}
+            {latestStatus && (
+              <Badge className="text-[10px] rounded-full px-2 py-0.5 ml-1.5" style={ragBadgeStyle(latestStatus)}>{latestStatus}</Badge>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={onMoveUp}
-            disabled={index === 0}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onMoveUp} disabled={index === 0}>
             <ChevronUp className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={onMoveDown}
-            disabled={index === total - 1}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onMoveDown} disabled={index === total - 1}>
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={onUnpin}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onUnpin}>
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      <div className="px-1 pb-2" style={{ height: 140 }}>
+      <div className="px-1 pb-2" style={{ height: 200 }}>
         {chartData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--text-muted)' }}>
             No data yet
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
-                axisLine={false}
-                tickLine={false}
-                width={30}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-card)',
-                  borderRadius: 8,
-                  fontSize: 11,
-                }}
-              />
-              {kpi?.target_value != null && (
-                <ReferenceLine
-                  y={kpi.target_value}
-                  stroke="var(--text-muted)"
-                  strokeDasharray="4 4"
-                  strokeOpacity={0.5}
+          <div style={{ background: 'var(--chart-bg)', borderRadius: 8, height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
                 />
-              )}
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={lineColor}
-                strokeWidth={2}
-                dot={false}
-                connectNulls={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis
+                  tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={30}
+                  domain={['auto', 'auto']}
+                  padding={{ top: 10, bottom: 10 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                {kpi?.green_threshold != null && (
+                  <ReferenceLine
+                    y={kpi!.green_threshold}
+                    stroke="var(--chart-green-ref)"
+                    strokeDasharray="4 2"
+                    label={{ value: 'Green', position: 'right', fontSize: 9, fill: 'var(--chart-green-ref)' }}
+                  />
+                )}
+                {kpi?.amber_threshold != null && (
+                  <ReferenceLine
+                    y={kpi!.amber_threshold}
+                    stroke="var(--chart-amber-ref)"
+                    strokeDasharray="4 2"
+                    label={{ value: 'Amber', position: 'right', fontSize: 9, fill: 'var(--chart-amber-ref)' }}
+                  />
+                )}
+                {kpi?.target_value != null && (
+                  <ReferenceLine
+                    y={kpi.target_value}
+                    stroke="var(--chart-target-ref)"
+                    strokeDasharray="2 2"
+                    label={{ value: 'Target', position: 'right', fontSize: 9, fill: 'var(--chart-target-ref)' }}
+                  />
+                )}
+                <Line
+                  type="monotone"
+                  dataKey="actual"
+                  stroke={lineColor}
+                  strokeWidth={2}
+                  connectNulls={false}
+                  dot={<CustomDot />}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </Card>
