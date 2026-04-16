@@ -15,7 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
-import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS } from '@/lib/kpiChartUtils';
+import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -391,7 +391,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} domain={['auto', 'auto']} padding={{ top: 10, bottom: 10 }} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} domain={[0, calculateYMax(chartData.map(d => ({ value: d.actual })), kpi.target_value)]} padding={{ top: 10, bottom: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 {kpi.green_threshold != null && (
                   <ReferenceLine y={kpi.green_threshold} stroke="var(--chart-green-ref)" strokeDasharray="4 2" label={{ value: 'Green', position: 'right', fontSize: 9, fill: 'var(--chart-green-ref)' }} />

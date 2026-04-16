@@ -105,3 +105,20 @@ export function getTooltipRagLabel(
   if (value === green) return 'On Target';
   return 'Off Target';
 }
+
+/**
+ * Calculate Y-axis max so charts always start at 0 and scale to data + headroom.
+ */
+export function calculateYMax(
+  data: { value: number | null }[],
+  targetValue: number | null | undefined
+): number {
+  const values = data
+    .map(d => d.value)
+    .filter((v): v is number => v !== null && v !== undefined);
+  const highestActual = values.length > 0 ? Math.max(...values) : 0;
+  const candidates = [highestActual * 1.2];
+  if (targetValue != null) candidates.push(targetValue * 1.2);
+  const result = Math.max(...candidates);
+  return result > 0 ? Math.ceil(result) : 100;
+}
