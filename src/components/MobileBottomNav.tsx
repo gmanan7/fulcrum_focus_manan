@@ -57,7 +57,9 @@ export function MobileBottomNav() {
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const visibleMore = isShopFloorOnly ? [] : moreItems.filter((item) => !item.roles || hasAnyRole(...(item.roles as any)));
+  const visibleMore = isShopFloorOnly
+    ? [{ label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null }].filter(() => false) // shop_floor: drawer holds identity + sign out only
+    : moreItems.filter((item) => !item.roles || hasAnyRole(...(item.roles as any)));
   const primaryRole = roles[0];
 
   const bottomItems = isShopFloorOnly
@@ -88,16 +90,14 @@ export function MobileBottomNav() {
               <span>{item.label}</span>
             </button>
           ))}
-          {!isShopFloorOnly && (
-            <button
-              onClick={() => setMoreOpen(true)}
-              className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"
-              style={{ color: moreOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
-            >
-              <MoreHorizontal className="h-5 w-5" />
-              <span>More</span>
-            </button>
-          )}
+          <button
+            onClick={() => setMoreOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"
+            style={{ color: moreOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span>More</span>
+          </button>
         </div>
       </nav>
 
