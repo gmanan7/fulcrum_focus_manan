@@ -1,16 +1,30 @@
 import { format } from 'date-fns';
 
-/** Units that should be summed for MTD */
-const SUM_UNITS = new Set([
-  'mn hlp', 'l sheets', 'l cartons', 'nos', 'man-hrs', 'hrs', 'lakhs',
-  // normalized lowercase versions
-]);
+/** Sum-aggregation units (output/count KPIs) */
+const SUM_UNITS = new Set(
+  ['Mn HLP', 'L Sheets', 'L Cartons', 'Nos', 'Man-Hrs', 'Hrs', 'Lakhs'].map((u) => u.toLowerCase()),
+);
+
+/** Average-aggregation units (rate/percentage KPIs) */
+const AVG_UNITS = new Set(
+  ['%', 'Days', 'Score', 'MWH', 'KL'].map((u) => u.toLowerCase()),
+);
+
+export type AggregationType = 'sum' | 'average';
+
+/** Get aggregation type from unit. Defaults to 'sum' when unknown. */
+export function getAggregationType(unit: string | null | undefined): AggregationType {
+  if (!unit) return 'sum';
+  const u = unit.toLowerCase();
+  if (AVG_UNITS.has(u)) return 'average';
+  if (SUM_UNITS.has(u)) return 'sum';
+  return 'sum';
+}
 
 /** Returns true if this KPI should be summed; false means averaged */
 export function isSumKpi(kpiType: string, unit: string | null): boolean {
   if (kpiType !== 'numeric') return false;
-  if (!unit) return true; // default to sum for numeric without unit
-  return SUM_UNITS.has(unit.toLowerCase());
+  return getAggregationType(unit) === 'sum';
 }
 
 /**
@@ -40,8 +54,26 @@ export function computeMtdValue(
   if (isSumKpi(kpiType, unit)) {
     return values.reduce((sum, v) => sum + v, 0);
   }
-  // Average
   return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+/**
+ * Calculate MTD aggregate from a flat entries array, filtering to the
+ * given month (yyyy-MM). Used by KPI Trends where the chart already
+ * holds a window of entries spanning multiple months.
+ */
+export function calculateMtd(
+  entries: { actual_value: number | null; reporting_date: string }[],
+  aggregation: AggregationType,
+  currentMonth: string,
+): number | null {
+  const monthEntries = entries.filter((e) => e.reporting_date.startsWith(currentMonth));
+  const values = monthEntries
+    .map((e) => e.actual_value)
+    .filter((v): v is number => v !== null && !Number.isNaN(v));
+  if (values.length === 0) return null;
+  if (aggregation === 'sum') return values.reduce((s, v) => s + v, 0);
+  return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
 /**
@@ -75,7 +107,6 @@ export function computeRagFromValue(
     if (amberT !== null && value <= amberT) return 'amber';
     return 'red';
   } else {
-    // target_is_exact
     if (value === greenT) return 'green';
     if (amberT !== null) {
       const diff = Math.abs(value - (greenT as number));
