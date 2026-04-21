@@ -23,6 +23,8 @@ import {
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
 } from 'lucide-react';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
+import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -352,7 +354,7 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
 
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasAnyRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
@@ -600,43 +602,99 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {!isTerminal && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
+      {!isTerminal && (() => {
+        const canUpdate = !!user && canUpdateTaskAnyRole(t, user.id, roles as string[]);
+        const onSelectStatus = (newStatus: TaskStatus) => {
+          if (!canUpdate || newStatus === t.status) return;
+          if (newStatus === 'completed' || newStatus === 'cancelled') {
+            setCompletingAs(newStatus);
+            setShowCompleteDialog(true);
+            return;
+          }
+          changeStatusMutation.mutate({ newStatus });
+        };
+        const Buttons = (
           <div className="flex flex-wrap gap-2">
             {t.status === 'open' && (
               <>
-                <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
                   <Play className="h-3.5 w-3.5" /> Start Work
                 </Button>
-                <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
+                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
                   <XCircle className="h-3.5 w-3.5" /> Cancel
                 </Button>
               </>
             )}
             {t.status === 'in_progress' && (
               <>
-                <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
+                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
                   <Pause className="h-3.5 w-3.5" /> Mark Blocked
                 </Button>
-                <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
                   <CheckCircle2 className="h-3.5 w-3.5" /> Complete
                 </Button>
               </>
             )}
             {t.status === 'blocked' && (
               <>
-                <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
                   <Play className="h-3.5 w-3.5" /> Resume
                 </Button>
-                <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
                   <CheckCircle2 className="h-3.5 w-3.5" /> Complete
                 </Button>
               </>
             )}
           </div>
-        </div>
-      )}
+        );
+        return (
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
+
+            {/* Status dropdown — allows changing in any direction */}
+            <div className="space-y-1">
+              <Label className="text-xs">Change Status</Label>
+              {canUpdate ? (
+                <Select value={t.status} onValueChange={(v) => onSelectStatus(v as TaskStatus)}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Select value={t.status} disabled>
+                          <SelectTrigger className="h-10 opacity-60 cursor-not-allowed"><SelectValue /></SelectTrigger>
+                        </Select>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Quick action buttons — disabled & tooltipped if not permitted */}
+            {canUpdate ? Buttons : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="opacity-60 cursor-not-allowed">{Buttons}</div>
+                  </TooltipTrigger>
+                  <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        );
+      })()}
 
       {isTerminal && t.resolution_note && (
         <div>
