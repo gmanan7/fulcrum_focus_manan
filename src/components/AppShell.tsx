@@ -24,7 +24,7 @@ export function AppShell() {
             style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-card)' }}
           >
             {!isMobile && <SidebarTrigger />}
-            <span className="text-sm font-semibold md:hidden" style={{ color: 'var(--text-primary)' }}>Fulcrum Hub</span>
+            <span className="text-sm font-semibold md:hidden" style={{ color: 'var(--text-primary)' }}>Fulcrum Focus</span>
             {isMobile && profile && (
               <div className="ml-auto flex items-center gap-2 min-w-0">
                 <span
