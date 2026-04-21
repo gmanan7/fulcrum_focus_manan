@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { calculateMtd, getAggregationType } from '@/lib/mtdUtils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -343,6 +344,11 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const latest = entries[entries.length - 1];
   const latestStatus = latest?.computed_status;
 
+  // MTD: filter the existing entries to current month and aggregate
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const aggregation = getAggregationType(kpi.unit);
+  const mtdValue = calculateMtd(entries, aggregation, currentMonth);
+
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (cx == null || cy == null) return null;
@@ -376,12 +382,35 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
             {kpi.unit && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {latest && <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatIndianNumber(latest.actual_value)}</span>}
             {latestStatus ? (
               <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatus)}>{latestStatus}</Badge>
             ) : (
               <Badge className="text-[10px] rounded-full px-2 py-0.5" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)' }}>No data</Badge>
             )}
+          </div>
+        </div>
+
+        {/* Latest + MTD chips */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <div
+            className="text-xs px-2 py-1 rounded-md"
+            style={{ background: 'var(--rag-missing-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-card)' }}
+          >
+            <span style={{ color: 'var(--text-muted)' }}>Latest: </span>
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {latest ? formatIndianNumber(latest.actual_value) : '—'}
+            </span>
+            {kpi.unit && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</span>}
+          </div>
+          <div
+            className="text-xs px-2 py-1 rounded-md"
+            style={{ background: 'var(--rag-missing-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-card)' }}
+          >
+            <span style={{ color: 'var(--text-muted)' }}>MTD: </span>
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {mtdValue !== null ? formatIndianNumber(mtdValue) : '—'}
+            </span>
+            {kpi.unit && mtdValue !== null && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</span>}
           </div>
         </div>
 
