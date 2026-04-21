@@ -10,6 +10,7 @@ import { getMeetingKpiReportingDate } from '@/lib/utils';
 import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
 import { buildSnapshotCollapseSummary, getMeetingSnapshotCollapseKey, setAllCollapseStates } from '@/lib/dashboardUtils';
 import { logAudit } from '@/lib/auditLog';
+import { formatIndianNumber } from '@/lib/formatNumber';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -453,8 +454,8 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                   const isNumeric = kpi.kpi_type === 'numeric';
                   const mtdVal = isNumeric ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
                   const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
-                  const targetDisplay = isNumeric ? (kpi.target_value != null ? `${kpi.target_value}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
-                  const mtdDisplay = mtdVal !== null ? (Number.isInteger(mtdVal) ? String(mtdVal) : mtdVal.toFixed(1)) : '—';
+                  const targetDisplay = isNumeric ? (kpi.target_value != null ? `${formatIndianNumber(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
+                  const mtdDisplay = formatIndianNumber(mtdVal);
                   return (
                     <Card key={kpi.id} className={cn(isRed && !hasTask && 'border-destructive/50')}>
                       <CardContent className="p-3 flex items-center justify-between gap-2">
@@ -464,7 +465,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                             {isNumeric && <span className="text-xs text-muted-foreground">Target: {targetDisplay}</span>}
                             {entry ? (
                               <>
-                                <span className="text-xs">Actual: {entry.actual_value ?? entry.text_value ?? '—'}</span>
+                                <span className="text-xs">Actual: {entry.actual_value != null ? formatIndianNumber(entry.actual_value) : (entry.text_value ?? '—')}</span>
                                 {isNumeric && (
                                   <span className="text-xs" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : undefined }}>
                                     MTD: {mtdDisplay}

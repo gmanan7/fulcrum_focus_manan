@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
 
