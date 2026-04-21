@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { getMaxEntryDate, showTodayWarning } from '@/lib/dispatchEntry';
 
 type RagStatus = Database['public']['Enums']['rag_status'];
 type KpiDirection = Database['public']['Enums']['kpi_direction'];
@@ -616,6 +617,9 @@ export default function KpiEntry() {
   });
   const [selectedDept, setSelectedDept] = useState<string>('');
   const { data: departments, isLoading: deptsLoading } = useUserDepartments();
+  const deptCodes = useMemo(() => (departments?.map((d: any) => d.code) ?? []), [departments]);
+  const maxEntryDate = useMemo(() => getMaxEntryDate(deptCodes), [deptCodes]);
+  const showDispatchTodayHint = showTodayWarning(date, deptCodes);
 
   // Auto-select if only one department
   useMemo(() => {
@@ -642,10 +646,13 @@ export default function KpiEntry() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} disabled={(d) => d >= new Date(new Date().toDateString())} className="p-3 pointer-events-auto" />
+              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} disabled={(d) => d > maxEntryDate} className="p-3 pointer-events-auto" />
             </PopoverContent>
           </Popover>
           <p className="text-xs text-muted-foreground">Reporting date — defaults to yesterday. T4 reviews cover the previous day's performance.</p>
+          {showDispatchTodayHint && (
+            <p className="text-xs text-warning">Today's entry — will appear in tomorrow's dashboard review</p>
+          )}
         </div>
 
         <div className="space-y-1">
