@@ -23,6 +23,8 @@ import {
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
 } from 'lucide-react';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
+import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -352,7 +354,7 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
 
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasAnyRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
