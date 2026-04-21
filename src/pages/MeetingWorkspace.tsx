@@ -11,6 +11,7 @@ import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtd
 import { buildSnapshotCollapseSummary, getMeetingSnapshotCollapseKey, setAllCollapseStates } from '@/lib/dashboardUtils';
 import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { buildTaskPayload } from '@/lib/taskPayload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1168,7 +1169,12 @@ function MeetingTasksTab({ meeting }: { meeting: any }) {
 
   return (
     <div className="space-y-4">
-      <Button size="sm" variant="outline" onClick={() => setShowCreate(true)} className="h-9 gap-1"><Plus className="h-3.5 w-3.5" /> Create Task</Button>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Tasks from this meeting</h3>
+        <Button size="sm" onClick={() => setShowCreate(true)} className="h-9 gap-1">
+          <Plus className="h-3.5 w-3.5" /> Add Task
+        </Button>
+      </div>
 
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : (
         <div className="space-y-2">
@@ -1264,18 +1270,18 @@ function StandaloneTaskModal({ open, onOpenChange, meetingId }: { open: boolean;
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
-      const { data, error } = await supabase.from('tasks').insert({
+      const payload = buildTaskPayload({
         title,
-        description: description || null,
-        department_id: deptId,
-        owner_id: ownerId,
-        assigned_by: user!.id,
+        description,
+        departmentId: deptId,
+        ownerId,
+        assignedBy: user!.id,
+        createdBy: user!.id,
         priority,
-        due_date: dueDate,
-        origin_type: meetingId ? 'meeting' : 'standalone',
-        origin_meeting_id: meetingId || null,
-        created_by: user!.id,
-      }).select('id').single();
+        dueDate,
+        meetingId,
+      });
+      const { data, error } = await supabase.from('tasks').insert(payload).select('id').single();
       if (error) throw error;
       return data;
     },
