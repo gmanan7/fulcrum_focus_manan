@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { logAudit } from '@/lib/auditLog';
+import { formatIndianNumber } from '@/lib/formatNumber';
 import type { Database } from '@/integrations/supabase/types';
 
 type KpiType = Database['public']['Enums']['kpi_type'];
@@ -315,7 +316,7 @@ export default function KpiMaster() {
                 </div>
                 <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
                   {kpi.unit && <span>Unit: {kpi.unit}</span>}
-                  {kpi.target_value != null && <span>· Target: {kpi.target_value}</span>}
+                  {kpi.target_value != null && <span>· Target: {formatIndianNumber(kpi.target_value)}</span>}
                   <span>· {FREQ_LABELS[kpi.frequency as KpiFrequency]}</span>
                 </div>
                 <div className="flex gap-2">
@@ -349,7 +350,7 @@ export default function KpiMaster() {
                   <TableCell className="text-muted-foreground">{kpi.department?.name}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{TYPE_LABELS[kpi.kpi_type as KpiType]}</Badge></TableCell>
                   <TableCell>{kpi.unit || '—'}</TableCell>
-                  <TableCell>{kpi.target_value ?? '—'}</TableCell>
+                  <TableCell>{formatIndianNumber(kpi.target_value)}</TableCell>
                   <TableCell>{FREQ_LABELS[kpi.frequency as KpiFrequency]}</TableCell>
                   <TableCell><Badge variant={kpi.is_active ? 'default' : 'outline'}>{kpi.is_active ? 'Yes' : 'No'}</Badge></TableCell>
                   <TableCell className="text-right">

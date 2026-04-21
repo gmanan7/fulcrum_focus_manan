@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
 
@@ -455,10 +456,10 @@ export default function Dashboard() {
                             </span>
                           ) : (
                             <>
-                              <span className="text-xs hidden sm:inline w-12 text-right" style={{ color: 'var(--text-muted)' }}>{kpi.target_value ?? '—'}</span>
-                              <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{entry?.actual_value ?? '—'}</span>
+                              <span className="text-xs hidden sm:inline w-12 text-right" style={{ color: 'var(--text-muted)' }}>{formatIndianNumber(kpi.target_value)}</span>
+                              <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{formatIndianNumber(entry?.actual_value)}</span>
                               <span className="text-xs hidden sm:inline w-16 text-right" style={{ color: mtdRag ? `var(--rag-${mtdRag}-border)` : 'var(--text-muted)' }}>
-                                {mtdVal !== null ? (Number.isInteger(mtdVal) ? mtdVal : mtdVal.toFixed(1)) : '—'}
+                                {formatIndianNumber(mtdVal)}
                               </span>
                               <span className="w-16 flex justify-center">
                               {status ? (
@@ -533,11 +534,11 @@ export default function Dashboard() {
             <div className="space-y-3 py-4 text-sm">
               <div className="flex justify-between">
                 <span style={{ color: 'var(--text-secondary)' }}>Actual</span>
-                <span className="font-semibold">{detailKpi.entry.actual_value ?? detailKpi.entry.text_value ?? '—'}</span>
+                <span className="font-semibold">{detailKpi.entry.actual_value != null ? formatIndianNumber(detailKpi.entry.actual_value) : (detailKpi.entry.text_value ?? '—')}</span>
               </div>
               <div className="flex justify-between">
                 <span style={{ color: 'var(--text-secondary)' }}>Target</span>
-                <span>{detailKpi.kpi.target_value ?? '—'}</span>
+                <span>{formatIndianNumber(detailKpi.kpi.target_value)}</span>
               </div>
               <div className="flex justify-between">
                 <span style={{ color: 'var(--text-secondary)' }}>Status</span>

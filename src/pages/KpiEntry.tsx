@@ -21,6 +21,7 @@ import { CalendarIcon, Loader2, Save, AlertTriangle, Plus, MoreVertical, Chevron
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 import { logAudit } from '@/lib/auditLog';
+import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = Database['public']['Enums']['rag_status'];
 type KpiDirection = Database['public']['Enums']['kpi_direction'];
@@ -239,7 +240,7 @@ function NumericDescriptiveSection({ departmentId, reportingDate }: { department
                     <div>
                       <p className="font-medium text-sm">{kpi.name}</p>
                       {isNumeric && kpi.target_value != null && (
-                        <p className="text-xs text-muted-foreground">Target: {kpi.target_value} {kpi.unit || ''}</p>
+                        <p className="text-xs text-muted-foreground">Target: {formatIndianNumber(kpi.target_value)} {kpi.unit || ''}</p>
                       )}
                     </div>
                     {rag && <Badge className={`text-xs ${RAG_COLORS[rag]}`}>{rag.toUpperCase()}</Badge>}
