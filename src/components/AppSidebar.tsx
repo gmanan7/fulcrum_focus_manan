@@ -103,7 +103,7 @@ export function AppSidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'var(--color-primary)' }}>
               <Factory className="h-4 w-4 text-white" />
             </div>
-            <span className="text-sm font-bold" style={{ color: 'var(--text-sidebar-active)' }}>Fulcrum Hub</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-sidebar-active)' }}>Fulcrum Focus</span>
           </div>
         )}
 
