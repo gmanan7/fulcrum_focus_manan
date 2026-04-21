@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
 import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection, type Period, PERIODS, getDateRange, calculateYMax } from '@/lib/kpiChartUtils';
+import { formatIndianNumber } from '@/lib/formatNumber';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -465,8 +466,8 @@ function KpiTrendCard({
     return (
       <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
         <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{d.fullDate}</p>
-        <p style={{ color: 'var(--text-secondary)' }}>Actual: <span className="font-semibold">{d.actual}</span>{kpi?.unit ? ` ${kpi.unit}` : ''}</p>
-        <p style={{ color: 'var(--text-secondary)' }}>Target: <span className="font-semibold">{kpi?.target_value != null ? `${kpi.target_value}${kpi?.unit ? ` ${kpi.unit}` : ''}` : '—'}</span></p>
+        <p style={{ color: 'var(--text-secondary)' }}>Actual: <span className="font-semibold">{formatIndianNumber(d.actual)}</span>{kpi?.unit ? ` ${kpi.unit}` : ''}</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Target: <span className="font-semibold">{kpi?.target_value != null ? `${formatIndianNumber(kpi.target_value)}${kpi?.unit ? ` ${kpi.unit}` : ''}` : '—'}</span></p>
         {d.status && (
           <p style={{ color: 'var(--text-secondary)' }}>Status: <Badge className="text-xs ml-1" style={ragBadgeStyle(d.status)}>{ragLabel}</Badge></p>
         )}
@@ -527,7 +528,8 @@ function KpiTrendCard({
                   tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
                   axisLine={false}
                   tickLine={false}
-                  width={30}
+                  width={42}
+                  tickFormatter={(v) => formatIndianNumber(typeof v === 'number' ? v : Number(v))}
                   domain={[0, calculateYMax(chartData.map(d => ({ value: d.actual })), kpi?.target_value)]}
                   padding={{ top: 10, bottom: 10 }}
                 />

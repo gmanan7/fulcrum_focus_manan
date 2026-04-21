@@ -16,6 +16,7 @@ import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, C
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
+import { formatIndianNumber } from '@/lib/formatNumber';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -355,7 +356,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
     return (
       <div className="rounded-lg shadow-md p-3 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
         <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{d.fullDate}</p>
-        <p style={{ color: 'var(--text-secondary)' }}>Actual: <span className="font-semibold">{d.actual}</span></p>
+        <p style={{ color: 'var(--text-secondary)' }}>Actual: <span className="font-semibold">{formatIndianNumber(d.actual)}</span></p>
         {d.status && (
           <p style={{ color: 'var(--text-secondary)' }}>Status: <Badge className="text-xs ml-1" style={ragBadgeStyle(d.status)}>{d.status}</Badge></p>
         )}
@@ -375,7 +376,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
             {kpi.unit && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {latest && <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{latest.actual_value}</span>}
+            {latest && <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{formatIndianNumber(latest.actual_value)}</span>}
             {latestStatus ? (
               <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatus)}>{latestStatus}</Badge>
             ) : (
@@ -391,7 +392,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} domain={[0, calculateYMax(chartData.map(d => ({ value: d.actual })), kpi.target_value)]} padding={{ top: 10, bottom: 10 }} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={48} tickFormatter={(v) => formatIndianNumber(typeof v === 'number' ? v : Number(v))} domain={[0, calculateYMax(chartData.map(d => ({ value: d.actual })), kpi.target_value)]} padding={{ top: 10, bottom: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 {kpi.green_threshold != null && (
                   <ReferenceLine y={kpi.green_threshold} stroke="var(--chart-green-ref)" strokeDasharray="4 2" label={{ value: 'Green', position: 'right', fontSize: 9, fill: 'var(--chart-green-ref)' }} />
