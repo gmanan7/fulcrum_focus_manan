@@ -493,6 +493,7 @@ export default function Dashboard() {
                     const status = entry?.computed_status as RagStatus | null;
                     const isProjectTracker = kpi.kpi_type === 'project_tracker';
                     const isDescriptive = kpi.kpi_type === 'descriptive';
+                    const pmLine = detectPmLine(kpi.name);
                     const items = piByKpi[kpi.id] || [];
                     const activeItems = items.filter((i) => i.status === 'active').length;
                     const completedItems = items.filter((i) => i.status === 'completed').length;
@@ -511,14 +512,28 @@ export default function Dashboard() {
                           className="flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors min-h-[44px]"
                           style={rowStyle}
                           onClick={() => {
-                            if (isMobile) setDetailKpi({ kpi, entry });
+                            if (isMobile && !pmLine) setDetailKpi({ kpi, entry });
                             else setExpandedRow(isExpanded ? null : kpi.id);
                           }}
                         >
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{kpi.name}</p>
                           </div>
-                          {isProjectTracker ? (
+                          {pmLine ? (
+                            (() => {
+                              const s = pmSummaryByLine[pmLine];
+                              return (
+                                <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                                  {s.done} done / {s.total} total
+                                  {s.overdue > 0 && (
+                                    <span className="ml-1.5" style={{ color: 'var(--rag-red-border)' }}>
+                                      • {s.overdue} overdue
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })()
+                          ) : isProjectTracker ? (
                             <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
                               {activeItems} Active / {completedItems} Completed
                             </span>
@@ -551,7 +566,12 @@ export default function Dashboard() {
                           )}
                           <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isExpanded && 'rotate-90')} style={{ color: 'var(--text-muted)' }} />
                         </div>
-                        {!isMobile && isExpanded && isProjectTracker && (
+                        {isExpanded && pmLine && (
+                          <div className="px-3 py-3" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)' }}>
+                            <PmScheduleGrid month={selectedDate} line={pmLine} height="compact" />
+                          </div>
+                        )}
+                        {!isMobile && isExpanded && !pmLine && isProjectTracker && (
                           <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
                             {(() => {
                               const trackerItems = filterItemsForKpi(projectItems as any, kpi.id);
@@ -573,7 +593,7 @@ export default function Dashboard() {
                             })()}
                           </div>
                         )}
-                        {!isMobile && isExpanded && !isProjectTracker && entry && (
+                        {!isMobile && isExpanded && !pmLine && !isProjectTracker && entry && (
                           <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
                             <p><span className="font-medium">Remarks:</span> {entry.remarks || 'None'}</p>
                             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
