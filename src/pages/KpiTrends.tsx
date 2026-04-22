@@ -335,6 +335,19 @@ export default function KpiTrends() {
           })}
         </div>
       )}
+
+      <KpiExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        allKpis={(allKpis || []) as any}
+        currentViewKpis={grouped.flatMap((g) => g.kpis) as any}
+        periodEntries={(entries || []) as any}
+        departments={(departments || []) as any}
+        periodFrom={rangeFrom}
+        periodTo={rangeTo}
+        sourceLabel="KPI Trends Report"
+        chartSelector="[data-export-chart]"
+      />
     </div>
   );
 }
