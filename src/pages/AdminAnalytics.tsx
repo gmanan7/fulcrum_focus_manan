@@ -95,9 +95,10 @@ function Section({
 }
 
 export default function AdminAnalytics() {
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, profile, roles } = useAuth();
   const allowed = hasAnyRole('super_admin', 'factory_manager');
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
+  const [exporting, setExporting] = useState(false);
   const [now, setNow] = useState(new Date());
   const range = useMemo(() => resolvePeriodRange(period, now), [period, now]);
 
