@@ -728,6 +728,16 @@ function ManageMachinesSheet({
           <SheetTitle>Manage Machines</SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-2">
+          {/* Column headers */}
+          <div className="sticky top-0 z-10 bg-background border-b pb-2 grid grid-cols-12 gap-2 px-3 text-xs text-muted-foreground font-medium">
+            <div className="col-span-3">Machine Name</div>
+            <div className="col-span-2">Line</div>
+            <div className="col-span-2">Group</div>
+            <div className="col-span-1 text-center">Critical</div>
+            <div className="col-span-1 text-center">Active</div>
+            <div className="col-span-1 text-center">Order</div>
+            <div className="col-span-2" />
+          </div>
           {machines.map((m) => {
             const e = edits[m.id] ?? {};
             const dirty = Object.keys(e).length > 0;
@@ -742,13 +752,11 @@ function ManageMachinesSheet({
                   </SelectContent>
                 </Select>
                 <Input className="col-span-2 h-8 text-xs" value={(e.group_name ?? m.group_name) as string} onChange={(ev) => patch(m.id, { group_name: ev.target.value })} />
-                <div className="col-span-1 flex items-center gap-1 text-[10px]">
+                <div className="col-span-1 flex items-center justify-center">
                   <Switch checked={(e.is_critical ?? m.is_critical) as boolean} onCheckedChange={(v) => patch(m.id, { is_critical: v })} />
-                  <span>Crit</span>
                 </div>
-                <div className="col-span-1 flex items-center gap-1 text-[10px]">
+                <div className="col-span-1 flex items-center justify-center">
                   <Switch checked={(e.is_active ?? m.is_active) as boolean} onCheckedChange={(v) => patch(m.id, { is_active: v })} />
-                  <span>Act</span>
                 </div>
                 <Input
                   type="number"
