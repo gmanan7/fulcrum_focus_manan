@@ -26,6 +26,7 @@ import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, Arr
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
 
 type MeetingStatus = Database['public']['Enums']['meeting_status'];
 type RagStatus = Database['public']['Enums']['rag_status'];
