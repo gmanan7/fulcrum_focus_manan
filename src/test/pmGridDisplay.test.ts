@@ -51,7 +51,7 @@ describe('buildGridSummary', () => {
 
   it('5 plans, 2 actuals → amber (no overdue)', () => {
     const plans = machines.map((m) => mkP(m.id, '2026-04-25')); // future
-    const actuals = [mkA('m1', '2026-04-20'), mkA('m2', '2026-04-21')];
+    const actuals = [mkA('m1', '2026-04-25'), mkA('m2', '2026-04-25')];
     expect(buildGridSummary(machines, plans, actuals, month, today)).toEqual({
       done: 2, total: 5, overdue: 0, color: 'amber',
     });
