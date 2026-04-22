@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CalendarIcon, ChevronRight, ChevronDown, ChevronLeft, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { CalendarIcon, ChevronRight, ChevronDown, ChevronLeft, FileWarning, ChevronsUpDown, ChevronsDownUp, Download } from 'lucide-react';
+import { KpiExportModal } from '@/components/KpiExportModal';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
@@ -56,6 +57,7 @@ export default function KpiTrends() {
   const [customTo, setCustomTo] = useState<Date>();
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [rangeFrom, rangeTo] = getDateRange(period, customFrom, customTo);
 
