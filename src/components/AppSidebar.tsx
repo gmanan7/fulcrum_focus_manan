@@ -17,9 +17,11 @@ import {
   Moon,
   Sparkles,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, type Theme } from '@/hooks/useTheme';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Sidebar,
   SidebarContent,
@@ -46,6 +48,7 @@ const mainNav = [
   { title: 'My View', url: '/my-view', icon: LayoutDashboard, roles: null, hideForShopFloor: true },
   { title: 'Dashboard', url: '/dashboard', icon: BarChart3, roles: null, hideForShopFloor: true },
   { title: 'Enter KPIs', url: '/kpi/entry', icon: BarChart3, roles: null, hideForShopFloor: false },
+  { title: 'PM Schedule', url: '/pm-schedule', icon: ClipboardList, roles: null, hideForShopFloor: true, requireEng: true },
   { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null, hideForShopFloor: false },
   { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null, hideForShopFloor: false },
   { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
@@ -77,16 +80,34 @@ const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
 ];
 
 export function AppSidebar() {
-  const { profile, roles, signOut, hasRole, hasAnyRole } = useAuth();
+  const { profile, roles, signOut, hasRole, hasAnyRole, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const isVibrant = theme === 'vibrant';
 
+  const [isEng, setIsEng] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    if (!user?.id) { setIsEng(false); return; }
+    supabase
+      .from('user_departments')
+      .select('department:department(code)')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        if (cancel) return;
+        const codes = (data ?? []).map((r: any) => r.department?.code).filter(Boolean);
+        setIsEng(codes.includes('ENG'));
+      });
+    return () => { cancel = true; };
+  }, [user?.id]);
+
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
+  const canSeePm = hasAnyRole('super_admin', 'factory_manager') || isEng;
   const visibleMain = mainNav.filter(
     (item) => {
       if (isShopFloorOnly && item.hideForShopFloor) return false;
+      if ((item as any).requireEng && !canSeePm) return false;
       return !item.roles || hasAnyRole(...(item.roles as any));
     }
   );
