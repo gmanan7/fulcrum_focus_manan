@@ -14,8 +14,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   CalendarIcon, AlertTriangle, ListTodo, AlertCircle,
-  CalendarDays, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown,
+  CalendarDays, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, Download,
 } from 'lucide-react';
+import { KpiExportModal } from '@/components/KpiExportModal';
+import { startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
@@ -66,6 +68,7 @@ export default function Dashboard() {
   });
   const [calOpen, setCalOpen] = useState(false);
   const [detailKpi, setDetailKpi] = useState<any>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
@@ -78,6 +81,14 @@ export default function Dashboard() {
         .order('display_order');
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: allDepartments } = useQuery({
+    queryKey: ['dashboard-all-departments'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true);
+      return data || [];
     },
   });
 
@@ -365,23 +376,28 @@ export default function Dashboard() {
               {getKpiSubtitle(selectedDate)}
             </p>
           </div>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="shrink-0 gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {format(selectedDate, 'dd MMM yyyy')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
-                disabled={(d) => d >= new Date(new Date().toDateString())}
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2 shrink-0">
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0 gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {format(selectedDate, 'dd MMM yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
+                  disabled={(d) => d >= new Date(new Date().toDateString())}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -428,7 +444,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-export-dashboard-grid="1">
           {/* Column header row */}
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider font-semibold"
@@ -672,6 +688,32 @@ export default function Dashboard() {
           )}
         </SheetContent>
       </Sheet>
+
+      <KpiExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        allKpis={(kpis || []) as any}
+        currentViewKpis={(kpis || []) as any}
+        periodEntries={[
+          ...((entries || []) as any),
+          ...((mtdEntries || []) as any).map((e: any) => ({ ...e, computed_status: null, is_late_entry: false })),
+        ]}
+        departments={(allDepartments || []) as any}
+        periodFrom={startOfMonth(selectedDate)}
+        periodTo={selectedDate}
+        userName={profile?.full_name}
+        sourceLabel="KPI Dashboard Snapshot"
+        dashboardSelector="[data-export-dashboard-grid]"
+        chartSelector="[data-export-chart]"
+        fetchEntriesForRange={async (from, to) => {
+          const { data } = await supabase
+            .from('kpi_entries')
+            .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
+            .gte('reporting_date', format(from, 'yyyy-MM-dd'))
+            .lte('reporting_date', format(to, 'yyyy-MM-dd'));
+          return (data || []) as any;
+        }}
+      />
     </div>
   );
 }

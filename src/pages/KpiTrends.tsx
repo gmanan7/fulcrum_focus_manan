@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CalendarIcon, ChevronRight, ChevronDown, ChevronLeft, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { CalendarIcon, ChevronRight, ChevronDown, ChevronLeft, FileWarning, ChevronsUpDown, ChevronsDownUp, Download } from 'lucide-react';
+import { KpiExportModal } from '@/components/KpiExportModal';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
@@ -56,6 +57,7 @@ export default function KpiTrends() {
   const [customTo, setCustomTo] = useState<Date>();
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [rangeFrom, rangeTo] = getDateRange(period, customFrom, customTo);
 
@@ -198,10 +200,17 @@ export default function KpiTrends() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>KPI Trends</h1>
-      {isShopFloorOnly && (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
-      )}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>KPI Trends</h1>
+          {isShopFloorOnly && (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
+          )}
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+          <Download className="h-4 w-4" /> Export
+        </Button>
+      </div>
 
       {/* Filter bar */}
       <div className="space-y-3">
@@ -326,6 +335,19 @@ export default function KpiTrends() {
           })}
         </div>
       )}
+
+      <KpiExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        allKpis={(allKpis || []) as any}
+        currentViewKpis={grouped.flatMap((g) => g.kpis) as any}
+        periodEntries={(entries || []) as any}
+        departments={(departments || []) as any}
+        periodFrom={rangeFrom}
+        periodTo={rangeTo}
+        sourceLabel="KPI Trends Report"
+        chartSelector="[data-export-chart]"
+      />
     </div>
   );
 }
@@ -423,7 +445,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
 
         {/* Chart */}
         {chartData.length > 0 ? (
-          <div style={{ background: 'var(--chart-bg)', borderRadius: 8 }}>
+          <div data-export-chart={kpi.id} data-export-title={kpi.name} style={{ background: 'var(--chart-bg)', borderRadius: 8 }}>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
