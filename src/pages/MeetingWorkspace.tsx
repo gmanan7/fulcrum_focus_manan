@@ -26,6 +26,7 @@ import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, Arr
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
 
 type MeetingStatus = Database['public']['Enums']['meeting_status'];
 type RagStatus = Database['public']['Enums']['rag_status'];
@@ -280,6 +281,21 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
     },
   });
 
+  const { data: pmKpis } = useQuery({
+    queryKey: ['pm-kpis-snapshot'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('kpi_master')
+        .select('id, name, department_id')
+        .eq('is_active', true)
+        .eq('kpi_type', 'project_tracker')
+        .ilike('name', '%PM Schedule%')
+        .order('display_order');
+      return data || [];
+    },
+  });
+
+
   const { data: entries } = useQuery({
     queryKey: ['kpi-entries-snapshot', kpiDate],
     queryFn: async () => {
@@ -502,6 +518,17 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                 })}
               </div>
             )}
+            {!isCollapsed && !ootFilter && (pmKpis ?? []).filter((p) => p.department_id === dept.id).map((pk) => {
+              const n = pk.name.toLowerCase();
+              const pmLine: 'SFM' | 'RFM' | null = n.includes('sfm') ? 'SFM' : n.includes('rfm') ? 'RFM' : null;
+              if (!pmLine) return null;
+              return (
+                <div key={pk.id} className="px-3 pb-3" style={{ borderTop: '1px solid var(--border-card)' }}>
+                  <p className="text-xs font-medium py-2" style={{ color: 'var(--text-secondary)' }}>{pk.name}</p>
+                  <PmScheduleGrid month={new Date(meeting.scheduled_date + 'T00:00:00')} line={pmLine} height="compact" showLink={false} />
+                </div>
+              );
+            })}
           </Card>
         );
       })}

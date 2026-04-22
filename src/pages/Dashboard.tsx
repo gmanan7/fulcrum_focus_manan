@@ -21,6 +21,16 @@ import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { filterItemsForKpi, EMPTY_PROJECT_TRACKER_MESSAGE, STATUS_LABELS } from '@/lib/projectTrackerExpansion';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
+import { toIsoDate, daysBetween } from '@/lib/pmSchedule';
+
+function detectPmLine(name: string): 'SFM' | 'RFM' | null {
+  const n = name.toLowerCase();
+  if (!n.includes('pm schedule')) return null;
+  if (n.includes('sfm')) return 'SFM';
+  if (n.includes('rfm')) return 'RFM';
+  return null;
+}
 
 type RagStatus = 'red' | 'amber' | 'green';
 
@@ -124,6 +134,67 @@ export default function Dashboard() {
       return data;
     },
   });
+
+  // PM Schedule summary data for the selected month (used by SFM/RFM PM Schedule rows)
+  const pmMonthStart = useMemo(() => format(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), 'yyyy-MM-dd'), [selectedDate]);
+  const pmMonthEnd = useMemo(() => format(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0), 'yyyy-MM-dd'), [selectedDate]);
+
+  const { data: pmMachines } = useQuery({
+    queryKey: ['dashboard-pm-machines'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_machines').select('id, line').eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: pmPlans } = useQuery({
+    queryKey: ['dashboard-pm-plans', pmMonthStart, pmMonthEnd],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_plan').select('machine_id, planned_date')
+        .gte('planned_date', pmMonthStart).lte('planned_date', pmMonthEnd);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: pmActuals } = useQuery({
+    queryKey: ['dashboard-pm-actuals', pmMonthStart, pmMonthEnd],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_actual').select('machine_id, actual_date')
+        .gte('actual_date', pmMonthStart).lte('actual_date', pmMonthEnd);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const pmSummaryByLine = useMemo(() => {
+    const today = toIsoDate(new Date());
+    const out: Record<'SFM' | 'RFM', { done: number; total: number; overdue: number }> = {
+      SFM: { done: 0, total: 0, overdue: 0 },
+      RFM: { done: 0, total: 0, overdue: 0 },
+    };
+    if (!pmMachines || !pmPlans) return out;
+    const machineLine: Record<string, 'SFM' | 'RFM'> = {};
+    pmMachines.forEach((m) => {
+      if (m.line === 'SFM' || m.line === 'RFM') machineLine[m.id] = m.line;
+    });
+    const overdueMachines: Record<'SFM' | 'RFM', Set<string>> = { SFM: new Set(), RFM: new Set() };
+    (pmPlans as any[]).forEach((p) => {
+      const line = machineLine[p.machine_id];
+      if (!line) return;
+      out[line].total += 1;
+      const matched = (pmActuals as any[] | undefined)?.some(
+        (a) => a.machine_id === p.machine_id && a.actual_date >= p.planned_date,
+      );
+      if (matched) out[line].done += 1;
+      else if (daysBetween(p.planned_date, today) > 2) overdueMachines[line].add(p.machine_id);
+    });
+    out.SFM.overdue = overdueMachines.SFM.size;
+    out.RFM.overdue = overdueMachines.RFM.size;
+    return out;
+  }, [pmMachines, pmPlans, pmActuals]);
+
 
   const { data: overdueTasks } = useQuery({
     queryKey: ['dashboard-overdue'],
@@ -422,6 +493,7 @@ export default function Dashboard() {
                     const status = entry?.computed_status as RagStatus | null;
                     const isProjectTracker = kpi.kpi_type === 'project_tracker';
                     const isDescriptive = kpi.kpi_type === 'descriptive';
+                    const pmLine = detectPmLine(kpi.name);
                     const items = piByKpi[kpi.id] || [];
                     const activeItems = items.filter((i) => i.status === 'active').length;
                     const completedItems = items.filter((i) => i.status === 'completed').length;
@@ -440,14 +512,28 @@ export default function Dashboard() {
                           className="flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors min-h-[44px]"
                           style={rowStyle}
                           onClick={() => {
-                            if (isMobile) setDetailKpi({ kpi, entry });
+                            if (isMobile && !pmLine) setDetailKpi({ kpi, entry });
                             else setExpandedRow(isExpanded ? null : kpi.id);
                           }}
                         >
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{kpi.name}</p>
                           </div>
-                          {isProjectTracker ? (
+                          {pmLine ? (
+                            (() => {
+                              const s = pmSummaryByLine[pmLine];
+                              return (
+                                <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                                  {s.done} done / {s.total} total
+                                  {s.overdue > 0 && (
+                                    <span className="ml-1.5" style={{ color: 'var(--rag-red-border)' }}>
+                                      • {s.overdue} overdue
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })()
+                          ) : isProjectTracker ? (
                             <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
                               {activeItems} Active / {completedItems} Completed
                             </span>
@@ -480,7 +566,12 @@ export default function Dashboard() {
                           )}
                           <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isExpanded && 'rotate-90')} style={{ color: 'var(--text-muted)' }} />
                         </div>
-                        {!isMobile && isExpanded && isProjectTracker && (
+                        {isExpanded && pmLine && (
+                          <div className="px-3 py-3" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)' }}>
+                            <PmScheduleGrid month={selectedDate} line={pmLine} height="compact" />
+                          </div>
+                        )}
+                        {!isMobile && isExpanded && !pmLine && isProjectTracker && (
                           <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
                             {(() => {
                               const trackerItems = filterItemsForKpi(projectItems as any, kpi.id);
@@ -502,7 +593,7 @@ export default function Dashboard() {
                             })()}
                           </div>
                         )}
-                        {!isMobile && isExpanded && !isProjectTracker && entry && (
+                        {!isMobile && isExpanded && !pmLine && !isProjectTracker && entry && (
                           <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
                             <p><span className="font-medium">Remarks:</span> {entry.remarks || 'None'}</p>
                             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
