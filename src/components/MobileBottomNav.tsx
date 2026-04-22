@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, BarChart3, BookCheck, ListTodo, MoreHorizontal,
   Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp, CalendarDays,
-  ClipboardList, LogOut, Sun, Moon, Sparkles,
+  ClipboardList, LogOut, Sun, Moon, Sparkles, BarChart2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, type Theme } from '@/hooks/useTheme';
@@ -33,6 +33,7 @@ const moreItems = [
   { label: 'Compliance', icon: ShieldCheck, path: '/compliance', roles: ['super_admin', 'factory_manager'], requireEng: false },
   { label: 'Users', icon: Users, path: '/admin/users', roles: ['super_admin'], requireEng: false },
   { label: 'Departments', icon: Building2, path: '/admin/departments', roles: ['super_admin'], requireEng: false },
+  { label: 'Analytics', icon: BarChart2, path: '/admin/analytics', roles: ['super_admin', 'factory_manager'], requireEng: false },
   { label: 'Audit Log', icon: ScrollText, path: '/admin/audit', roles: ['super_admin'], requireEng: false },
 ];
 

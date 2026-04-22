@@ -13,6 +13,7 @@ import Dashboard from "@/pages/Dashboard";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminDepartments from "@/pages/AdminDepartments";
 import AdminAudit from "@/pages/AdminAudit";
+import AdminAnalytics from "@/pages/AdminAnalytics";
 import KpiMaster from "@/pages/KpiMaster";
 import KpiEntry from "@/pages/KpiEntry";
 import KpiTrends from "@/pages/KpiTrends";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/departments" element={<AdminDepartments />} />
               <Route path="/admin/audit" element={<AdminAudit />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

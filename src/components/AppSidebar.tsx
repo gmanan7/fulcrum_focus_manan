@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   Sparkles,
+  BarChart2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink } from '@/components/NavLink';
@@ -61,9 +62,10 @@ const mainNav = [
   { title: 'Task Board', url: '/tasks', icon: ListTodo, roles: null, hideForShopFloor: true },
 ];
 
-const adminNav = [
+const adminNav: { title: string; url: string; icon: any; roles?: readonly string[] }[] = [
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Departments', url: '/admin/departments', icon: Building2 },
+  { title: 'Analytics', url: '/admin/analytics', icon: BarChart2, roles: ['super_admin', 'factory_manager'] },
   { title: 'Audit Log', url: '/admin/audit', icon: ScrollText },
 ];
 
@@ -115,7 +117,13 @@ export function AppSidebar() {
     }
   );
 
-  const showAdmin = hasRole('super_admin') && !isShopFloorOnly;
+  const isSuperAdmin = hasRole('super_admin');
+  const visibleAdmin = adminNav.filter((item) => {
+    if (isShopFloorOnly) return false;
+    if (item.roles) return hasAnyRole(...(item.roles as any));
+    return isSuperAdmin;
+  });
+  const showAdmin = visibleAdmin.length > 0;
   const primaryRole = roles[0];
 
   return (
@@ -165,7 +173,7 @@ export function AppSidebar() {
             <SidebarGroupLabel style={{ color: 'var(--text-muted)' }} className="text-xs uppercase tracking-wider">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminNav.map((item) => (
+                {visibleAdmin.map((item) => (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild>
                       <NavLink
