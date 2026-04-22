@@ -117,7 +117,13 @@ export function AppSidebar() {
     }
   );
 
-  const showAdmin = hasRole('super_admin') && !isShopFloorOnly;
+  const isSuperAdmin = hasRole('super_admin');
+  const visibleAdmin = adminNav.filter((item) => {
+    if (isShopFloorOnly) return false;
+    if (item.roles) return hasAnyRole(...(item.roles as any));
+    return isSuperAdmin;
+  });
+  const showAdmin = visibleAdmin.length > 0;
   const primaryRole = roles[0];
 
   return (
@@ -167,7 +173,7 @@ export function AppSidebar() {
             <SidebarGroupLabel style={{ color: 'var(--text-muted)' }} className="text-xs uppercase tracking-wider">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminNav.map((item) => (
+                {visibleAdmin.map((item) => (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild>
                       <NavLink
