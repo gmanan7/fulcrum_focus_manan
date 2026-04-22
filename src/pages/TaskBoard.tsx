@@ -19,13 +19,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import {
-  Plus, Loader2, Filter, AlertTriangle, Clock,
+  Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
   Pencil, FileText, UserCheck,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
+import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -74,6 +75,15 @@ export default function TaskBoard() {
   const [activeListTab, setActiveListTab] = useState<'active' | 'recent'>('active');
   const [chipOverdue, setChipOverdue] = useState(false);
   const [chipDueToday, setChipDueToday] = useState(false);
+  const [chipMyTasks, setChipMyTasks] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('fulcrum-mytasks-filter') === '1';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('fulcrum-mytasks-filter', chipMyTasks ? '1' : '0');
+  }, [chipMyTasks]);
 
   useEffect(() => {
     const markCarryover = async () => {
@@ -133,9 +143,11 @@ export default function TaskBoard() {
 
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
+  const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
+    if (chipMyTasks && user) result = filterMyTasksFn(result, user.id);
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
     return result;
@@ -233,6 +245,17 @@ export default function TaskBoard() {
           )}
         >
           <Clock className="h-3 w-3" /> Due Today ({dueTodayCount})
+        </button>
+        <button
+          onClick={() => setChipMyTasks(!chipMyTasks)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipMyTasks
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+          )}
+        >
+          <User className="h-3 w-3" /> My Tasks ({myTasksCount})
         </button>
       </div>
 
