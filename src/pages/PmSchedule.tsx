@@ -409,10 +409,20 @@ export default function PmSchedule() {
       </Card>
 
       {/* Remarks dialog */}
-      <Dialog open={!!remarksDialog} onOpenChange={(o) => !o && setRemarksDialog(null)}>
+      <Dialog
+        open={!!remarksDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRemarksDialog(null);
+            setConfirmRemove(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Mark PM Done</DialogTitle>
+            <DialogTitle>
+              {remarksDialog?.existingActual ? 'Edit PM Actual' : 'Mark PM Done'}
+            </DialogTitle>
           </DialogHeader>
           {remarksDialog && (
             <div className="space-y-3">
@@ -430,23 +440,57 @@ export default function PmSchedule() {
                 />
                 <div className="text-[10px] text-muted-foreground text-right">{remarksText.length}/500</div>
               </div>
+              {confirmRemove && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-foreground">
+                  Are you sure you want to remove this PM actual entry? This cannot be undone.
+                </div>
+              )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRemarksDialog(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!remarksDialog) return;
-                upsertActualMutation.mutate({
-                  machine: remarksDialog.machine,
-                  date: remarksDialog.date,
-                  remarks: remarksText.trim(),
-                });
-              }}
-              disabled={upsertActualMutation.isPending}
-            >
-              Save
-            </Button>
+          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+            {remarksDialog?.existingActual && !confirmRemove && (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmRemove(true)}
+                className="sm:mr-auto"
+                disabled={removeActualMutation.isPending}
+              >
+                Remove Actual Entry
+              </Button>
+            )}
+            {confirmRemove ? (
+              <>
+                <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  disabled={removeActualMutation.isPending}
+                  onClick={() => {
+                    if (remarksDialog?.existingActual) {
+                      removeActualMutation.mutate(remarksDialog.existingActual.id);
+                    }
+                  }}
+                >
+                  Yes, Remove
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setRemarksDialog(null)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    if (!remarksDialog) return;
+                    upsertActualMutation.mutate({
+                      machine: remarksDialog.machine,
+                      date: remarksDialog.date,
+                      remarks: remarksText.trim(),
+                    });
+                  }}
+                  disabled={upsertActualMutation.isPending}
+                >
+                  {remarksDialog?.existingActual ? 'Update Remarks' : 'Save'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
