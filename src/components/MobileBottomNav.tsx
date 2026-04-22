@@ -12,6 +12,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { NavBadge } from '@/components/NavBadge';
+import { useNavBadgeCounts } from '@/hooks/useNavBadgeCounts';
 
 const mainItems = [
   { label: 'My View', icon: LayoutDashboard, path: '/my-view' },
@@ -53,6 +55,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { profile, roles, hasAnyRole, signOut, user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { taskBoard: taskBoardCount, planner: plannerCount } = useNavBadgeCounts();
   const [moreOpen, setMoreOpen] = useState(false);
 
   const [isEng, setIsEng] = useState(false);
@@ -99,19 +102,25 @@ export function MobileBottomNav() {
         style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-card)' }}
       >
         <div className="flex items-stretch justify-around">
-          {bottomItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors',
-              )}
-              style={{ color: isActive(item.path) ? 'var(--color-primary)' : 'var(--text-muted)' }}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {bottomItems.map((item) => {
+            const badge = item.path === '/tasks' ? taskBoardCount : item.path === '/planner' ? plannerCount : 0;
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors',
+                )}
+                style={{ color: isActive(item.path) ? 'var(--color-primary)' : 'var(--text-muted)' }}
+              >
+                <span className="relative inline-flex">
+                  <item.icon className="h-5 w-5" />
+                  {badge > 0 && <NavBadge count={badge} />}
+                </span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
           <button
             onClick={() => setMoreOpen(true)}
             className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-h-[52px] flex-1 text-[10px] transition-colors"

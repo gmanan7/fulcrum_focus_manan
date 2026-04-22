@@ -43,6 +43,8 @@ import {
   TooltipProvider,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { NavBadge } from '@/components/NavBadge';
+import { useNavBadgeCounts } from '@/hooks/useNavBadgeCounts';
 
 const mainNav = [
   { title: 'My View', url: '/my-view', icon: LayoutDashboard, roles: null, hideForShopFloor: true },
@@ -85,6 +87,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const isVibrant = theme === 'vibrant';
+  const { taskBoard: taskBoardCount, planner: plannerCount } = useNavBadgeCounts();
 
   const [isEng, setIsEng] = useState(false);
   useEffect(() => {
@@ -132,21 +135,27 @@ export function AppSidebar() {
           <SidebarGroupLabel style={{ color: 'var(--text-muted)' }} className="text-xs uppercase tracking-wider">Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleMain.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === '/dashboard'}
-                      className="rounded-lg mx-2 sidebar-nav-link"
-                      activeClassName={cn('sidebar-nav-active font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : 'sidebar-active-solid')}
-                    >
-                      <item.icon className="mr-2 h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleMain.map((item) => {
+                const badge = item.url === '/tasks' ? taskBoardCount : item.url === '/planner' ? plannerCount : 0;
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end={item.url === '/dashboard'}
+                        className="rounded-lg mx-2 sidebar-nav-link"
+                        activeClassName={cn('sidebar-nav-active font-medium rounded-lg mx-2', isVibrant ? 'sidebar-active-vibrant' : 'sidebar-active-solid')}
+                      >
+                        <span className="relative mr-2 inline-flex shrink-0">
+                          <item.icon className="h-4 w-4" />
+                          {badge > 0 && <NavBadge count={badge} />}
+                        </span>
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
