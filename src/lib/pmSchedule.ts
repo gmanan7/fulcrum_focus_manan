@@ -120,6 +120,20 @@ export function groupMachinesByGroup(machines: PmMachine[]): Record<string, PmMa
   return out;
 }
 
+/**
+ * Whether a given role is allowed to revert/remove a pm_actual entry.
+ * Engineering team_member dept membership is enforced server-side via RLS,
+ * but client-side we allow team_member through and let RLS reject non-ENG.
+ */
+export function canRevertActual(
+  role: 'super_admin' | 'factory_manager' | 'department_head' | 'team_member' | 'shop_floor',
+): boolean {
+  return role === 'super_admin'
+    || role === 'factory_manager'
+    || role === 'department_head'
+    || role === 'team_member';
+}
+
 /** Returns Date objects for every day of the month containing `ref`. */
 export function daysOfMonth(ref: Date): Date[] {
   const y = ref.getFullYear();
