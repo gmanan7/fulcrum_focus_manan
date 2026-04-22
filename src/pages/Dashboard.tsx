@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
-import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
@@ -426,7 +426,7 @@ export default function Dashboard() {
                     const completedItems = items.filter((i) => i.status === 'completed').length;
                     const hasNoAction = status === 'red' && entry && !taskEntryIds.has(entry.id);
                     const isExpanded = expandedRow === kpi.id;
-                    const mtdVal = (!isProjectTracker && !isDescriptive) ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                    const mtdVal = (!isProjectTracker && !isDescriptive) ? calculateMtd(mtdByKpi[kpi.id] || [], kpi.mtd_aggregation ?? 'sum') : null;
                     const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
 
                     const rowStyle: React.CSSProperties = status
