@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
-import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
@@ -98,10 +98,10 @@ export default function Dashboard() {
   });
 
   const mtdByKpi = useMemo(() => {
-    const m: Record<string, { actual_value: number | null }[]> = {};
+    const m: Record<string, { actual_value: number | null; reporting_date: string }[]> = {};
     mtdEntries?.forEach((e) => {
       if (!m[e.kpi_id]) m[e.kpi_id] = [];
-      m[e.kpi_id].push({ actual_value: e.actual_value });
+      m[e.kpi_id].push({ actual_value: e.actual_value, reporting_date: e.reporting_date });
     });
     return m;
   }, [mtdEntries]);
@@ -426,7 +426,7 @@ export default function Dashboard() {
                     const completedItems = items.filter((i) => i.status === 'completed').length;
                     const hasNoAction = status === 'red' && entry && !taskEntryIds.has(entry.id);
                     const isExpanded = expandedRow === kpi.id;
-                    const mtdVal = (!isProjectTracker && !isDescriptive) ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                    const mtdVal = (!isProjectTracker && !isDescriptive) ? calculateMtd(mtdByKpi[kpi.id] || [], kpi.mtd_aggregation ?? 'sum', selectedDate) : null;
                     const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
 
                     const rowStyle: React.CSSProperties = status

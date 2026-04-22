@@ -1,48 +1,72 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMtd, getAggregationType } from '@/lib/mtdUtils';
+import { calculateMtd } from '@/lib/mtdUtils';
 
-describe('getAggregationType', () => {
-  it("returns 'average' for %", () => expect(getAggregationType('%')).toBe('average'));
-  it("returns 'sum' for L Sheets", () => expect(getAggregationType('L Sheets')).toBe('sum'));
-  it("returns 'average' for MWH", () => expect(getAggregationType('MWH')).toBe('average'));
-  it("returns 'average' for Days", () => expect(getAggregationType('Days')).toBe('average'));
-  it("returns 'sum' for Nos", () => expect(getAggregationType('Nos')).toBe('sum'));
-  it("returns 'sum' for unknown unit", () => expect(getAggregationType('Foo')).toBe('sum'));
-  it("returns 'sum' for null", () => expect(getAggregationType(null)).toBe('sum'));
-  it('is case-insensitive', () => expect(getAggregationType('mwh')).toBe('average'));
-});
+// Reference date locked inside April 2026
+const REF = new Date(2026, 3, 15); // 15-Apr-2026
+
+const sameMonth = [
+  { reporting_date: '2026-04-01', actual_value: 10 },
+  { reporting_date: '2026-04-05', actual_value: 20 },
+  { reporting_date: '2026-04-10', actual_value: 30 },
+];
 
 describe('calculateMtd', () => {
-  const currentMonth = '2026-04';
-  const entries = [
-    { actual_value: 100, reporting_date: '2026-03-30' }, // prev month — ignored
-    { actual_value: 50, reporting_date: '2026-04-01' },
-    { actual_value: 75, reporting_date: '2026-04-05' },
-    { actual_value: 25, reporting_date: '2026-04-10' },
-  ];
-
-  it("'sum' adds only current-month entries", () => {
-    expect(calculateMtd(entries, 'sum', currentMonth)).toBe(150);
+  it('sum: [10, 20, 30] → 60', () => {
+    expect(calculateMtd(sameMonth, 'sum', REF)).toBe(60);
   });
 
-  it("'average' averages only current-month entries", () => {
-    expect(calculateMtd(entries, 'average', currentMonth)).toBe(50);
+  it('average: [10, 20, 30] → 20', () => {
+    expect(calculateMtd(sameMonth, 'average', REF)).toBe(20);
   });
 
-  it('returns null when entries array is empty', () => {
-    expect(calculateMtd([], 'sum', currentMonth)).toBeNull();
+  it('weighted_average: [10, 20, 30] → 20 (same as average for now)', () => {
+    expect(calculateMtd(sameMonth, 'weighted_average', REF)).toBe(20);
   });
 
-  it('returns null when no entries fall in current month', () => {
-    const prevOnly = [{ actual_value: 10, reporting_date: '2026-03-15' }];
-    expect(calculateMtd(prevOnly, 'sum', currentMonth)).toBeNull();
-  });
-
-  it('skips null actual_values', () => {
+  it('sum ignores null entries: [10, null, 30] → 40', () => {
     const mixed = [
-      { actual_value: null, reporting_date: '2026-04-01' },
-      { actual_value: 20, reporting_date: '2026-04-02' },
+      { reporting_date: '2026-04-01', actual_value: 10 },
+      { reporting_date: '2026-04-05', actual_value: null },
+      { reporting_date: '2026-04-10', actual_value: 30 },
     ];
-    expect(calculateMtd(mixed, 'average', currentMonth)).toBe(20);
+    expect(calculateMtd(mixed, 'sum', REF)).toBe(40);
+  });
+
+  it('average ignores null entries: [10, null, 30] → 20 (2 valid)', () => {
+    const mixed = [
+      { reporting_date: '2026-04-01', actual_value: 10 },
+      { reporting_date: '2026-04-05', actual_value: null },
+      { reporting_date: '2026-04-10', actual_value: 30 },
+    ];
+    expect(calculateMtd(mixed, 'average', REF)).toBe(20);
+  });
+
+  it('empty array → null regardless of aggregation', () => {
+    expect(calculateMtd([], 'sum', REF)).toBeNull();
+    expect(calculateMtd([], 'average', REF)).toBeNull();
+    expect(calculateMtd([], 'weighted_average', REF)).toBeNull();
+  });
+
+  it('previous-month entries are excluded', () => {
+    const mixed = [
+      { reporting_date: '2026-03-30', actual_value: 100 }, // previous month
+      ...sameMonth,
+    ];
+    expect(calculateMtd(mixed, 'sum', REF)).toBe(60);
+  });
+
+  it('referenceDate caps the upper bound', () => {
+    // ref = 5 Apr → only entries on/before 5 Apr count
+    const ref5 = new Date(2026, 3, 5);
+    expect(calculateMtd(sameMonth, 'sum', ref5)).toBe(30); // 10 + 20
+  });
+
+  it("regression: MWH unit with aggregation='sum' returns sum not average", () => {
+    // unit is now irrelevant — only aggregation matters
+    expect(calculateMtd(sameMonth, 'sum', REF)).toBe(60);
+  });
+
+  it("regression: % unit with aggregation='average' returns average not sum", () => {
+    expect(calculateMtd(sameMonth, 'average', REF)).toBe(20);
   });
 });

@@ -197,6 +197,7 @@ export type Database = {
           id: string
           is_active: boolean
           kpi_type: Database["public"]["Enums"]["kpi_type"]
+          mtd_aggregation: Database["public"]["Enums"]["mtd_aggregation_type"]
           name: string
           target_value: number | null
           unit: string | null
@@ -213,6 +214,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           kpi_type?: Database["public"]["Enums"]["kpi_type"]
+          mtd_aggregation?: Database["public"]["Enums"]["mtd_aggregation_type"]
           name: string
           target_value?: number | null
           unit?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           kpi_type?: Database["public"]["Enums"]["kpi_type"]
+          mtd_aggregation?: Database["public"]["Enums"]["mtd_aggregation_type"]
           name?: string
           target_value?: number | null
           unit?: string | null
@@ -1157,6 +1160,7 @@ export type Database = {
       kpi_frequency: "daily" | "weekly" | "monthly"
       kpi_type: "numeric" | "descriptive" | "project_tracker"
       meeting_status: "scheduled" | "in_progress" | "completed" | "cancelled"
+      mtd_aggregation_type: "sum" | "average" | "weighted_average"
       project_item_status: "active" | "completed" | "on_hold" | "dropped"
       rag_status: "red" | "amber" | "green"
       task_origin: "meeting" | "kpi_red" | "standalone"
@@ -1307,6 +1311,7 @@ export const Constants = {
       kpi_frequency: ["daily", "weekly", "monthly"],
       kpi_type: ["numeric", "descriptive", "project_tracker"],
       meeting_status: ["scheduled", "in_progress", "completed", "cancelled"],
+      mtd_aggregation_type: ["sum", "average", "weighted_average"],
       project_item_status: ["active", "completed", "on_hold", "dropped"],
       rag_status: ["red", "amber", "green"],
       task_origin: ["meeting", "kpi_red", "standalone"],

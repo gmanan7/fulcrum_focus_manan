@@ -27,6 +27,14 @@ const TYPE_LABELS: Record<KpiType, string> = { numeric: 'Numeric', descriptive: 
 const FREQ_LABELS: Record<KpiFrequency, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const DIR_LABELS: Record<KpiDirection, string> = { higher_is_better: 'Higher is Better', lower_is_better: 'Lower is Better', target_is_exact: 'Target is Exact' };
 
+type MtdAggregation = 'sum' | 'average' | 'weighted_average';
+
+const MTD_AGG_LABELS: Record<MtdAggregation, string> = {
+  sum: 'Sum — add all daily values',
+  average: 'Average — mean of daily values',
+  weighted_average: 'Weighted Average — for % KPIs',
+};
+
 interface KpiForm {
   id?: string;
   department_id: string;
@@ -40,11 +48,13 @@ interface KpiForm {
   target_value: string;
   green_threshold: string;
   amber_threshold: string;
+  mtd_aggregation: MtdAggregation;
 }
 
 const emptyForm: KpiForm = {
   department_id: '', name: '', kpi_type: 'numeric', description: '', display_order: 0,
   unit: '', frequency: 'daily', direction: 'higher_is_better', target_value: '', green_threshold: '', amber_threshold: '',
+  mtd_aggregation: 'sum',
 };
 
 function useDepartments() {
@@ -91,6 +101,7 @@ function KpiFormDialog({ initial, departments, onClose }: { initial?: KpiForm; d
         payload.unit = form.unit || null;
         payload.frequency = form.frequency;
         payload.direction = form.direction;
+        payload.mtd_aggregation = form.mtd_aggregation;
         payload.target_value = form.target_value ? parseFloat(form.target_value) : null;
         payload.green_threshold = form.green_threshold ? parseFloat(form.green_threshold) : null;
         payload.amber_threshold = form.amber_threshold ? parseFloat(form.amber_threshold) : null;
@@ -189,6 +200,18 @@ function KpiFormDialog({ initial, departments, onClose }: { initial?: KpiForm; d
                 <SelectContent>{Object.entries(DIR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>MTD Aggregation</Label>
+              <Select value={form.mtd_aggregation} onValueChange={(v) => set('mtd_aggregation', v as MtdAggregation)}>
+                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MTD_AGG_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                How daily values are combined for Month-to-Date totals. Use Sum for outputs, counts, and consumption. Use Average for percentages, efficiency, and snapshot counts. Use Weighted Average for efficiency % KPIs.
+              </p>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2"><Label>Target</Label><Input type="number" step="any" value={form.target_value} onChange={(e) => set('target_value', e.target.value)} className="h-11" /></div>
               <div className="space-y-2"><Label>Green ≥</Label><Input type="number" step="any" value={form.green_threshold} onChange={(e) => set('green_threshold', e.target.value)} className="h-11" /></div>
@@ -276,6 +299,7 @@ export default function KpiMaster() {
       target_value: kpi.target_value?.toString() || '',
       green_threshold: kpi.green_threshold?.toString() || '',
       amber_threshold: kpi.amber_threshold?.toString() || '',
+      mtd_aggregation: (kpi.mtd_aggregation as MtdAggregation) || 'sum',
     });
   };
 

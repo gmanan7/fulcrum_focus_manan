@@ -7,7 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInSeconds, parseISO } from 'date-fns';
 import { getMeetingKpiReportingDate } from '@/lib/utils';
-import { getMtdDateRange, computeMtdValue, computeRagFromValue } from '@/lib/mtdUtils';
+import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { buildSnapshotCollapseSummary, getMeetingSnapshotCollapseKey, setAllCollapseStates } from '@/lib/dashboardUtils';
 import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
@@ -295,7 +295,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
     queryFn: async () => {
       const { data } = await supabase
         .from('kpi_entries')
-        .select('kpi_id, actual_value')
+        .select('kpi_id, actual_value, reporting_date')
         .gte('reporting_date', mtdRange.from)
         .lte('reporting_date', mtdRange.to);
       return data || [];
@@ -303,10 +303,10 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   });
 
   const mtdByKpi = useMemo(() => {
-    const m: Record<string, { actual_value: number | null }[]> = {};
+    const m: Record<string, { actual_value: number | null; reporting_date: string }[]> = {};
     mtdEntries?.forEach((e) => {
       if (!m[e.kpi_id]) m[e.kpi_id] = [];
-      m[e.kpi_id].push({ actual_value: e.actual_value });
+      m[e.kpi_id].push({ actual_value: e.actual_value, reporting_date: e.reporting_date });
     });
     return m;
   }, [mtdEntries]);
@@ -453,7 +453,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                   const isRed = entry?.computed_status === 'red';
                   const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
                   const isNumeric = kpi.kpi_type === 'numeric';
-                  const mtdVal = isNumeric ? computeMtdValue(mtdByKpi[kpi.id] || [], kpi.kpi_type, kpi.unit) : null;
+                  const mtdVal = isNumeric ? calculateMtd(mtdByKpi[kpi.id] || [], kpi.mtd_aggregation ?? 'sum', new Date(kpiDate + 'T00:00:00')) : null;
                   const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
                   const targetDisplay = isNumeric ? (kpi.target_value != null ? `${formatIndianNumber(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
                   const mtdDisplay = formatIndianNumber(mtdVal);

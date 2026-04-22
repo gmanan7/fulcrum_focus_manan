@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
-import { calculateMtd, getAggregationType } from '@/lib/mtdUtils';
+import { calculateMtd } from '@/lib/mtdUtils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -344,10 +344,8 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const latest = entries[entries.length - 1];
   const latestStatus = latest?.computed_status;
 
-  // MTD: filter the existing entries to current month and aggregate
-  const currentMonth = format(new Date(), 'yyyy-MM');
-  const aggregation = getAggregationType(kpi.unit);
-  const mtdValue = calculateMtd(entries, aggregation, currentMonth);
+  // MTD: aggregation type comes from kpi_master.mtd_aggregation
+  const mtdValue = calculateMtd(entries, kpi.mtd_aggregation ?? 'sum', new Date());
 
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
