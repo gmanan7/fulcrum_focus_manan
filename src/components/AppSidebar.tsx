@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   Sparkles,
+  BarChart2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink } from '@/components/NavLink';
@@ -61,9 +62,10 @@ const mainNav = [
   { title: 'Task Board', url: '/tasks', icon: ListTodo, roles: null, hideForShopFloor: true },
 ];
 
-const adminNav = [
+const adminNav: { title: string; url: string; icon: any; roles?: readonly string[] }[] = [
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Departments', url: '/admin/departments', icon: Building2 },
+  { title: 'Analytics', url: '/admin/analytics', icon: BarChart2, roles: ['super_admin', 'factory_manager'] },
   { title: 'Audit Log', url: '/admin/audit', icon: ScrollText },
 ];
 
