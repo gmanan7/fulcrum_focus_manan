@@ -454,24 +454,51 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const changeDueDateMutation = useMutation({
     mutationFn: async () => {
+      const prevDue = freshTask?.due_date || task.due_date;
       await supabase.from('task_due_date_history').insert({
         task_id: task.id,
-        previous_due_date: freshTask?.due_date || task.due_date,
+        previous_due_date: prevDue,
         new_due_date: newDueDate,
         reason: dueDateReason,
         changed_by: user!.id,
       });
       await supabase.from('tasks').update({ due_date: newDueDate, updated_at: new Date().toISOString() }).eq('id', task.id);
+      // Log to activity feed
+      await supabase.from('task_updates').insert({
+        task_id: task.id,
+        updated_by: user!.id,
+        update_type: 'due_date_change',
+        previous_due_date: prevDue,
+        new_due_date: newDueDate,
+        update_note: dueDateReason || null,
+      } as any);
     },
     onSuccess: () => {
       toast({ title: 'Due date changed' });
       queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowDueDateChange(false);
       setNewDueDate('');
       setDueDateReason('');
       logAudit('tasks', task.id, 'UPDATE', { due_date: freshTask?.due_date || task.due_date }, { due_date: newDueDate });
     },
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const { error } = await supabase.from('task_updates').insert({
+        task_id: task.id,
+        updated_by: user!.id,
+        update_type: 'comment',
+        update_note: text,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const editTaskMutation = useMutation({
