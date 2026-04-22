@@ -98,10 +98,10 @@ export default function Dashboard() {
   });
 
   const mtdByKpi = useMemo(() => {
-    const m: Record<string, { actual_value: number | null }[]> = {};
+    const m: Record<string, { actual_value: number | null; reporting_date: string }[]> = {};
     mtdEntries?.forEach((e) => {
       if (!m[e.kpi_id]) m[e.kpi_id] = [];
-      m[e.kpi_id].push({ actual_value: e.actual_value });
+      m[e.kpi_id].push({ actual_value: e.actual_value, reporting_date: e.reporting_date });
     });
     return m;
   }, [mtdEntries]);
