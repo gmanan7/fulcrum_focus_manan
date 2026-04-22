@@ -518,6 +518,17 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                 })}
               </div>
             )}
+            {!isCollapsed && !ootFilter && (pmKpis ?? []).filter((p) => p.department_id === dept.id).map((pk) => {
+              const n = pk.name.toLowerCase();
+              const pmLine: 'SFM' | 'RFM' | null = n.includes('sfm') ? 'SFM' : n.includes('rfm') ? 'RFM' : null;
+              if (!pmLine) return null;
+              return (
+                <div key={pk.id} className="px-3 pb-3" style={{ borderTop: '1px solid var(--border-card)' }}>
+                  <p className="text-xs font-medium py-2" style={{ color: 'var(--text-secondary)' }}>{pk.name}</p>
+                  <PmScheduleGrid month={new Date(meeting.scheduled_date + 'T00:00:00')} line={pmLine} height="compact" showLink={false} />
+                </div>
+              );
+            })}
           </Card>
         );
       })}
