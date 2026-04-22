@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
+import { filterItemsForKpi, EMPTY_PROJECT_TRACKER_MESSAGE, STATUS_LABELS } from '@/lib/projectTrackerExpansion';
 import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
