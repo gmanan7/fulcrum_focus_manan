@@ -25,7 +25,8 @@ import type { PmMachine, PmPlan, PmActual } from '@/types/pm';
 import {
   toIsoDate, daysOfMonth, daysBetween, getCellState, groupMachinesByGroup,
   filterMachinesByLine, filterMachinesByCriticality, validateNewMachine,
-  type LineFilter, type CriticalityFilter, type CellState,
+  canTogglePlan, canMarkActual, canMarkActualWithoutPlan,
+  type LineFilter, type CriticalityFilter, type CellState, type PmRole,
 } from '@/lib/pmSchedule';
 import { Plus } from 'lucide-react';
 
