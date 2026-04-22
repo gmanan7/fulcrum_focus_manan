@@ -515,12 +515,22 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         updated_at: new Date().toISOString(),
       }).eq('id', task.id);
       if (error) throw error;
+      if (t.due_date !== editDueDate) {
+        await supabase.from('task_updates').insert({
+          task_id: task.id,
+          updated_by: user!.id,
+          update_type: 'due_date_change',
+          previous_due_date: t.due_date,
+          new_due_date: editDueDate,
+        } as any);
+      }
       logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
     },
     onSuccess: () => {
       toast({ title: 'Task updated' });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
       setEditMode(false);
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
