@@ -1045,8 +1045,10 @@ export type Database = {
           id: string
           new_due_date: string | null
           new_status: Database["public"]["Enums"]["task_status"] | null
+          new_text: string | null
           previous_due_date: string | null
           previous_status: Database["public"]["Enums"]["task_status"] | null
+          previous_text: string | null
           task_id: string
           update_note: string | null
           update_type: string
@@ -1057,8 +1059,10 @@ export type Database = {
           id?: string
           new_due_date?: string | null
           new_status?: Database["public"]["Enums"]["task_status"] | null
+          new_text?: string | null
           previous_due_date?: string | null
           previous_status?: Database["public"]["Enums"]["task_status"] | null
+          previous_text?: string | null
           task_id: string
           update_note?: string | null
           update_type?: string
@@ -1069,8 +1073,10 @@ export type Database = {
           id?: string
           new_due_date?: string | null
           new_status?: Database["public"]["Enums"]["task_status"] | null
+          new_text?: string | null
           previous_due_date?: string | null
           previous_status?: Database["public"]["Enums"]["task_status"] | null
+          previous_text?: string | null
           task_id?: string
           update_note?: string | null
           update_type?: string
