@@ -1043,28 +1043,37 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          new_status: Database["public"]["Enums"]["task_status"]
+          new_due_date: string | null
+          new_status: Database["public"]["Enums"]["task_status"] | null
+          previous_due_date: string | null
           previous_status: Database["public"]["Enums"]["task_status"] | null
           task_id: string
           update_note: string | null
+          update_type: string
           updated_by: string
         }
         Insert: {
           created_at?: string
           id?: string
-          new_status: Database["public"]["Enums"]["task_status"]
+          new_due_date?: string | null
+          new_status?: Database["public"]["Enums"]["task_status"] | null
+          previous_due_date?: string | null
           previous_status?: Database["public"]["Enums"]["task_status"] | null
           task_id: string
           update_note?: string | null
+          update_type?: string
           updated_by: string
         }
         Update: {
           created_at?: string
           id?: string
-          new_status?: Database["public"]["Enums"]["task_status"]
+          new_due_date?: string | null
+          new_status?: Database["public"]["Enums"]["task_status"] | null
+          previous_due_date?: string | null
           previous_status?: Database["public"]["Enums"]["task_status"] | null
           task_id?: string
           update_note?: string | null
+          update_type?: string
           updated_by?: string
         }
         Relationships: [

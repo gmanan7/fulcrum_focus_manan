@@ -21,9 +21,12 @@ import { Switch } from '@/components/ui/switch';
 import {
   Plus, Loader2, Filter, AlertTriangle, Clock,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
+  MessageSquare, Calendar as CalendarIcon, Send,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
+import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -432,7 +435,8 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         new_status: newStatus,
         updated_by: user!.id,
         update_note: note || updateNote || null,
-      });
+        update_type: 'status_change',
+      } as any);
       if (logErr) throw logErr;
     },
     onSuccess: (_, vars) => {
@@ -450,24 +454,51 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const changeDueDateMutation = useMutation({
     mutationFn: async () => {
+      const prevDue = freshTask?.due_date || task.due_date;
       await supabase.from('task_due_date_history').insert({
         task_id: task.id,
-        previous_due_date: freshTask?.due_date || task.due_date,
+        previous_due_date: prevDue,
         new_due_date: newDueDate,
         reason: dueDateReason,
         changed_by: user!.id,
       });
       await supabase.from('tasks').update({ due_date: newDueDate, updated_at: new Date().toISOString() }).eq('id', task.id);
+      // Log to activity feed
+      await supabase.from('task_updates').insert({
+        task_id: task.id,
+        updated_by: user!.id,
+        update_type: 'due_date_change',
+        previous_due_date: prevDue,
+        new_due_date: newDueDate,
+        update_note: dueDateReason || null,
+      } as any);
     },
     onSuccess: () => {
       toast({ title: 'Due date changed' });
       queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowDueDateChange(false);
       setNewDueDate('');
       setDueDateReason('');
       logAudit('tasks', task.id, 'UPDATE', { due_date: freshTask?.due_date || task.due_date }, { due_date: newDueDate });
     },
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const { error } = await supabase.from('task_updates').insert({
+        task_id: task.id,
+        updated_by: user!.id,
+        update_type: 'comment',
+        update_note: text,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const editTaskMutation = useMutation({
@@ -484,12 +515,22 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         updated_at: new Date().toISOString(),
       }).eq('id', task.id);
       if (error) throw error;
+      if (t.due_date !== editDueDate) {
+        await supabase.from('task_updates').insert({
+          task_id: task.id,
+          updated_by: user!.id,
+          update_type: 'due_date_change',
+          previous_due_date: t.due_date,
+          new_due_date: editDueDate,
+        } as any);
+      }
       logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
     },
     onSuccess: () => {
       toast({ title: 'Task updated' });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-detail', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['task-updates', task.id] });
       setEditMode(false);
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -710,29 +751,11 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status History</h3>
-        {statusHistory?.length ? (
-          <div className="space-y-2">
-            {statusHistory.map((h) => (
-              <div key={h.id} className="flex items-start gap-2 text-xs border-l-2 border-muted pl-3 py-1">
-                <div className="flex-1">
-                  <span className="font-medium">{h.previous_status || '—'}</span>
-                  <ArrowRight className="h-3 w-3 inline mx-1" />
-                  <span className="font-medium">{h.new_status}</span>
-                  {h.update_note && <p className="text-muted-foreground mt-0.5">{h.update_note}</p>}
-                </div>
-                <div className="text-right shrink-0 text-muted-foreground">
-                  <p>{(h as any).updater?.full_name}</p>
-                  <p>{format(new Date(h.created_at), 'dd MMM HH:mm')}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">No status changes recorded.</p>
-        )}
-      </div>
+      <ActivityFeed
+        items={statusHistory || []}
+        onAddComment={(text) => addCommentMutation.mutate(text)}
+        isAdding={addCommentMutation.isPending}
+      />
 
       <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
         <DialogContent className="sm:max-w-md">
@@ -875,5 +898,113 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const MAX_COMMENT_LEN = 1000;
+
+function ActivityFeed({
+  items,
+  onAddComment,
+  isAdding,
+}: {
+  items: any[];
+  onAddComment: (text: string) => void;
+  isAdding: boolean;
+}) {
+  const [comment, setComment] = useState('');
+  const sorted = sortActivityOldestFirst(items);
+
+  const submit = () => {
+    const text = comment.trim();
+    if (!text || isAdding) return;
+    onAddComment(text);
+    setComment('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Activity</h3>
+      {sorted.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No activity yet</p>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((h) => {
+            const type = (h.update_type as 'status_change' | 'comment' | 'due_date_change') || 'status_change';
+            const userName = h.updater?.full_name || 'User';
+            const summary = formatActivityItem(
+              type,
+              h.previous_status,
+              h.new_status,
+              h.update_note,
+              h.previous_due_date,
+              h.new_due_date,
+            );
+            const Icon = type === 'comment' ? MessageSquare : type === 'due_date_change' ? CalendarIcon : ArrowRight;
+            return (
+              <div key={h.id} className="flex items-start gap-2 text-xs">
+                <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                  <Icon className="h-3 w-3 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {type === 'comment' ? (
+                    <>
+                      <p>
+                        <span className="font-medium">{userName}</span>
+                        <span className="text-muted-foreground"> added a comment</span>
+                        <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
+                      </p>
+                      <div className="mt-1 border-l-2 border-primary/30 bg-muted/40 rounded px-2 py-1.5 text-foreground whitespace-pre-wrap">
+                        {summary}
+                      </div>
+                    </>
+                  ) : (
+                    <p>
+                      <span className="font-medium">{userName}</span>
+                      <span className="text-muted-foreground"> {summary}</span>
+                      <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
+                      {h.update_note && (
+                        <span className="block text-muted-foreground mt-0.5 italic">{h.update_note}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-4 space-y-1">
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT_LEN))}
+          onKeyDown={handleKeyDown}
+          placeholder="Add a comment or update..."
+          rows={2}
+          maxLength={MAX_COMMENT_LEN}
+          className="text-sm"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">{comment.length}/{MAX_COMMENT_LEN}</span>
+          <Button
+            size="sm"
+            className="h-8 gap-1"
+            disabled={!comment.trim() || isAdding}
+            onClick={submit}
+          >
+            {isAdding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Add Comment
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
