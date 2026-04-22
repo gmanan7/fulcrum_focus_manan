@@ -135,6 +135,67 @@ export default function Dashboard() {
     },
   });
 
+  // PM Schedule summary data for the selected month (used by SFM/RFM PM Schedule rows)
+  const pmMonthStart = useMemo(() => format(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), 'yyyy-MM-dd'), [selectedDate]);
+  const pmMonthEnd = useMemo(() => format(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0), 'yyyy-MM-dd'), [selectedDate]);
+
+  const { data: pmMachines } = useQuery({
+    queryKey: ['dashboard-pm-machines'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_machines').select('id, line').eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: pmPlans } = useQuery({
+    queryKey: ['dashboard-pm-plans', pmMonthStart, pmMonthEnd],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_plan').select('machine_id, planned_date')
+        .gte('planned_date', pmMonthStart).lte('planned_date', pmMonthEnd);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: pmActuals } = useQuery({
+    queryKey: ['dashboard-pm-actuals', pmMonthStart, pmMonthEnd],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pm_actual').select('machine_id, actual_date')
+        .gte('actual_date', pmMonthStart).lte('actual_date', pmMonthEnd);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const pmSummaryByLine = useMemo(() => {
+    const today = toIsoDate(new Date());
+    const out: Record<'SFM' | 'RFM', { done: number; total: number; overdue: number }> = {
+      SFM: { done: 0, total: 0, overdue: 0 },
+      RFM: { done: 0, total: 0, overdue: 0 },
+    };
+    if (!pmMachines || !pmPlans) return out;
+    const machineLine: Record<string, 'SFM' | 'RFM'> = {};
+    pmMachines.forEach((m) => {
+      if (m.line === 'SFM' || m.line === 'RFM') machineLine[m.id] = m.line;
+    });
+    const overdueMachines: Record<'SFM' | 'RFM', Set<string>> = { SFM: new Set(), RFM: new Set() };
+    (pmPlans as any[]).forEach((p) => {
+      const line = machineLine[p.machine_id];
+      if (!line) return;
+      out[line].total += 1;
+      const matched = (pmActuals as any[] | undefined)?.some(
+        (a) => a.machine_id === p.machine_id && a.actual_date >= p.planned_date,
+      );
+      if (matched) out[line].done += 1;
+      else if (daysBetween(p.planned_date, today) > 2) overdueMachines[line].add(p.machine_id);
+    });
+    out.SFM.overdue = overdueMachines.SFM.size;
+    out.RFM.overdue = overdueMachines.RFM.size;
+    return out;
+  }, [pmMachines, pmPlans, pmActuals]);
+
+
   const { data: overdueTasks } = useQuery({
     queryKey: ['dashboard-overdue'],
     queryFn: async () => {
