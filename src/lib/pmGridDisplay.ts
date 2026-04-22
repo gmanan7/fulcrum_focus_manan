@@ -55,10 +55,9 @@ export function buildGridSummary(
   const total = monthPlans.length;
   let color: SummaryColor = 'grey';
   if (total > 0) {
-    if (overdue > 0 && done * 2 < total) color = 'red';
-    else if (done === total) color = 'green';
-    else if (done * 2 >= total) color = 'amber';
-    else color = 'red';
+    if (done === total) color = 'green';
+    else if (done === 0) color = 'red';
+    else color = 'amber';
   }
   return { done, total, overdue, color };
 }
