@@ -435,7 +435,8 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         new_status: newStatus,
         updated_by: user!.id,
         update_note: note || updateNote || null,
-      });
+        update_type: 'status_change',
+      } as any);
       if (logErr) throw logErr;
     },
     onSuccess: (_, vars) => {
