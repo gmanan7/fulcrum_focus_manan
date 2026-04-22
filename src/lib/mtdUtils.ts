@@ -107,24 +107,6 @@ export function computeMtdValue(
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-/**
- * Calculate MTD aggregate from a flat entries array, filtering to the
- * given month (yyyy-MM). Used by KPI Trends where the chart already
- * holds a window of entries spanning multiple months.
- */
-export function calculateMtd(
-  entries: { actual_value: number | null; reporting_date: string }[],
-  aggregation: AggregationType,
-  currentMonth: string,
-): number | null {
-  const monthEntries = entries.filter((e) => e.reporting_date.startsWith(currentMonth));
-  const values = monthEntries
-    .map((e) => e.actual_value)
-    .filter((v): v is number => v !== null && !Number.isNaN(v));
-  if (values.length === 0) return null;
-  if (aggregation === 'sum') return values.reduce((s, v) => s + v, 0);
-  return values.reduce((s, v) => s + v, 0) / values.length;
-}
 
 /**
  * Compute RAG status from a value and KPI thresholds + direction.
