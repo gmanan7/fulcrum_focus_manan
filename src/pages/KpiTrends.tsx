@@ -488,6 +488,10 @@ function ProjectTrackerSection({ dept, kpis, itemsByKpi, updatesMap }: {
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2 space-y-3">
         {kpis.map((kpi) => {
+          const pmLine = detectPmLine(kpi.name);
+          if (pmLine) {
+            return <PmScheduleKpiBlock key={kpi.id} kpi={kpi} line={pmLine} />;
+          }
           const items = itemsByKpi[kpi.id] || [];
           const grouped: Record<string, any[]> = { active: [], on_hold: [], completed: [], dropped: [] };
           items.forEach((item) => { if (grouped[item.status]) grouped[item.status].push(item); });
@@ -546,6 +550,36 @@ function ProjectTrackerSection({ dept, kpis, itemsByKpi, updatesMap }: {
         })}
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/* ── PM Schedule KPI block (full-height grid with month nav) ── */
+function PmScheduleKpiBlock({ kpi, line }: { kpi: any; line: 'SFM' | 'RFM' }) {
+  const [month, setMonth] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const monthLabel = format(month, 'MMM yyyy');
+  const prev = () => setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  const next = () => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  return (
+    <Card className="themed-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
+      <CardContent className="p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{kpi.name}</p>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={prev}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs font-medium min-w-[64px] text-center" style={{ color: 'var(--text-secondary)' }}>{monthLabel}</span>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={next}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <PmScheduleGrid month={month} line={line} height="full" />
+      </CardContent>
+    </Card>
   );
 }
 
