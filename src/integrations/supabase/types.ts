@@ -721,6 +721,140 @@ export type Database = {
           },
         ]
       }
+      pm_actual: {
+        Row: {
+          actual_date: string
+          created_at: string
+          id: string
+          machine_id: string
+          recorded_by: string | null
+          remarks: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_date: string
+          created_at?: string
+          id?: string
+          machine_id: string
+          recorded_by?: string | null
+          remarks?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_date?: string
+          created_at?: string
+          id?: string
+          machine_id?: string
+          recorded_by?: string | null
+          remarks?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_actual_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "pm_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_actual_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_machines: {
+        Row: {
+          created_at: string
+          display_order: number
+          factory_id: string
+          group_name: string
+          id: string
+          is_active: boolean
+          is_critical: boolean
+          line: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          factory_id: string
+          group_name: string
+          id?: string
+          is_active?: boolean
+          is_critical?: boolean
+          line: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          factory_id?: string
+          group_name?: string
+          id?: string
+          is_active?: boolean
+          is_critical?: boolean
+          line?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_machines_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_plan: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          machine_id: string
+          planned_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          machine_id: string
+          planned_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          machine_id?: string
+          planned_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_plan_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_plan_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "pm_machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
