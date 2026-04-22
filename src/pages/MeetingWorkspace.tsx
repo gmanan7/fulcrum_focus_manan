@@ -280,6 +280,21 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
     },
   });
 
+  const { data: pmKpis } = useQuery({
+    queryKey: ['pm-kpis-snapshot'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('kpi_master')
+        .select('id, name, department_id')
+        .eq('is_active', true)
+        .eq('kpi_type', 'project_tracker')
+        .ilike('name', '%PM Schedule%')
+        .order('display_order');
+      return data || [];
+    },
+  });
+
+
   const { data: entries } = useQuery({
     queryKey: ['kpi-entries-snapshot', kpiDate],
     queryFn: async () => {
