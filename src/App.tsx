@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
+import { NavBadgeCountsProvider } from "@/hooks/useNavBadgeCounts";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import Login from "@/pages/Login";
@@ -35,6 +36,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
+        <NavBadgeCountsProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -66,6 +68,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </NavBadgeCountsProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
