@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, BarChart3, BookCheck, ListTodo, MoreHorizontal,
   Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp, CalendarDays,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, type Theme } from '@/hooks/useTheme';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -20,16 +21,17 @@ const mainItems = [
 ];
 
 const moreItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null },
-  { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: ['super_admin', 'factory_manager'] },
-  { label: 'Decision Log', icon: ClipboardList, path: '/meetings/decisions', roles: ['super_admin', 'factory_manager'] },
-  { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null },
-  { label: 'KPI Master', icon: Settings2, path: '/kpi/master', roles: ['super_admin', 'factory_manager'] },
-  { label: 'Templates', icon: Settings2, path: '/meetings/templates', roles: ['super_admin', 'factory_manager'] },
-  { label: 'Compliance', icon: ShieldCheck, path: '/compliance', roles: ['super_admin', 'factory_manager'] },
-  { label: 'Users', icon: Users, path: '/admin/users', roles: ['super_admin'] },
-  { label: 'Departments', icon: Building2, path: '/admin/departments', roles: ['super_admin'] },
-  { label: 'Audit Log', icon: ScrollText, path: '/admin/audit', roles: ['super_admin'] },
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null as string[] | null, requireEng: false },
+  { label: 'PM Schedule', icon: ClipboardList, path: '/pm-schedule', roles: null as string[] | null, requireEng: true },
+  { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'Decision Log', icon: ClipboardList, path: '/meetings/decisions', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null as string[] | null, requireEng: false },
+  { label: 'KPI Master', icon: Settings2, path: '/kpi/master', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'Templates', icon: Settings2, path: '/meetings/templates', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'Compliance', icon: ShieldCheck, path: '/compliance', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'Users', icon: Users, path: '/admin/users', roles: ['super_admin'], requireEng: false },
+  { label: 'Departments', icon: Building2, path: '/admin/departments', roles: ['super_admin'], requireEng: false },
+  { label: 'Audit Log', icon: ScrollText, path: '/admin/audit', roles: ['super_admin'], requireEng: false },
 ];
 
 const roleLabels: Record<string, string> = {
@@ -49,17 +51,37 @@ const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, roles, hasAnyRole, signOut } = useAuth();
+  const { profile, roles, hasAnyRole, signOut, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
+
+  const [isEng, setIsEng] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    if (!user?.id) { setIsEng(false); return; }
+    supabase
+      .from('user_departments')
+      .select('department:department(code)')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        if (cancel) return;
+        const codes = (data ?? []).map((r: any) => r.department?.code).filter(Boolean);
+        setIsEng(codes.includes('ENG'));
+      });
+    return () => { cancel = true; };
+  }, [user?.id]);
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
+  const canSeePm = hasAnyRole('super_admin', 'factory_manager') || isEng;
   const visibleMore = isShopFloorOnly
-    ? [{ label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null }].filter(() => false) // shop_floor: drawer holds identity + sign out only
-    : moreItems.filter((item) => !item.roles || hasAnyRole(...(item.roles as any)));
+    ? [].filter(() => false) // shop_floor: drawer holds identity + sign out only
+    : moreItems.filter((item) => {
+        if (item.requireEng && !canSeePm) return false;
+        return !item.roles || hasAnyRole(...(item.roles as any));
+      });
   const primaryRole = roles[0];
 
   const bottomItems = isShopFloorOnly
