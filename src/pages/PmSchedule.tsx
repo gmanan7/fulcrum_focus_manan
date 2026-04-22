@@ -182,6 +182,34 @@ export default function PmSchedule() {
     onError: (e: any) => toast.error(e?.message ?? 'Failed to save actual'),
   });
 
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const removeActualMutation = useMutation({
+    mutationFn: async (actualId: string) => {
+      const { error } = await supabase.from('pm_actual').delete().eq('id', actualId);
+      if (error) throw error;
+    },
+    onMutate: async (actualId: string) => {
+      await qc.cancelQueries({ queryKey: ['pm_actual', monthStart, monthEnd] });
+      const prev = qc.getQueryData<PmActual[]>(['pm_actual', monthStart, monthEnd]);
+      qc.setQueryData<PmActual[]>(['pm_actual', monthStart, monthEnd], (old) =>
+        (old ?? []).filter((a) => a.id !== actualId),
+      );
+      return { prev };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pm_actual', monthStart, monthEnd] });
+      setRemarksDialog(null);
+      setRemarksText('');
+      setConfirmRemove(false);
+      toast.success('PM actual removed');
+    },
+    onError: (e: any, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['pm_actual', monthStart, monthEnd], ctx.prev);
+      toast.error(e?.message ?? 'Failed to remove actual');
+    },
+  });
+
   // ---------- Helpers ----------
   function shiftMonth(delta: number) {
     setRefDate(new Date(refDate.getFullYear(), refDate.getMonth() + delta, 1));
