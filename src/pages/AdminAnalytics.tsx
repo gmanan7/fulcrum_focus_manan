@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BarChart2, RefreshCw, FileDown, ChevronDown, AlertTriangle, AlertCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
+import { exportAnalyticsPdf, type AnalyticsPdfPayload } from '@/lib/analyticsPdf';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
