@@ -345,7 +345,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const latestStatus = latest?.computed_status;
 
   // MTD: aggregation type comes from kpi_master.mtd_aggregation
-  const mtdValue = calculateMtd(entries, kpi.mtd_aggregation ?? 'sum');
+  const mtdValue = calculateMtd(entries, kpi.mtd_aggregation ?? 'sum', new Date());
 
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;

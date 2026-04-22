@@ -453,7 +453,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
                   const isRed = entry?.computed_status === 'red';
                   const hasTask = entry ? linkedEntryIds.has(entry.id) : false;
                   const isNumeric = kpi.kpi_type === 'numeric';
-                  const mtdVal = isNumeric ? calculateMtd(mtdByKpi[kpi.id] || [], kpi.mtd_aggregation ?? 'sum') : null;
+                  const mtdVal = isNumeric ? calculateMtd(mtdByKpi[kpi.id] || [], kpi.mtd_aggregation ?? 'sum', new Date(kpiDate + 'T00:00:00')) : null;
                   const mtdRag = mtdVal !== null ? computeRagFromValue(mtdVal, kpi) : null;
                   const targetDisplay = isNumeric ? (kpi.target_value != null ? `${formatIndianNumber(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}` : '—') : null;
                   const mtdDisplay = formatIndianNumber(mtdVal);
