@@ -12,15 +12,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CalendarIcon, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { CalendarIcon, ChevronRight, ChevronDown, ChevronLeft, FileWarning, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { calculateMtd } from '@/lib/mtdUtils';
+import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
+
+function detectPmLine(name: string): 'SFM' | 'RFM' | null {
+  const n = name.toLowerCase();
+  if (!n.includes('pm schedule')) return null;
+  if (n.includes('sfm')) return 'SFM';
+  if (n.includes('rfm')) return 'RFM';
+  return null;
+}
 
 function ragBadgeStyle(status: string): React.CSSProperties {
   return {
