@@ -39,8 +39,31 @@ interface RemarksDialogState {
 }
 
 export default function PmSchedule() {
-  const { user, hasAnyRole } = useAuth();
+  const { user, roles, hasAnyRole } = useAuth();
   const qc = useQueryClient();
+
+  // Highest privilege role for PM purposes
+  const userRole: PmRole = useMemo(() => {
+    const order: PmRole[] = ['super_admin', 'factory_manager', 'department_head', 'team_member', 'shop_floor'];
+    return order.find((r) => roles.includes(r)) ?? 'shop_floor';
+  }, [roles]);
+
+  // Fetch the user's department codes (e.g. ['ENG'])
+  const userDeptsQuery = useQuery({
+    queryKey: ['pm-user-depts', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_departments')
+        .select('department:department(code)')
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      return (data ?? [])
+        .map((r: any) => r.department?.code as string | undefined)
+        .filter((c): c is string => !!c);
+    },
+  });
+  const userDepts = userDeptsQuery.data ?? [];
 
   const [refDate, setRefDate] = useState<Date>(() => {
     const d = new Date();
@@ -55,8 +78,9 @@ export default function PmSchedule() {
   const [manageOpen, setManageOpen] = useState(false);
 
   const isAdmin = hasAnyRole('super_admin', 'factory_manager');
-  const canEditPlan = hasAnyRole('super_admin', 'factory_manager', 'department_head');
-  const canEditActual = canEditPlan; // engineering team_member additional check via dept handled by RLS
+  const canEditPlan = canTogglePlan(userRole, userDepts);
+  const canEditActual = canMarkActual(userRole, userDepts);
+  const canActualNoPlan = canMarkActualWithoutPlan(userRole, userDepts);
 
   const today = useMemo(() => toIsoDate(new Date()), []);
   const monthDays = useMemo(() => daysOfMonth(refDate), [refDate]);
