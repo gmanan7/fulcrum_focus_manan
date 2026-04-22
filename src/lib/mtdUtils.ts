@@ -1,5 +1,55 @@
 import { format } from 'date-fns';
 
+export type MtdAggregation = 'sum' | 'average' | 'weighted_average';
+
+/**
+ * Yesterday at 00:00 local time — default reference date for MTD.
+ */
+function yesterdayLocal(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/**
+ * Database-driven MTD calculator. Reads aggregation type from
+ * kpi_master.mtd_aggregation — no unit guessing.
+ *
+ *  - 'sum'              → sum of current-month entries
+ *  - 'average'          → mean of current-month entries
+ *  - 'weighted_average' → same as average until volume data is wired in
+ *
+ * Returns null when no valid entries fall in the month-to-date window.
+ */
+export function calculateMtd(
+  entries: { reporting_date: string; actual_value: number | null }[],
+  aggregation: MtdAggregation,
+  referenceDate?: Date,
+): number | null {
+  const ref = referenceDate ?? yesterdayLocal();
+  const monthStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
+
+  const monthEntries = entries.filter((e) => {
+    if (e.actual_value === null || e.actual_value === undefined) return false;
+    if (Number.isNaN(e.actual_value)) return false;
+    const d = new Date(e.reporting_date + 'T00:00:00');
+    return d >= monthStart && d <= ref;
+  });
+
+  if (monthEntries.length === 0) return null;
+
+  const total = monthEntries.reduce((acc, e) => acc + (e.actual_value as number), 0);
+  if (aggregation === 'sum') return total;
+  // 'average' and 'weighted_average' both use simple mean for now
+  return total / monthEntries.length;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Legacy helpers — retained for older callers/tests. Prefer calculateMtd
+ * with the database-driven mtd_aggregation value.
+ * ────────────────────────────────────────────────────────────────────── */
+
 /** Sum-aggregation units (output/count KPIs) */
 const SUM_UNITS = new Set(
   ['Mn HLP', 'L Sheets', 'L Cartons', 'Nos', 'Man-Hrs', 'Hrs', 'Lakhs'].map((u) => u.toLowerCase()),
