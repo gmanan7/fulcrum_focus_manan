@@ -970,7 +970,7 @@ function ActivityFeed({
                       <span className="font-medium">{userName}</span>
                       <span className="text-muted-foreground"> {summary}</span>
                       <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
-                      {h.update_note && type !== 'comment' && (
+                      {h.update_note && (
                         <span className="block text-muted-foreground mt-0.5 italic">{h.update_note}</span>
                       )}
                     </p>
