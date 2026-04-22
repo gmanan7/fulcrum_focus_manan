@@ -900,3 +900,111 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
     </Dialog>
   );
 }
+
+const MAX_COMMENT_LEN = 1000;
+
+function ActivityFeed({
+  items,
+  onAddComment,
+  isAdding,
+}: {
+  items: any[];
+  onAddComment: (text: string) => void;
+  isAdding: boolean;
+}) {
+  const [comment, setComment] = useState('');
+  const sorted = sortActivityOldestFirst(items);
+
+  const submit = () => {
+    const text = comment.trim();
+    if (!text || isAdding) return;
+    onAddComment(text);
+    setComment('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Activity</h3>
+      {sorted.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No activity yet</p>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((h) => {
+            const type = (h.update_type as 'status_change' | 'comment' | 'due_date_change') || 'status_change';
+            const userName = h.updater?.full_name || 'User';
+            const summary = formatActivityItem(
+              type,
+              h.previous_status,
+              h.new_status,
+              h.update_note,
+              h.previous_due_date,
+              h.new_due_date,
+            );
+            const Icon = type === 'comment' ? MessageSquare : type === 'due_date_change' ? CalendarIcon : ArrowRight;
+            return (
+              <div key={h.id} className="flex items-start gap-2 text-xs">
+                <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                  <Icon className="h-3 w-3 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {type === 'comment' ? (
+                    <>
+                      <p>
+                        <span className="font-medium">{userName}</span>
+                        <span className="text-muted-foreground"> added a comment</span>
+                        <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
+                      </p>
+                      <div className="mt-1 border-l-2 border-primary/30 bg-muted/40 rounded px-2 py-1.5 text-foreground whitespace-pre-wrap">
+                        {summary}
+                      </div>
+                    </>
+                  ) : (
+                    <p>
+                      <span className="font-medium">{userName}</span>
+                      <span className="text-muted-foreground"> {summary}</span>
+                      <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
+                      {h.update_note && type !== 'comment' && (
+                        <span className="block text-muted-foreground mt-0.5 italic">{h.update_note}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-4 space-y-1">
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT_LEN))}
+          onKeyDown={handleKeyDown}
+          placeholder="Add a comment or update..."
+          rows={2}
+          maxLength={MAX_COMMENT_LEN}
+          className="text-sm"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">{comment.length}/{MAX_COMMENT_LEN}</span>
+          <Button
+            size="sm"
+            className="h-8 gap-1"
+            disabled={!comment.trim() || isAdding}
+            onClick={submit}
+          >
+            {isAdding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Add Comment
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
