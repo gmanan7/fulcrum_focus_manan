@@ -486,7 +486,7 @@ function KpiComplianceSection({ data, period, lastUpdated, onRefresh }: any) {
       </div>
 
       {chartData.length > 0 && (
-        <div className="mt-4 h-72">
+        <div className="mt-4 h-72" data-export-chart="compliance-chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -567,7 +567,7 @@ function MeetingHealthSection({ data, period, lastUpdated, onRefresh }: any) {
       </div>
 
       {freqData.length > 0 && (
-        <div className="mt-4 h-56">
+        <div className="mt-4 h-56" data-export-chart="meeting-frequency-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={freqData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -785,7 +785,7 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
       </div>
 
       {weeks.length > 0 && (
-        <div className="mt-4 h-56">
+        <div className="mt-4 h-56" data-export-chart="overdue-trend-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weeks}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
