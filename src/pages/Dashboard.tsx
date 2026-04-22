@@ -84,6 +84,14 @@ export default function Dashboard() {
     },
   });
 
+  const { data: allDepartments } = useQuery({
+    queryKey: ['dashboard-all-departments'],
+    queryFn: async () => {
+      const { data } = await supabase.from('department').select('id, name').eq('is_active', true);
+      return data || [];
+    },
+  });
+
   const { data: entries, isLoading: entriesLoading } = useQuery({
     queryKey: ['dashboard-entries', dateStr],
     queryFn: async () => {
