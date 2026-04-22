@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
+import { filterItemsForKpi, EMPTY_PROJECT_TRACKER_MESSAGE, STATUS_LABELS } from '@/lib/projectTrackerExpansion';
 import { formatIndianNumber } from '@/lib/formatNumber';
 
 type RagStatus = 'red' | 'amber' | 'green';
@@ -479,7 +480,29 @@ export default function Dashboard() {
                           )}
                           <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', isExpanded && 'rotate-90')} style={{ color: 'var(--text-muted)' }} />
                         </div>
-                        {!isMobile && isExpanded && entry && (
+                        {!isMobile && isExpanded && isProjectTracker && (
+                          <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
+                            {(() => {
+                              const trackerItems = filterItemsForKpi(projectItems as any, kpi.id);
+                              if (trackerItems.length === 0) {
+                                return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{EMPTY_PROJECT_TRACKER_MESSAGE}</p>;
+                              }
+                              return (
+                                <ul className="space-y-1.5">
+                                  {trackerItems.map((it) => (
+                                    <li key={it.id} className="flex items-center justify-between gap-2">
+                                      <span className="truncate" style={{ color: 'var(--text-primary)' }}>{it.title}</span>
+                                      <Badge variant="outline" className="text-xs shrink-0">
+                                        {STATUS_LABELS[it.status as keyof typeof STATUS_LABELS] ?? it.status}
+                                      </Badge>
+                                    </li>
+                                  ))}
+                                </ul>
+                              );
+                            })()}
+                          </div>
+                        )}
+                        {!isMobile && isExpanded && !isProjectTracker && entry && (
                           <div className="px-4 py-2 text-sm" style={{ background: 'var(--rag-missing-bg)', borderTop: '1px solid var(--border-card)', color: 'var(--text-secondary)' }}>
                             <p><span className="font-medium">Remarks:</span> {entry.remarks || 'None'}</p>
                             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
