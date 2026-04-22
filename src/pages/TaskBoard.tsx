@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
-import { filterMyTasks } from '@/lib/myTasksFilter';
+import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -143,11 +143,11 @@ export default function TaskBoard() {
 
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
-  const myTasksCount = filterMyTasks(tasks ?? [], user?.id).length;
+  const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
-    if (chipMyTasks && user) result = filterMyTasks(result, user.id);
+    if (chipMyTasks && user) result = filterMyTasksFn(result, user.id);
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
     return result;
