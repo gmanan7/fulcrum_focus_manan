@@ -21,6 +21,16 @@ import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { filterItemsForKpi, EMPTY_PROJECT_TRACKER_MESSAGE, STATUS_LABELS } from '@/lib/projectTrackerExpansion';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
+import { toIsoDate, daysBetween } from '@/lib/pmSchedule';
+
+function detectPmLine(name: string): 'SFM' | 'RFM' | null {
+  const n = name.toLowerCase();
+  if (!n.includes('pm schedule')) return null;
+  if (n.includes('sfm')) return 'SFM';
+  if (n.includes('rfm')) return 'RFM';
+  return null;
+}
 
 type RagStatus = 'red' | 'amber' | 'green';
 
