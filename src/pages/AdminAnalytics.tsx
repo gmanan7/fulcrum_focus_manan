@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BarChart2, RefreshCw, FileDown, ChevronDown, AlertTriangle, AlertCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
+import { exportAnalyticsPdf, type AnalyticsPdfPayload } from '@/lib/analyticsPdf';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
@@ -93,9 +95,10 @@ function Section({
 }
 
 export default function AdminAnalytics() {
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, profile, roles } = useAuth();
   const allowed = hasAnyRole('super_admin', 'factory_manager');
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
+  const [exporting, setExporting] = useState(false);
   const [now, setNow] = useState(new Date());
   const range = useMemo(() => resolvePeriodRange(period, now), [period, now]);
 
@@ -184,8 +187,28 @@ export default function AdminAnalytics() {
           <Button variant="outline" size="sm" onClick={() => { setNow(new Date()); refetch(); }}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Button variant="outline" size="sm" disabled title="Coming soon">
-            <FileDown className="mr-2 h-4 w-4" /> Export Report
+          <Button
+            variant="outline" size="sm"
+            disabled={!data || exporting}
+            onClick={async () => {
+              if (!data) return;
+              setExporting(true);
+              const tId = toast.loading('Generating report...');
+              try {
+                const payload = buildAnalyticsPdfPayload(
+                  data, period, PERIOD_LABELS[period],
+                  { name: profile?.full_name ?? '—', role: roles[0] ?? '—' },
+                );
+                const filename = await exportAnalyticsPdf(payload);
+                toast.success(`Downloaded ${filename}`, { id: tId });
+              } catch (e: any) {
+                toast.error(`Export failed: ${e?.message ?? 'unknown error'}`, { id: tId });
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            <FileDown className="mr-2 h-4 w-4" /> {exporting ? 'Generating…' : 'Export Report'}
           </Button>
         </div>
       </div>
@@ -463,7 +486,7 @@ function KpiComplianceSection({ data, period, lastUpdated, onRefresh }: any) {
       </div>
 
       {chartData.length > 0 && (
-        <div className="mt-4 h-72">
+        <div className="mt-4 h-72" data-export-chart="compliance-chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -544,7 +567,7 @@ function MeetingHealthSection({ data, period, lastUpdated, onRefresh }: any) {
       </div>
 
       {freqData.length > 0 && (
-        <div className="mt-4 h-56">
+        <div className="mt-4 h-56" data-export-chart="meeting-frequency-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={freqData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -762,7 +785,7 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
       </div>
 
       {weeks.length > 0 && (
-        <div className="mt-4 h-56">
+        <div className="mt-4 h-56" data-export-chart="overdue-trend-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weeks}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -809,3 +832,241 @@ function SignalRow({ severity, icon, label, detail }: { severity: 'red' | 'amber
 }
 
 export { BarChart2 }; // re-export for nav usage convenience
+
+/* ============================================================
+ *  Export payload builder — derives PDF data from fetched batch
+ * ============================================================ */
+function buildAnalyticsPdfPayload(
+  data: any,
+  period: AnalyticsPeriod,
+  periodLabel: string,
+  generatedBy: { name: string; role: string },
+): AnalyticsPdfPayload {
+  const range = resolvePeriodRange(period);
+  const start = range.start ? new Date(range.start) : new Date(0);
+  const end = new Date(range.end);
+  const today = new Date();
+  const todayDate = today.toISOString().slice(0, 10);
+  const startMs = start.getTime();
+  const inPeriod = (iso: string) => {
+    const t = new Date(iso).getTime();
+    return t >= startMs && t <= end.getTime();
+  };
+
+  const { profiles, roles, userDepts, depts, kpiEntries, kpiMaster, taskUpdates, tasks, meetings, attendance, discussion, decisions } = data;
+
+  // ---- People rows ----
+  const deptById = new Map<string, any>(depts.map((d: any) => [d.id, d]));
+  const userDeptsBy = new Map<string, string[]>();
+  userDepts.forEach((ud: any) => {
+    const arr = userDeptsBy.get(ud.user_id) ?? [];
+    const d = deptById.get(ud.department_id);
+    if (d) arr.push(d.code);
+    userDeptsBy.set(ud.user_id, arr);
+  });
+  const roleByUser = new Map<string, string>();
+  roles.forEach((r: any) => { if (!roleByUser.has(r.user_id)) roleByUser.set(r.user_id, r.role); });
+
+  const lastActivity = new Map<string, number>();
+  const entryCount = new Map<string, number>();
+  const updateCount = new Map<string, number>();
+  const taskCreatedCount = new Map<string, number>();
+  const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
+  const updateLast = (uid: string, iso: string) => {
+    const t = new Date(iso).getTime();
+    if (!lastActivity.has(uid) || lastActivity.get(uid)! < t) lastActivity.set(uid, t);
+  };
+  kpiEntries.forEach((e: any) => {
+    if (!e.submitted_by) return;
+    updateLast(e.submitted_by, e.submitted_at);
+    if (new Date(e.submitted_at).getTime() >= startMs) bump(entryCount, e.submitted_by);
+  });
+  taskUpdates.forEach((u: any) => {
+    if (!u.updated_by) return;
+    updateLast(u.updated_by, u.created_at);
+    if (new Date(u.created_at).getTime() >= startMs) bump(updateCount, u.updated_by);
+  });
+  tasks.forEach((t: any) => {
+    if (t.created_by) {
+      updateLast(t.created_by, t.created_at);
+      if (new Date(t.created_at).getTime() >= startMs) bump(taskCreatedCount, t.created_by);
+    }
+    if (t.assigned_by) updateLast(t.assigned_by, t.created_at);
+  });
+
+  const nowMs = Date.now();
+  const peopleRowsAll = profiles.map((p: any) => {
+    const lastMs = lastActivity.get(p.id) ?? null;
+    const days = lastMs == null ? null : Math.floor((nowMs - lastMs) / 86400000);
+    const score = getActivityScore(entryCount.get(p.id) ?? 0, updateCount.get(p.id) ?? 0, taskCreatedCount.get(p.id) ?? 0);
+    return {
+      id: p.id, name: p.full_name, role: roleByUser.get(p.id) ?? '—',
+      depts: (userDeptsBy.get(p.id) ?? []).join(', ') || '—',
+      lastActivity: lastMs ? new Date(lastMs) : null,
+      days, score, status: getActivityStatus(days),
+    };
+  });
+  peopleRowsAll.sort((a: any, b: any) => STATUS_SORT_ORDER[a.status as ActivityStatus] - STATUS_SORT_ORDER[b.status as ActivityStatus]);
+
+  const breakdown = { active: 0, idle: 0, inactive: 0, never: 0 };
+  peopleRowsAll.forEach((r: any) => { (breakdown as any)[r.status] += 1; });
+
+  // ---- Compliance rows ----
+  const numericKpis = kpiMaster.filter((k: any) => k.kpi_type === 'numeric');
+  const kpisByDept = new Map<string, any[]>();
+  numericKpis.forEach((k: any) => {
+    const arr = kpisByDept.get(k.department_id) ?? [];
+    arr.push(k); kpisByDept.set(k.department_id, arr);
+  });
+  const periodEnd = end > today ? today : end;
+  const wd = workingDaysElapsed(start, periodEnd);
+  const kpiToDept = new Map<string, string>(numericKpis.map((k: any) => [k.id, k.department_id]));
+  const entriesByDept = new Map<string, any[]>();
+  kpiEntries.forEach((e: any) => {
+    if (!inPeriod(e.submitted_at)) return;
+    const did = kpiToDept.get(e.kpi_id);
+    if (!did) return;
+    const arr = entriesByDept.get(did) ?? [];
+    arr.push(e); entriesByDept.set(did, arr);
+  });
+  const complianceRowsAll = depts.map((d: any) => {
+    const kpis = kpisByDept.get(d.id) ?? [];
+    const expected = kpis.length * wd;
+    const entries = entriesByDept.get(d.id) ?? [];
+    const actual = entries.length;
+    const late = entries.filter((e: any) => e.is_late_entry).length;
+    const lastEntryISO = entries.reduce((m: string | null, e: any) => (!m || e.submitted_at > m ? e.submitted_at : m), null as string | null);
+    return {
+      id: d.id, name: d.name,
+      expected, actual,
+      compliance: calculateComplianceRate(actual, expected),
+      late,
+      lastEntry: lastEntryISO ? format(new Date(lastEntryISO), 'd MMM yyyy') : '—',
+    };
+  });
+  complianceRowsAll.sort((a: any, b: any) => a.compliance - b.compliance);
+
+  const totalExpected = complianceRowsAll.reduce((s: number, r: any) => s + r.expected, 0);
+  const totalActual = complianceRowsAll.reduce((s: number, r: any) => s + r.actual, 0);
+  const factoryRate = calculateComplianceRate(totalActual, totalExpected);
+
+  // ---- Meeting rows ----
+  const tasksByMeeting = new Map<string, number>();
+  tasks.forEach((t: any) => { if (t.origin_meeting_id) tasksByMeeting.set(t.origin_meeting_id, (tasksByMeeting.get(t.origin_meeting_id) ?? 0) + 1); });
+  const notesByMeeting = new Map<string, boolean>();
+  discussion.forEach((d: any) => { if (d.notes && d.notes.trim()) notesByMeeting.set(d.meeting_id, true); });
+  const decisionsByMeeting = new Map<string, number>();
+  decisions.forEach((d: any) => decisionsByMeeting.set(d.meeting_id, (decisionsByMeeting.get(d.meeting_id) ?? 0) + 1));
+  const attendanceByMeeting = new Map<string, { present: number; total: number }>();
+  attendance.forEach((a: any) => {
+    const cur = attendanceByMeeting.get(a.meeting_id) ?? { present: 0, total: 0 };
+    cur.total += 1;
+    if (a.status === 'present') cur.present += 1;
+    attendanceByMeeting.set(a.meeting_id, cur);
+  });
+  const meetingsInPeriod = meetings.filter((m: any) => inPeriod(m.scheduled_date));
+  const weekSpan = Math.max(1, Math.ceil((end.getTime() - startMs) / (7 * 86400000)));
+  const meetingFreq = (meetingsInPeriod.length / weekSpan).toFixed(1);
+  const last20Meetings = [...meetings].slice(0, 20).map((m: any) => {
+    const att = attendanceByMeeting.get(m.id);
+    return {
+      date: format(new Date(m.scheduled_date), 'd MMM yyyy'),
+      title: m.title,
+      status: m.status,
+      attendance: att ? `${att.present}/${att.total}` : '—',
+      tasks: tasksByMeeting.get(m.id) ?? 0,
+      notes: notesByMeeting.get(m.id) ? 'Yes' : 'No',
+      decisions: (decisionsByMeeting.get(m.id) ?? 0) > 0 ? 'Yes' : 'No',
+    };
+  });
+
+  // ---- Task rows ----
+  const dueChangesByTask = new Map<string, number>();
+  taskUpdates.forEach((u: any) => {
+    if (u.update_type === 'due_date_change') {
+      dueChangesByTask.set(u.task_id, (dueChangesByTask.get(u.task_id) ?? 0) + 1);
+    }
+  });
+  const ownerIds = new Set<string>(tasks.map((t: any) => t.owner_id).filter(Boolean));
+  const profileById = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
+  const lastTaskActivity = new Map<string, number>();
+  tasks.forEach((t: any) => {
+    if (!t.owner_id) return;
+    const t1 = new Date(t.created_at).getTime();
+    if (!lastTaskActivity.has(t.owner_id) || lastTaskActivity.get(t.owner_id)! < t1) lastTaskActivity.set(t.owner_id, t1);
+  });
+  const taskHealthRowsAll = Array.from(ownerIds).map((uid) => {
+    const owned = tasks.filter((t: any) => t.owner_id === uid);
+    const open = owned.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length;
+    const overdue = owned.filter((t: any) => (t.status !== 'completed' && t.status !== 'cancelled') && t.due_date < todayDate).length;
+    const completed = owned.filter((t: any) => t.status === 'completed').length;
+    const total = owned.length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const completedSet = owned.filter((t: any) => t.status === 'completed' && t.completed_at);
+    const avgDays = completedSet.length === 0 ? 0 : Math.round(
+      completedSet.reduce((s: number, t: any) => s + (new Date(t.completed_at).getTime() - new Date(t.created_at).getTime()) / 86400000, 0) / completedSet.length,
+    );
+    let pushbacks = 0;
+    owned.forEach((t: any) => { pushbacks += dueChangesByTask.get(t.id) ?? 0; });
+    const lastMs = lastTaskActivity.get(uid) ?? null;
+    return {
+      name: profileById.get(uid)?.full_name ?? '—',
+      open, overdue, completionRate, avgDays, pushbacks,
+      lastActivity: lastMs ? format(new Date(lastMs), 'd MMM yyyy') : '—',
+    };
+  });
+  taskHealthRowsAll.sort((a, b) => b.overdue - a.overdue);
+
+  // ---- Executive summary inputs ----
+  const inactiveUsers = peopleRowsAll
+    .filter((r: any) => r.days === null || r.days >= 14)
+    .map((r: any) => ({ id: r.id, name: r.name }));
+  const lowComplianceDepts = complianceRowsAll
+    .filter((r: any) => r.expected > 0 && r.compliance < 50)
+    .map((r: any) => ({ id: r.id, name: r.name, compliance: r.compliance }));
+  const pushbackTasks = Array.from(dueChangesByTask.entries())
+    .filter(([, c]) => c >= 3)
+    .map(([id, c]) => {
+      const t = tasks.find((x: any) => x.id === id);
+      return { id, title: t?.title ?? '(unknown)', pushbacks: c };
+    });
+  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const zeroTaskMeetingsThisWeek = meetings
+    .filter((m: any) => new Date(m.scheduled_date) >= sevenDaysAgo)
+    .filter((m: any) => !tasksByMeeting.get(m.id)).length;
+
+  const openTasks = tasks.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled');
+  const overdueTasks = openTasks.filter((t: any) => t.due_date < todayDate);
+  const activeWeek = peopleRowsAll.filter((r: any) => r.days !== null && r.days <= 7).length;
+  const overallActivityRate = profiles.length === 0
+    ? '0%'
+    : `${Math.round((activeWeek / profiles.length) * 100)}%`;
+
+  return {
+    periodLabel,
+    generatedBy,
+    summary: {
+      inactiveUsers,
+      lowComplianceDepts,
+      pushbackTasks,
+      zeroTaskMeetingsThisWeek,
+      overallActivityRate,
+      factoryComplianceRate: `${factoryRate}%`,
+      meetingFrequencyThisMonth: `${meetingFreq} / week (${meetingsInPeriod.length} total)`,
+      openTaskCount: openTasks.length,
+      overdueTaskCount: overdueTasks.length,
+    },
+    peopleStatusBreakdown: breakdown,
+    peopleRows: peopleRowsAll.map((r: any) => ({
+      name: r.name, role: r.role, depts: r.depts,
+      lastActivity: r.lastActivity ? format(r.lastActivity, 'd MMM yyyy') : '—',
+      score: r.score, status: r.status,
+    })),
+    complianceRows: complianceRowsAll.map((r: any) => ({
+      name: r.name, expected: r.expected, actual: r.actual,
+      compliance: r.compliance, late: r.late, lastEntry: r.lastEntry,
+    })),
+    meetingRows: last20Meetings,
+    taskHealthRows: taskHealthRowsAll,
+  };
+}
