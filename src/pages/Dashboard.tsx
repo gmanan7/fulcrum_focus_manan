@@ -444,7 +444,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-export-dashboard-grid="1">
           {/* Column header row */}
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider font-semibold"
@@ -688,6 +688,32 @@ export default function Dashboard() {
           )}
         </SheetContent>
       </Sheet>
+
+      <KpiExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        allKpis={(kpis || []) as any}
+        currentViewKpis={(kpis || []) as any}
+        periodEntries={[
+          ...((entries || []) as any),
+          ...((mtdEntries || []) as any).map((e: any) => ({ ...e, computed_status: null, is_late_entry: false })),
+        ]}
+        departments={(allDepartments || []) as any}
+        periodFrom={startOfMonth(selectedDate)}
+        periodTo={selectedDate}
+        userName={profile?.full_name}
+        sourceLabel="KPI Dashboard Snapshot"
+        dashboardSelector="[data-export-dashboard-grid]"
+        chartSelector="[data-export-chart]"
+        fetchEntriesForRange={async (from, to) => {
+          const { data } = await supabase
+            .from('kpi_entries')
+            .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
+            .gte('reporting_date', format(from, 'yyyy-MM-dd'))
+            .lte('reporting_date', format(to, 'yyyy-MM-dd'));
+          return (data || []) as any;
+        }}
+      />
     </div>
   );
 }
