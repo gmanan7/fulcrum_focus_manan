@@ -134,6 +134,27 @@ export function canRevertActual(
     || role === 'team_member';
 }
 
+/**
+ * Validate a new machine row before insertion.
+ * Returns an error message string, or null if valid.
+ */
+export function validateNewMachine(
+  candidate: { name: string; group: string; line: 'SFM' | 'RFM' },
+  existing: PmMachine[] = [],
+): string | null {
+  const name = (candidate.name ?? '').trim();
+  const group = (candidate.group ?? '').trim();
+  if (!name) return 'Name is required';
+  if (!group) return 'Group is required';
+  const dup = existing.some(
+    (m) =>
+      m.line === candidate.line &&
+      m.name.trim().toLowerCase() === name.toLowerCase(),
+  );
+  if (dup) return `A machine with this name already exists in ${candidate.line}`;
+  return null;
+}
+
 /** Returns Date objects for every day of the month containing `ref`. */
 export function daysOfMonth(ref: Date): Date[] {
   const y = ref.getFullYear();
