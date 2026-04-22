@@ -182,6 +182,34 @@ export default function PmSchedule() {
     onError: (e: any) => toast.error(e?.message ?? 'Failed to save actual'),
   });
 
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const removeActualMutation = useMutation({
+    mutationFn: async (actualId: string) => {
+      const { error } = await supabase.from('pm_actual').delete().eq('id', actualId);
+      if (error) throw error;
+    },
+    onMutate: async (actualId: string) => {
+      await qc.cancelQueries({ queryKey: ['pm_actual', monthStart, monthEnd] });
+      const prev = qc.getQueryData<PmActual[]>(['pm_actual', monthStart, monthEnd]);
+      qc.setQueryData<PmActual[]>(['pm_actual', monthStart, monthEnd], (old) =>
+        (old ?? []).filter((a) => a.id !== actualId),
+      );
+      return { prev };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pm_actual', monthStart, monthEnd] });
+      setRemarksDialog(null);
+      setRemarksText('');
+      setConfirmRemove(false);
+      toast.success('PM actual removed');
+    },
+    onError: (e: any, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['pm_actual', monthStart, monthEnd], ctx.prev);
+      toast.error(e?.message ?? 'Failed to remove actual');
+    },
+  });
+
   // ---------- Helpers ----------
   function shiftMonth(delta: number) {
     setRefDate(new Date(refDate.getFullYear(), refDate.getMonth() + delta, 1));
@@ -381,10 +409,20 @@ export default function PmSchedule() {
       </Card>
 
       {/* Remarks dialog */}
-      <Dialog open={!!remarksDialog} onOpenChange={(o) => !o && setRemarksDialog(null)}>
+      <Dialog
+        open={!!remarksDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRemarksDialog(null);
+            setConfirmRemove(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Mark PM Done</DialogTitle>
+            <DialogTitle>
+              {remarksDialog?.existingActual ? 'Edit PM Actual' : 'Mark PM Done'}
+            </DialogTitle>
           </DialogHeader>
           {remarksDialog && (
             <div className="space-y-3">
@@ -402,23 +440,57 @@ export default function PmSchedule() {
                 />
                 <div className="text-[10px] text-muted-foreground text-right">{remarksText.length}/500</div>
               </div>
+              {confirmRemove && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-foreground">
+                  Are you sure you want to remove this PM actual entry? This cannot be undone.
+                </div>
+              )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRemarksDialog(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!remarksDialog) return;
-                upsertActualMutation.mutate({
-                  machine: remarksDialog.machine,
-                  date: remarksDialog.date,
-                  remarks: remarksText.trim(),
-                });
-              }}
-              disabled={upsertActualMutation.isPending}
-            >
-              Save
-            </Button>
+          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+            {remarksDialog?.existingActual && !confirmRemove && (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmRemove(true)}
+                className="sm:mr-auto"
+                disabled={removeActualMutation.isPending}
+              >
+                Remove Actual Entry
+              </Button>
+            )}
+            {confirmRemove ? (
+              <>
+                <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  disabled={removeActualMutation.isPending}
+                  onClick={() => {
+                    if (remarksDialog?.existingActual) {
+                      removeActualMutation.mutate(remarksDialog.existingActual.id);
+                    }
+                  }}
+                >
+                  Yes, Remove
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setRemarksDialog(null)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    if (!remarksDialog) return;
+                    upsertActualMutation.mutate({
+                      machine: remarksDialog.machine,
+                      date: remarksDialog.date,
+                      remarks: remarksText.trim(),
+                    });
+                  }}
+                  disabled={upsertActualMutation.isPending}
+                >
+                  {remarksDialog?.existingActual ? 'Update Remarks' : 'Save'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -656,6 +728,16 @@ function ManageMachinesSheet({
           <SheetTitle>Manage Machines</SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-2">
+          {/* Column headers */}
+          <div className="sticky top-0 z-10 bg-background border-b pb-2 grid grid-cols-12 gap-2 px-3 text-xs text-muted-foreground font-medium">
+            <div className="col-span-3">Machine Name</div>
+            <div className="col-span-2">Line</div>
+            <div className="col-span-2">Group</div>
+            <div className="col-span-1 text-center">Critical</div>
+            <div className="col-span-1 text-center">Active</div>
+            <div className="col-span-1 text-center">Order</div>
+            <div className="col-span-2" />
+          </div>
           {machines.map((m) => {
             const e = edits[m.id] ?? {};
             const dirty = Object.keys(e).length > 0;
@@ -670,13 +752,11 @@ function ManageMachinesSheet({
                   </SelectContent>
                 </Select>
                 <Input className="col-span-2 h-8 text-xs" value={(e.group_name ?? m.group_name) as string} onChange={(ev) => patch(m.id, { group_name: ev.target.value })} />
-                <div className="col-span-1 flex items-center gap-1 text-[10px]">
+                <div className="col-span-1 flex items-center justify-center">
                   <Switch checked={(e.is_critical ?? m.is_critical) as boolean} onCheckedChange={(v) => patch(m.id, { is_critical: v })} />
-                  <span>Crit</span>
                 </div>
-                <div className="col-span-1 flex items-center gap-1 text-[10px]">
+                <div className="col-span-1 flex items-center justify-center">
                   <Switch checked={(e.is_active ?? m.is_active) as boolean} onCheckedChange={(v) => patch(m.id, { is_active: v })} />
-                  <span>Act</span>
                 </div>
                 <Input
                   type="number"
