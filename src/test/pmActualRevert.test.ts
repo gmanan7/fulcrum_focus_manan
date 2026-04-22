@@ -6,9 +6,11 @@ describe('canRevertActual', () => {
   it('allows super_admin', () => expect(canRevertActual('super_admin')).toBe(true));
   it('allows factory_manager', () => expect(canRevertActual('factory_manager')).toBe(true));
   it('allows department_head', () => expect(canRevertActual('department_head')).toBe(true));
-  it('allows team_member (ENG dept enforced via RLS)', () =>
-    expect(canRevertActual('team_member')).toBe(true));
-  it('denies shop_floor', () => expect(canRevertActual('shop_floor')).toBe(false));
+  it('allows team_member in ENG dept', () =>
+    expect(canRevertActual('team_member', ['ENG'])).toBe(true));
+  it('denies team_member outside ENG', () =>
+    expect(canRevertActual('team_member', ['SFM'])).toBe(false));
+  it('denies shop_floor', () => expect(canRevertActual('shop_floor', ['ENG'])).toBe(false));
 });
 
 describe('getCellState after actual deletion', () => {

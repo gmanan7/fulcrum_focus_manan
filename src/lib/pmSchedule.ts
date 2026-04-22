@@ -120,18 +120,46 @@ export function groupMachinesByGroup(machines: PmMachine[]): Record<string, PmMa
   return out;
 }
 
+export type PmRole =
+  | 'super_admin'
+  | 'factory_manager'
+  | 'department_head'
+  | 'team_member'
+  | 'shop_floor';
+
 /**
- * Whether a given role is allowed to revert/remove a pm_actual entry.
- * Engineering team_member dept membership is enforced server-side via RLS,
- * but client-side we allow team_member through and let RLS reject non-ENG.
+ * Plan mode — who can toggle plan cells.
+ * team_member (incl. ENG) is read-only in plan mode.
  */
-export function canRevertActual(
-  role: 'super_admin' | 'factory_manager' | 'department_head' | 'team_member' | 'shop_floor',
-): boolean {
+export function canTogglePlan(role: PmRole, _userDepts: string[] = []): boolean {
   return role === 'super_admin'
     || role === 'factory_manager'
-    || role === 'department_head'
-    || role === 'team_member';
+    || role === 'department_head';
+}
+
+/**
+ * Actual mode — who can mark/edit actuals.
+ * team_member needs ENG dept membership.
+ */
+export function canMarkActual(role: PmRole, userDepts: string[] = []): boolean {
+  if (role === 'super_admin' || role === 'factory_manager' || role === 'department_head') return true;
+  if (role === 'team_member' && userDepts.includes('ENG')) return true;
+  return false;
+}
+
+/**
+ * Marking actual without an existing plan — same rules as canMarkActual.
+ */
+export function canMarkActualWithoutPlan(role: PmRole, userDepts: string[] = []): boolean {
+  return canMarkActual(role, userDepts);
+}
+
+/**
+ * Whether a given role is allowed to revert/remove a pm_actual entry.
+ * Same rules as canMarkActual (RLS enforces ENG dept server-side).
+ */
+export function canRevertActual(role: PmRole, userDepts: string[] = []): boolean {
+  return canMarkActual(role, userDepts);
 }
 
 /**
