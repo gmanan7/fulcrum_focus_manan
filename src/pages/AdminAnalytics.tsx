@@ -187,8 +187,28 @@ export default function AdminAnalytics() {
           <Button variant="outline" size="sm" onClick={() => { setNow(new Date()); refetch(); }}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Button variant="outline" size="sm" disabled title="Coming soon">
-            <FileDown className="mr-2 h-4 w-4" /> Export Report
+          <Button
+            variant="outline" size="sm"
+            disabled={!data || exporting}
+            onClick={async () => {
+              if (!data) return;
+              setExporting(true);
+              const tId = toast.loading('Generating report...');
+              try {
+                const payload = buildAnalyticsPdfPayload(
+                  data, period, PERIOD_LABELS[period],
+                  { name: profile?.full_name ?? '—', role: roles[0] ?? '—' },
+                );
+                const filename = await exportAnalyticsPdf(payload);
+                toast.success(`Downloaded ${filename}`, { id: tId });
+              } catch (e: any) {
+                toast.error(`Export failed: ${e?.message ?? 'unknown error'}`, { id: tId });
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            <FileDown className="mr-2 h-4 w-4" /> {exporting ? 'Generating…' : 'Export Report'}
           </Button>
         </div>
       </div>
