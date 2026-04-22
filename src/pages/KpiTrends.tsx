@@ -200,10 +200,17 @@ export default function KpiTrends() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>KPI Trends</h1>
-      {isShopFloorOnly && (
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
-      )}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>KPI Trends</h1>
+          {isShopFloorOnly && (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
+          )}
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+          <Download className="h-4 w-4" /> Export
+        </Button>
+      </div>
 
       {/* Filter bar */}
       <div className="space-y-3">
@@ -425,7 +432,7 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
 
         {/* Chart */}
         {chartData.length > 0 ? (
-          <div style={{ background: 'var(--chart-bg)', borderRadius: 8 }}>
+          <div data-export-chart={kpi.id} data-export-title={kpi.name} style={{ background: 'var(--chart-bg)', borderRadius: 8 }}>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
