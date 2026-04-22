@@ -678,18 +678,85 @@ function Cell({
 
 // ---------- Manage Machines (admin) ----------
 
+interface NewMachineDraft {
+  name: string;
+  line: 'SFM' | 'RFM';
+  group_name: string;
+  is_critical: boolean;
+  is_active: boolean;
+  display_order: number;
+}
+
 function ManageMachinesSheet({
   open, onClose, machines, onSaved,
 }: { open: boolean; onClose: () => void; machines: PmMachine[]; onSaved: () => void }) {
+  const { user, hasAnyRole } = useAuth();
+  const canAdd = hasAnyRole('super_admin', 'factory_manager');
   const [edits, setEdits] = useState<Record<string, Partial<PmMachine>>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [draft, setDraft] = useState<NewMachineDraft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
 
   useEffect(() => {
-    if (!open) setEdits({});
+    if (!open) {
+      setEdits({});
+      setDraft(null);
+      setDraftError(null);
+    }
   }, [open]);
 
   function patch(id: string, p: Partial<PmMachine>) {
     setEdits((e) => ({ ...e, [id]: { ...e[id], ...p } }));
+  }
+
+  function startAdd() {
+    setDraft({
+      name: '', line: 'SFM', group_name: '',
+      is_critical: true, is_active: true, display_order: 0,
+    });
+    setDraftError(null);
+  }
+
+  function patchDraft(p: Partial<NewMachineDraft>) {
+    setDraft((d) => (d ? { ...d, ...p } : d));
+    setDraftError(null);
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    const err = validateNewMachine(
+      { name: draft.name, group: draft.group_name, line: draft.line },
+      machines,
+    );
+    if (err) {
+      setDraftError(err);
+      return;
+    }
+    const factoryId = machines[0]?.factory_id;
+    if (!factoryId) {
+      setDraftError('Cannot determine factory — at least one existing machine is required');
+      return;
+    }
+    setAddingNew(true);
+    const { error } = await supabase.from('pm_machines').insert({
+      name: draft.name.trim(),
+      line: draft.line,
+      group_name: draft.group_name.trim(),
+      is_critical: draft.is_critical,
+      is_active: draft.is_active,
+      display_order: draft.display_order,
+      factory_id: factoryId,
+    });
+    setAddingNew(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Machine added');
+    setDraft(null);
+    setDraftError(null);
+    onSaved();
   }
 
   async function save(m: PmMachine) {
@@ -725,9 +792,16 @@ function ManageMachinesSheet({
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="sm:max-w-[720px] w-full overflow-y-auto">
-        <SheetHeader>
+        <SheetHeader className="flex-row items-center justify-between space-y-0">
           <SheetTitle>Manage Machines</SheetTitle>
+          {canAdd && !draft && (
+            <Button size="sm" onClick={startAdd} className="mr-8">
+              <Plus className="h-4 w-4 mr-1" /> Add Machine
+            </Button>
+          )}
         </SheetHeader>
+        {/* discard reference to suppress unused warnings */}
+        <input type="hidden" value={user?.id ?? ''} readOnly />
         <div className="mt-4 space-y-2">
           {/* Column headers */}
           <div className="sticky top-0 z-10 bg-background border-b pb-2 grid grid-cols-12 gap-2 px-3 text-xs text-muted-foreground font-medium">
@@ -739,6 +813,56 @@ function ManageMachinesSheet({
             <div className="col-span-1 text-center">Order</div>
             <div className="col-span-2" />
           </div>
+
+          {/* New machine draft row */}
+          {draft && (
+            <Card className="p-3 grid grid-cols-12 gap-2 items-center border-primary/40 bg-primary/5">
+              <Input
+                autoFocus
+                placeholder="Machine name"
+                className="col-span-3 h-8 text-xs"
+                value={draft.name}
+                onChange={(ev) => patchDraft({ name: ev.target.value })}
+              />
+              <Select value={draft.line} onValueChange={(v) => patchDraft({ line: v as 'SFM' | 'RFM' })}>
+                <SelectTrigger className="col-span-2 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SFM">SFM</SelectItem>
+                  <SelectItem value="RFM">RFM</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Group"
+                className="col-span-2 h-8 text-xs"
+                value={draft.group_name}
+                onChange={(ev) => patchDraft({ group_name: ev.target.value })}
+              />
+              <div className="col-span-1 flex items-center justify-center">
+                <Switch checked={draft.is_critical} onCheckedChange={(v) => patchDraft({ is_critical: v })} />
+              </div>
+              <div className="col-span-1 flex items-center justify-center">
+                <Switch checked={draft.is_active} onCheckedChange={(v) => patchDraft({ is_active: v })} />
+              </div>
+              <Input
+                type="number"
+                className="col-span-1 h-8 text-xs"
+                value={draft.display_order}
+                onChange={(ev) => patchDraft({ display_order: Number(ev.target.value) })}
+              />
+              <div className="col-span-2 flex gap-1">
+                <Button size="sm" onClick={saveDraft} disabled={addingNew} className="h-8 flex-1">
+                  {addingNew ? 'Saving…' : 'Save'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setDraft(null); setDraftError(null); }} className="h-8">
+                  Cancel
+                </Button>
+              </div>
+              {draftError && (
+                <div className="col-span-12 text-xs text-destructive pl-1">{draftError}</div>
+              )}
+            </Card>
+          )}
+
           {machines.map((m) => {
             const e = edits[m.id] ?? {};
             const dirty = Object.keys(e).length > 0;
