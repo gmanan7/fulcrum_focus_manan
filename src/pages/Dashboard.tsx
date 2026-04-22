@@ -376,23 +376,28 @@ export default function Dashboard() {
               {getKpiSubtitle(selectedDate)}
             </p>
           </div>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="shrink-0 gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {format(selectedDate, 'dd MMM yyyy')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
-                disabled={(d) => d >= new Date(new Date().toDateString())}
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2 shrink-0">
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0 gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {format(selectedDate, 'dd MMM yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(d) => { if (d) { setSelectedDate(d); setCalOpen(false); } }}
+                  disabled={(d) => d >= new Date(new Date().toDateString())}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </div>
         </div>
       </div>
 
