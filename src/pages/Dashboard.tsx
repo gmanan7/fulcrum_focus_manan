@@ -14,8 +14,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   CalendarIcon, AlertTriangle, ListTodo, AlertCircle,
-  CalendarDays, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown,
+  CalendarDays, ChevronRight, ChevronDown, FileWarning, ChevronsUpDown, Download,
 } from 'lucide-react';
+import { KpiExportModal } from '@/components/KpiExportModal';
+import { startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
@@ -66,6 +68,7 @@ export default function Dashboard() {
   });
   const [calOpen, setCalOpen] = useState(false);
   const [detailKpi, setDetailKpi] = useState<any>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
