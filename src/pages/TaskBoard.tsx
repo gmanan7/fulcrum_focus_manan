@@ -751,29 +751,11 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status History</h3>
-        {statusHistory?.length ? (
-          <div className="space-y-2">
-            {statusHistory.map((h) => (
-              <div key={h.id} className="flex items-start gap-2 text-xs border-l-2 border-muted pl-3 py-1">
-                <div className="flex-1">
-                  <span className="font-medium">{h.previous_status || '—'}</span>
-                  <ArrowRight className="h-3 w-3 inline mx-1" />
-                  <span className="font-medium">{h.new_status}</span>
-                  {h.update_note && <p className="text-muted-foreground mt-0.5">{h.update_note}</p>}
-                </div>
-                <div className="text-right shrink-0 text-muted-foreground">
-                  <p>{(h as any).updater?.full_name}</p>
-                  <p>{format(new Date(h.created_at), 'dd MMM HH:mm')}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">No status changes recorded.</p>
-        )}
-      </div>
+      <ActivityFeed
+        items={statusHistory || []}
+        onAddComment={(text) => addCommentMutation.mutate(text)}
+        isAdding={addCommentMutation.isPending}
+      />
 
       <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
         <DialogContent className="sm:max-w-md">
