@@ -1,6 +1,12 @@
 import { format } from 'date-fns';
 
-export type TaskUpdateType = 'status_change' | 'comment' | 'due_date_change';
+export type TaskUpdateType =
+  | 'status_change'
+  | 'comment'
+  | 'due_date_change'
+  | 'title_change'
+  | 'description_change'
+  | 'assignee_change';
 
 export interface ActivityItemData {
   type: TaskUpdateType;
@@ -9,6 +15,8 @@ export interface ActivityItemData {
   updateNote?: string | null;
   previousDueDate?: string | null;
   newDueDate?: string | null;
+  previousText?: string | null;
+  newText?: string | null;
 }
 
 function fmtDate(d: string): string {
@@ -29,6 +37,8 @@ export function formatActivityItem(
   updateNote: string | null | undefined,
   previousDueDate?: string | null,
   newDueDate?: string | null,
+  previousText?: string | null,
+  newText?: string | null,
 ): string {
   if (type === 'status_change') {
     const prev = (previousStatus || '—').replace('_', ' ');
@@ -42,6 +52,19 @@ export function formatActivityItem(
     if (!newDueDate) return 'changed due date';
     if (!previousDueDate) return `set due date to ${fmtDate(newDueDate)}`;
     return `changed due date from ${fmtDate(previousDueDate)} to ${fmtDate(newDueDate)}`;
+  }
+  if (type === 'title_change') {
+    return 'changed the task title';
+  }
+  if (type === 'description_change') {
+    return 'updated the description';
+  }
+  if (type === 'assignee_change') {
+    const next = newText ?? '';
+    if (!previousText || previousText === '(unassigned)') {
+      return `assigned task to ${next}`;
+    }
+    return `reassigned task from ${previousText} to ${next}`;
   }
   return '';
 }

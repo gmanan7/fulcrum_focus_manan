@@ -22,6 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
+  Pencil, FileText, UserCheck,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
@@ -515,14 +516,56 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         updated_at: new Date().toISOString(),
       }).eq('id', task.id);
       if (error) throw error;
+
+      const activityRows: any[] = [];
       if (t.due_date !== editDueDate) {
-        await supabase.from('task_updates').insert({
+        activityRows.push({
           task_id: task.id,
           updated_by: user!.id,
           update_type: 'due_date_change',
           previous_due_date: t.due_date,
           new_due_date: editDueDate,
-        } as any);
+        });
+      }
+      if (t.title !== editTitle) {
+        activityRows.push({
+          task_id: task.id,
+          updated_by: user!.id,
+          update_type: 'title_change',
+          previous_text: t.title,
+          new_text: editTitle,
+        });
+      }
+      const oldDesc = t.description ?? '(none)';
+      const newDesc = editDescription ? editDescription : '(none)';
+      if (oldDesc !== newDesc) {
+        activityRows.push({
+          task_id: task.id,
+          updated_by: user!.id,
+          update_type: 'description_change',
+          previous_text: oldDesc,
+          new_text: newDesc,
+        });
+      }
+      if (t.owner_id !== editOwnerId) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', [t.owner_id, editOwnerId].filter(Boolean) as string[]);
+        const nameOf = (id: string | null) =>
+          (profs || []).find((p) => p.id === id)?.full_name ?? null;
+        const prevName = nameOf(t.owner_id) ?? '(unassigned)';
+        const newName = nameOf(editOwnerId) ?? '(unassigned)';
+        activityRows.push({
+          task_id: task.id,
+          updated_by: user!.id,
+          update_type: 'assignee_change',
+          previous_text: prevName,
+          new_text: newName,
+        });
+      }
+      if (activityRows.length > 0) {
+        await supabase.from('task_updates').insert(activityRows as any);
       }
       logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
     },
@@ -937,7 +980,13 @@ function ActivityFeed({
       ) : (
         <div className="space-y-3">
           {sorted.map((h) => {
-            const type = (h.update_type as 'status_change' | 'comment' | 'due_date_change') || 'status_change';
+            const type = (h.update_type as
+              | 'status_change'
+              | 'comment'
+              | 'due_date_change'
+              | 'title_change'
+              | 'description_change'
+              | 'assignee_change') || 'status_change';
             const userName = h.updater?.full_name || 'User';
             const summary = formatActivityItem(
               type,
@@ -946,8 +995,16 @@ function ActivityFeed({
               h.update_note,
               h.previous_due_date,
               h.new_due_date,
+              h.previous_text,
+              h.new_text,
             );
-            const Icon = type === 'comment' ? MessageSquare : type === 'due_date_change' ? CalendarIcon : ArrowRight;
+            const Icon =
+              type === 'comment' ? MessageSquare
+              : type === 'due_date_change' ? CalendarIcon
+              : type === 'title_change' ? Pencil
+              : type === 'description_change' ? FileText
+              : type === 'assignee_change' ? UserCheck
+              : ArrowRight;
             return (
               <div key={h.id} className="flex items-start gap-2 text-xs">
                 <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
@@ -970,7 +1027,14 @@ function ActivityFeed({
                       <span className="font-medium">{userName}</span>
                       <span className="text-muted-foreground"> {summary}</span>
                       <span className="text-muted-foreground"> · {formatDistanceToNow(new Date(h.created_at), { addSuffix: true })}</span>
-                      {h.update_note && (
+                      {type === 'title_change' && (
+                        <span className="block text-muted-foreground mt-0.5">
+                          <span className="italic">Old:</span> {h.previous_text}
+                          <br />
+                          <span className="italic">New:</span> {h.new_text}
+                        </span>
+                      )}
+                      {h.update_note && type !== 'title_change' && (
                         <span className="block text-muted-foreground mt-0.5 italic">{h.update_note}</span>
                       )}
                     </p>
