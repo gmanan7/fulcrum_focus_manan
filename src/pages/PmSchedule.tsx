@@ -268,14 +268,14 @@ export default function PmSchedule() {
       return;
     }
 
-    // mode === 'actual'
+    // mode === 'actual' — past dates are clickable for all authorised users
     if (!canEditActual) return;
-    if (!plan && !actual && !hasAnyRole('super_admin')) {
-      toast.error('No plan exists for this date');
-      return;
-    }
     if (daysBetween(today, date) > 0) {
       toast.error('Cannot mark actual on a future date');
+      return;
+    }
+    if (!plan && !actual && !canActualNoPlan) {
+      toast.error('No plan exists for this date');
       return;
     }
     openRemarks(machine, date);
