@@ -419,7 +419,8 @@ function KpiTrendCard({
         .eq('kpi_id', kpiId)
         .gte('reporting_date', startDate)
         .lte('reporting_date', endDate)
-        .order('reporting_date');
+        .order('reporting_date')
+        .range(0, 9999);
       if (error) throw error;
       return data || [];
     },

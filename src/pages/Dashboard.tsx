@@ -113,7 +113,8 @@ export default function Dashboard() {
         .from('kpi_entries')
         .select('kpi_id, actual_value, reporting_date')
         .gte('reporting_date', mtdRange.from)
-        .lte('reporting_date', mtdRange.to);
+        .lte('reporting_date', mtdRange.to)
+        .range(0, 9999);
       if (error) throw error;
       return data;
     },
@@ -710,7 +711,8 @@ export default function Dashboard() {
             .from('kpi_entries')
             .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
             .gte('reporting_date', format(from, 'yyyy-MM-dd'))
-            .lte('reporting_date', format(to, 'yyyy-MM-dd'));
+            .lte('reporting_date', format(to, 'yyyy-MM-dd'))
+            .range(0, 9999);
           return (data || []) as any;
         }}
       />

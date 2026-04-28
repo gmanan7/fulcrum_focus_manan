@@ -99,7 +99,8 @@ export default function KpiTrends() {
         .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
         .gte('reporting_date', format(rangeFrom, 'yyyy-MM-dd'))
         .lte('reporting_date', format(rangeTo, 'yyyy-MM-dd'))
-        .order('reporting_date');
+        .order('reporting_date')
+        .range(0, 9999);
       return data || [];
     },
   });

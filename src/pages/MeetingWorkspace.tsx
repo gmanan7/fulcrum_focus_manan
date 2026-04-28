@@ -313,7 +313,8 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
         .from('kpi_entries')
         .select('kpi_id, actual_value, reporting_date')
         .gte('reporting_date', mtdRange.from)
-        .lte('reporting_date', mtdRange.to);
+        .lte('reporting_date', mtdRange.to)
+        .range(0, 9999);
       return data || [];
     },
   });
