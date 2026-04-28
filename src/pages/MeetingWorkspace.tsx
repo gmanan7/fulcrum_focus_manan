@@ -11,6 +11,7 @@ import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUti
 import { buildSnapshotCollapseSummary, getMeetingSnapshotCollapseKey, setAllCollapseStates } from '@/lib/dashboardUtils';
 import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { buildTaskPayload } from '@/lib/taskPayload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -309,13 +310,7 @@ function KpiSnapshotTab({ meeting }: { meeting: any }) {
   const { data: mtdEntries } = useQuery({
     queryKey: ['kpi-mtd-snapshot', mtdRange.from, mtdRange.to],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('kpi_entries')
-        .select('kpi_id, actual_value, reporting_date')
-        .gte('reporting_date', mtdRange.from)
-        .lte('reporting_date', mtdRange.to)
-        .range(0, 9999);
-      return data || [];
+      return fetchAllKpiEntries(mtdRange.from, mtdRange.to, 'kpi_id, actual_value, reporting_date');
     },
   });
 
