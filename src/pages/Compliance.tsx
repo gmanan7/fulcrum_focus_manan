@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarDays, Clock, Users, AlertTriangle, FileWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 
 type QuickRange = '7d' | '30d' | 'this_month' | 'last_month';
 
@@ -66,14 +67,8 @@ export default function Compliance() {
   const { data: redEntries } = useQuery({
     queryKey: ['compliance-red-entries', from, to],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('kpi_entries')
-        .select('id, reporting_date, computed_status')
-        .eq('computed_status', 'red')
-        .gte('reporting_date', from)
-        .lte('reporting_date', to)
-        .range(0, 9999);
-      return data || [];
+      const data = await fetchAllKpiEntries(from, to, 'id, reporting_date, computed_status');
+      return data.filter((entry) => entry.computed_status === 'red');
     },
   });
 
