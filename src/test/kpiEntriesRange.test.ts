@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const filesToCheck = [
@@ -9,8 +9,16 @@ const filesToCheck = [
   'src/pages/MeetingWorkspace.tsx',
   'src/pages/KpiEntry.tsx',
   'src/pages/Compliance.tsx',
-  'src/lib',
 ];
+
+function listSourceFiles(dir: string): string[] {
+  return readdirSync(join(process.cwd(), dir)).flatMap((entry) => {
+    const path = `${dir}/${entry}`;
+    const stat = statSync(join(process.cwd(), path));
+    if (stat.isDirectory()) return listSourceFiles(path);
+    return /\.(ts|tsx)$/.test(path) ? [path] : [];
+  });
+}
 
 function readProjectFile(path: string) {
   return readFileSync(join(process.cwd(), path), 'utf8');
@@ -42,8 +50,7 @@ function extractKpiEntriesDateRangeQueries(source: string) {
 
 describe('kpi_entries date-range query row caps', () => {
   it('adds an explicit range override to every kpi_entries reporting_date range query', () => {
-    const queries = filesToCheck
-      .filter((file) => !file.endsWith('/lib'))
+    const queries = [...filesToCheck, ...listSourceFiles('src/lib')]
       .flatMap((file) => extractKpiEntriesDateRangeQueries(readProjectFile(file)).map((query) => ({ file, query })));
 
     expect(queries.length).toBeGreaterThan(0);
