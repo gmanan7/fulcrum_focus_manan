@@ -19,6 +19,7 @@ import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } 
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { calculateMtd } from '@/lib/mtdUtils';
+import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
@@ -94,14 +95,7 @@ export default function KpiTrends() {
   const { data: entries, isLoading: entriesLoading } = useQuery({
     queryKey: ['kpi-trends-entries', format(rangeFrom, 'yyyy-MM-dd'), format(rangeTo, 'yyyy-MM-dd')],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('kpi_entries')
-        .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
-        .gte('reporting_date', format(rangeFrom, 'yyyy-MM-dd'))
-        .lte('reporting_date', format(rangeTo, 'yyyy-MM-dd'))
-        .order('reporting_date')
-        .range(0, 9999);
-      return data || [];
+      return fetchAllKpiEntries(format(rangeFrom, 'yyyy-MM-dd'), format(rangeTo, 'yyyy-MM-dd'));
     },
   });
 
