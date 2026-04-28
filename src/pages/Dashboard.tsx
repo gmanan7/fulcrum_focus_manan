@@ -23,6 +23,7 @@ import { buildCollapseSummary, getDeptCollapseKey } from '@/lib/dashboardUtils';
 import { getMtdDateRange, calculateMtd, computeRagFromValue } from '@/lib/mtdUtils';
 import { filterItemsForKpi, EMPTY_PROJECT_TRACKER_MESSAGE, STATUS_LABELS } from '@/lib/projectTrackerExpansion';
 import { formatIndianNumber } from '@/lib/formatNumber';
+import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
 import { toIsoDate, daysBetween } from '@/lib/pmSchedule';
 
@@ -109,14 +110,7 @@ export default function Dashboard() {
   const { data: mtdEntries } = useQuery({
     queryKey: ['dashboard-mtd-entries', mtdRange.from, mtdRange.to],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kpi_entries')
-        .select('kpi_id, actual_value, reporting_date')
-        .gte('reporting_date', mtdRange.from)
-        .lte('reporting_date', mtdRange.to)
-        .range(0, 9999);
-      if (error) throw error;
-      return data;
+      return fetchAllKpiEntries(mtdRange.from, mtdRange.to, 'kpi_id, actual_value, reporting_date');
     },
   });
 
@@ -707,13 +701,7 @@ export default function Dashboard() {
         dashboardSelector="[data-export-dashboard-grid]"
         chartSelector="[data-export-chart]"
         fetchEntriesForRange={async (from, to) => {
-          const { data } = await supabase
-            .from('kpi_entries')
-            .select('*, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
-            .gte('reporting_date', format(from, 'yyyy-MM-dd'))
-            .lte('reporting_date', format(to, 'yyyy-MM-dd'))
-            .range(0, 9999);
-          return (data || []) as any;
+          return fetchAllKpiEntries(format(from, 'yyyy-MM-dd'), format(to, 'yyyy-MM-dd')) as any;
         }}
       />
     </div>

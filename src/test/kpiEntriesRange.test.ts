@@ -10,6 +10,7 @@ const filesToCheck = [
   'src/pages/KpiEntry.tsx',
   'src/pages/Compliance.tsx',
 ];
+const paginatedUtilityFile = 'src/lib/kpiEntriesApi.ts';
 
 function listSourceFiles(dir: string): string[] {
   return readdirSync(join(process.cwd(), dir)).flatMap((entry) => {
@@ -49,23 +50,21 @@ function extractKpiEntriesDateRangeQueries(source: string) {
 }
 
 describe('kpi_entries date-range query row caps', () => {
-  it('adds an explicit range override to every kpi_entries reporting_date range query', () => {
-    const queries = [...filesToCheck, ...listSourceFiles('src/lib')]
+  it('routes every kpi_entries reporting_date range query through the paginated helper', () => {
+    const queries = [...filesToCheck, ...listSourceFiles('src/lib').filter((file) => file !== paginatedUtilityFile)]
       .flatMap((file) => extractKpiEntriesDateRangeQueries(readProjectFile(file)).map((query) => ({ file, query })));
 
-    expect(queries.length).toBeGreaterThan(0);
-    expect(
-      queries.map(({ file, query }) => ({ file, hasRange: /\.range\(\s*0\s*,\s*9999\s*\)/.test(query) })),
-    ).toEqual(queries.map(({ file }) => ({ file, hasRange: true })));
+    expect(queries).toEqual([]);
   });
 
-  it('uses a range large enough to return full-month data beyond the 1000-row default cap', () => {
-    const source = readProjectFile('src/pages/KpiTrends.tsx');
-    const [monthlyQuery] = extractKpiEntriesDateRangeQueries(source);
+  it('uses safe paginated slices under the 1000-row server cap', () => {
+    const source = readProjectFile(paginatedUtilityFile);
+    const [paginatedQuery] = extractKpiEntriesDateRangeQueries(source);
 
-    expect(monthlyQuery).toContain(".from('kpi_entries')");
-    expect(monthlyQuery).toContain(".gte('reporting_date'");
-    expect(monthlyQuery).toContain(".lte('reporting_date'");
-    expect(monthlyQuery).toMatch(/\.range\(\s*0\s*,\s*9999\s*\)/);
+    expect(paginatedQuery).toContain(".from('kpi_entries')");
+    expect(paginatedQuery).toContain(".gte('reporting_date'");
+    expect(paginatedQuery).toContain(".lte('reporting_date'");
+    expect(source).toContain('KPI_ENTRIES_PAGE_SIZE = 900');
+    expect(paginatedQuery).toContain('from + KPI_ENTRIES_PAGE_SIZE - 1');
   });
 });

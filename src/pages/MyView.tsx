@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getPinnedKpis, reorderItems, isAtMaxPins, getAllKpisForMyView, groupKpisByDepartment, filterKpisBySearch, selectAllInDepartment } from '@/lib/myViewUtils';
+import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { formatAxisDate, formatChartDate, getLineColour, getTooltipRagLabel, RAG_DOT_COLORS, type KpiDirection, type Period, PERIODS, getDateRange, calculateYMax } from '@/lib/kpiChartUtils';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { Card } from '@/components/ui/card';
@@ -413,16 +414,12 @@ function KpiTrendCard({
   const { data: entries = [] } = useQuery({
     queryKey: ['my-view-trend', kpiId, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kpi_entries')
-        .select('reporting_date, actual_value, computed_status, remarks, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)')
-        .eq('kpi_id', kpiId)
-        .gte('reporting_date', startDate)
-        .lte('reporting_date', endDate)
-        .order('reporting_date')
-        .range(0, 9999);
-      if (error) throw error;
-      return data || [];
+      const data = await fetchAllKpiEntries(
+        startDate,
+        endDate,
+        'kpi_id, reporting_date, actual_value, computed_status, remarks, submitter:profiles!kpi_entries_submitted_by_fkey(full_name)',
+      );
+      return data.filter((entry) => entry.kpi_id === kpiId);
     },
     enabled: !!kpiId,
     staleTime: 5 * 60 * 1000,
