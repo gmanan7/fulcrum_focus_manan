@@ -71,7 +71,8 @@ export default function Compliance() {
         .select('id, reporting_date, computed_status')
         .eq('computed_status', 'red')
         .gte('reporting_date', from)
-        .lte('reporting_date', to);
+        .lte('reporting_date', to)
+        .range(0, 9999);
       return data || [];
     },
   });
