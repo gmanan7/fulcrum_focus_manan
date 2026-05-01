@@ -1069,7 +1069,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   );
 }
 
-function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOpenChange: (v: boolean) => void; myGroups: Array<{ id: string; name: string; color: string }> }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -1079,7 +1079,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [visibility, setVisibility] = useState<VisibilityChoice>('everyone');
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
@@ -1105,6 +1105,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
+      const vis = taskVisibility(visibility);
       const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
@@ -1113,10 +1114,11 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         assigned_by: user!.id,
         priority,
         due_date: dueDate,
-        is_private: isPrivate,
+        is_private: vis.is_private,
+        task_group_id: vis.task_group_id,
         origin_type: 'standalone',
         created_by: user!.id,
-      }).select('id').single();
+      } as any).select('id').single();
       if (error) throw error;
       return data;
     },
@@ -1163,12 +1165,23 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
             </div>
             <div><Label>Due Date *</Label><Input type="date" min={today} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
           </div>
-          <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label htmlFor="create-private-toggle" className="text-sm">Private task</Label>
-              <p className="text-xs text-muted-foreground">Only you and the assignee will see this task</p>
-            </div>
-            <Switch id="create-private-toggle" checked={isPrivate} onCheckedChange={setIsPrivate} />
+          <div>
+            <Label className="text-sm">Visible to</Label>
+            <Select value={visibility} onValueChange={(v) => setVisibility(v as VisibilityChoice)}>
+              <SelectTrigger className="h-11 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="everyone">Everyone</SelectItem>
+                <SelectItem value="private">Private (creator + assignee only)</SelectItem>
+                {myGroups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
+                      {g.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
