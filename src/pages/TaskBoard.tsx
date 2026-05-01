@@ -106,17 +106,9 @@ export default function TaskBoard() {
     localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
   }, [chipCarryover]);
 
-  useEffect(() => {
-    const markCarryover = async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      await supabase.from('tasks')
-        .update({ is_carryover: true })
-        .lt('due_date', today)
-        .not('status', 'in', '("completed","cancelled")')
-        .eq('is_carryover', false);
-    };
-    markCarryover();
-  }, []);
+  // Carryover is now derived from task_updates history at render time.
+  // The previous effect that set tasks.is_carryover for every overdue task
+  // was incorrect (it ignored whether the due date had ever been changed).
 
   const { data: departments } = useQuery({
     queryKey: ['departments-taskboard'],
