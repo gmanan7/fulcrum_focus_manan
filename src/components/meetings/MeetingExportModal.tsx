@@ -107,7 +107,7 @@ export function MeetingExportModal({ open, onOpenChange, meeting }: MeetingExpor
       return (kpis || []).map((k: any): KpiSnapshotInput => {
         const y = yMap.get(k.id);
         const mtd = calculateMtd(mtdMap.get(k.id) || [], k.mtd_aggregation);
-        const status = y ? computeKpiStatus(k, y.actual_value) : null;
+        const status = y?.computed_status ?? null;
         return {
           id: k.id,
           name: k.name,
