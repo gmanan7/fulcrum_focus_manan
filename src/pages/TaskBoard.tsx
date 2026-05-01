@@ -202,6 +202,36 @@ export default function TaskBoard() {
   const groupMetaById = new Map<string, { name: string; color: string }>(
     (myGroups || []).map((g) => [g.id, { name: g.name, color: g.color }])
   );
+  const groupNameById = new Map<string, string>(
+    (myGroups || []).map((g) => [g.id, g.name])
+  );
+
+  // All tasks (unfiltered) — fetched lazily for export "All tasks" scope
+  const { data: allTasksForExport } = useQuery({
+    queryKey: ['tasks-all-for-export'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, owner:profiles!tasks_owner_id_fkey(full_name), dept:department!tasks_department_id_fkey(name)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showExport,
+  });
+
+  // Profiles map for "Assigned By" lookup in export
+  const { data: profilesForExport } = useQuery({
+    queryKey: ['profiles-for-task-export'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name');
+      return (data || []) as Array<{ id: string; full_name: string | null }>;
+    },
+    enabled: showExport,
+  });
+  const userNameById = new Map<string, string>(
+    (profilesForExport || []).map((p) => [p.id, p.full_name ?? '']),
+  );
 
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
