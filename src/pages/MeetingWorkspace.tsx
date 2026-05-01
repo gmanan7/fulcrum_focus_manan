@@ -148,6 +148,9 @@ export default function MeetingWorkspace() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" variant="outline" className="h-9 gap-1" onClick={() => setShowExport(true)}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
             <Badge className={cn('text-[10px]', STATUS_COLORS[meeting.status])}>{meeting.status.replace('_', ' ')}</Badge>
             {meeting.status === 'scheduled' && (
               <Button size="sm" className="bg-rag-green hover:bg-rag-green/90 text-white h-9 gap-1" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
