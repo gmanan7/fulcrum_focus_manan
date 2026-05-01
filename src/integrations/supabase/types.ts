@@ -1415,6 +1415,7 @@ export type Database = {
         | "department_head"
         | "team_member"
         | "shop_floor"
+        | "task_only"
       attendance_status: "present" | "absent" | "excused"
       audit_action: "INSERT" | "UPDATE" | "DELETE"
       kpi_direction: "higher_is_better" | "lower_is_better" | "target_is_exact"
@@ -1565,6 +1566,7 @@ export const Constants = {
         "department_head",
         "team_member",
         "shop_floor",
+        "task_only",
       ],
       attendance_status: ["present", "absent", "excused"],
       audit_action: ["INSERT", "UPDATE", "DELETE"],
