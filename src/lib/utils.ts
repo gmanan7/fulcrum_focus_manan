@@ -16,13 +16,44 @@ export function getMeetingKpiReportingDate(meetingScheduledDate: string): string
 
 /**
  * Returns the default landing route based on user roles.
- * shop_floor-only users go to /kpi/entry; everyone else goes to /dashboard.
+ * - shop_floor-only users go to /kpi/entry
+ * - task_only-only users go to /tasks
+ * - everyone else goes to /dashboard
  */
 export function getDefaultRouteForRoles(roles: string[]): string {
   if (roles.length === 1 && roles[0] === 'shop_floor') {
     return '/kpi/entry';
   }
+  if (roles.length === 1 && roles[0] === 'task_only') {
+    return '/tasks';
+  }
   return '/dashboard';
+}
+
+/** True when the user's only role is task_only. */
+export function isTaskOnlyRoles(roles: string[]): boolean {
+  return roles.length === 1 && roles[0] === 'task_only';
+}
+
+/**
+ * Routes a task_only user is NOT allowed to visit.
+ * Matches exact path or `path + '/'` prefix.
+ */
+export const TASK_ONLY_RESTRICTED = [
+  '/dashboard',
+  '/my-view',
+  '/kpi',
+  '/meetings',
+  '/pm-schedule',
+  '/compliance',
+  '/admin',
+] as const;
+
+/** True if the given pathname is restricted for task_only users. */
+export function isTaskOnlyRestrictedPath(pathname: string): boolean {
+  return TASK_ONLY_RESTRICTED.some(
+    (p) => pathname === p || pathname.startsWith(p + '/'),
+  );
 }
 
 /**
