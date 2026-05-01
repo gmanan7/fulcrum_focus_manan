@@ -154,7 +154,7 @@ export default function TaskBoard() {
     },
   });
 
-  const { data: carryoverHistoryIds } = useQuery({
+  const { data: carryoverHistory } = useQuery({
     queryKey: ['task-due-date-change-ids'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -162,11 +162,15 @@ export default function TaskBoard() {
         .select('task_id')
         .eq('update_type', 'due_date_change');
       if (error) throw error;
-      return new Set((data || []).map((r: any) => r.task_id as string));
+      const rows = (data || []) as Array<{ task_id: string }>;
+      const ids = new Set(rows.map((r) => r.task_id));
+      const counts = buildPushCountMap(rows);
+      return { ids, counts };
     },
   });
 
-  const historyIds = carryoverHistoryIds ?? new Set<string>();
+  const historyIds = carryoverHistory?.ids ?? new Set<string>();
+  const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
