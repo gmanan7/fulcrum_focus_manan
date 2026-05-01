@@ -162,15 +162,30 @@ export default function TaskBoard() {
     },
   });
 
+  const { data: carryoverHistoryIds } = useQuery({
+    queryKey: ['task-due-date-history-ids'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_due_date_history')
+        .select('task_id');
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.task_id as string));
+    },
+  });
+
+  const historyIds = carryoverHistoryIds ?? new Set<string>();
+
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
   const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
+  const carryoverCount = (tasks ?? []).filter((t) => isCarryover(t, historyIds)).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
     if (chipMyTasks && user) result = filterMyTasksFn(result, user.id);
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
+    if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
     return result;
   };
 
