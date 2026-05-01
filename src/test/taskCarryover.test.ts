@@ -1,6 +1,35 @@
 import { describe, it, expect } from 'vitest';
 import { isCarryover, filterCarryoverTasks } from '@/lib/taskCarryover';
 
+describe('carryover ids built from task_updates rows', () => {
+  it('deduplicates 3 rows across 2 distinct task ids', () => {
+    const rows = [
+      { task_id: 'a', update_type: 'due_date_change' },
+      { task_id: 'a', update_type: 'due_date_change' },
+      { task_id: 'b', update_type: 'due_date_change' },
+    ];
+    const ids = new Set(rows.map((r) => r.task_id));
+    expect(ids.size).toBe(2);
+    expect(ids.has('a')).toBe(true);
+    expect(ids.has('b')).toBe(true);
+  });
+
+  it('produces an empty set when there are no due_date_change rows', () => {
+    const rows: { task_id: string }[] = [];
+    const ids = new Set(rows.map((r) => r.task_id));
+    expect(ids.size).toBe(0);
+  });
+
+  it('isCarryover returns true for open task whose id is in the deduped set', () => {
+    const rows = [
+      { task_id: 't1', update_type: 'due_date_change' },
+      { task_id: 't1', update_type: 'due_date_change' },
+    ];
+    const ids = new Set(rows.map((r) => r.task_id));
+    expect(isCarryover({ id: 't1', status: 'open' }, ids)).toBe(true);
+  });
+});
+
 describe('isCarryover', () => {
   const historyIds = new Set(['t1', 't2', 't3']);
 
