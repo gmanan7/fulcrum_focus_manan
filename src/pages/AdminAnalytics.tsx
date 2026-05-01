@@ -896,6 +896,9 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
         <SignalRow severity="amber" icon={<AlertTriangle className="h-4 w-4" />}
           label={`Tasks with 3+ due-date changes (${repeatedPushbackTasks.length})`}
           detail={repeatedPushbackTasks.slice(0, 6).map((t: any) => t.title).join(', ') || 'None'} />
+        <SignalRow severity="amber" icon={<AlertTriangle className="h-4 w-4" />}
+          label={`Tasks pushed 2+ times: ${pushed2plusTasks.length} tasks, ${pushed2plusTotalChanges} total date changes`}
+          detail={pushed2plusTasks.slice(0, 6).map((r) => r.title).join(', ') || 'None'} />
       </div>
     </Section>
   );
