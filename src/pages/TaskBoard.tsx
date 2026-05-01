@@ -102,6 +102,11 @@ export default function TaskBoard() {
   }, [sortKey]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
+  }, [chipCarryover]);
+
+  useEffect(() => {
     const markCarryover = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       await supabase.from('tasks')
