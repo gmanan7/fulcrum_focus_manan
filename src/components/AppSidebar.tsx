@@ -75,6 +75,7 @@ const roleLabels: Record<string, string> = {
   department_head: 'Dept Head',
   team_member: 'Member',
   shop_floor: 'Shop Floor',
+  task_only: 'Task Only',
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -108,9 +109,11 @@ export function AppSidebar() {
   }, [user?.id]);
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
+  const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const canSeePm = hasAnyRole('super_admin', 'factory_manager') || isEng;
   const visibleMain = mainNav.filter(
     (item) => {
+      if (isTaskOnly) return item.url === '/tasks' || item.url === '/planner';
       if (isShopFloorOnly && item.hideForShopFloor) return false;
       if ((item as any).requireEng && !canSeePm) return false;
       return !item.roles || hasAnyRole(...(item.roles as any));
@@ -119,7 +122,7 @@ export function AppSidebar() {
 
   const isSuperAdmin = hasRole('super_admin');
   const visibleAdmin = adminNav.filter((item) => {
-    if (isShopFloorOnly) return false;
+    if (isShopFloorOnly || isTaskOnly) return false;
     if (item.roles) return hasAnyRole(...(item.roles as any));
     return isSuperAdmin;
   });

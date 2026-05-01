@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { isTaskOnlyRoles, isTaskOnlyRestrictedPath } from '@/lib/utils';
 
 const SHOP_FLOOR_RESTRICTED = [
   '/dashboard',
@@ -31,11 +32,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   if (isShopFloorOnly) {
     const restricted = SHOP_FLOOR_RESTRICTED.some(
-      (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+      (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
     );
     if (restricted) {
       return <Navigate to="/kpi/entry" replace />;
     }
+  }
+
+  // task_only users only get the Task Board and the Personal Planner
+  if (isTaskOnlyRoles(roles) && isTaskOnlyRestrictedPath(location.pathname)) {
+    return <Navigate to="/tasks" replace />;
   }
 
   return <>{children}</>;

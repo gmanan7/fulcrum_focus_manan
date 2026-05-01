@@ -43,6 +43,7 @@ const roleLabels: Record<string, string> = {
   department_head: 'Dept Head',
   team_member: 'Member',
   shop_floor: 'Shop Floor',
+  task_only: 'Task Only',
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -76,12 +77,13 @@ export function MobileBottomNav() {
   }, [user?.id]);
 
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
+  const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const canSeePm = hasAnyRole('super_admin', 'factory_manager') || isEng;
-  const visibleMore = isShopFloorOnly
-    ? [].filter(() => false) // shop_floor: drawer holds identity + sign out only
+  const visibleMore = isShopFloorOnly || isTaskOnly
+    ? [].filter(() => false) // restricted roles: drawer holds identity + sign out only
     : moreItems.filter((item) => {
         if (item.requireEng && !canSeePm) return false;
         return !item.roles || hasAnyRole(...(item.roles as any));
@@ -92,6 +94,11 @@ export function MobileBottomNav() {
     ? [
         { label: 'Enter KPIs', icon: BarChart3, path: '/kpi/entry' },
         { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends' },
+        { label: 'My Planner', icon: BookCheck, path: '/planner' },
+      ]
+    : isTaskOnly
+    ? [
+        { label: 'Tasks', icon: ListTodo, path: '/tasks' },
         { label: 'My Planner', icon: BookCheck, path: '/planner' },
       ]
     : mainItems;

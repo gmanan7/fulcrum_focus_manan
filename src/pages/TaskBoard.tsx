@@ -65,7 +65,8 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
 
 export default function TaskBoard() {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
   const [view, setView] = useState<'kanban' | 'list'>(isMobile ? 'list' : 'kanban');
   const [showFilters, setShowFilters] = useState(false);
@@ -264,16 +265,18 @@ export default function TaskBoard() {
           <Card>
             <CardContent className="p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Department</Label>
-                  <Select value={filterDept} onValueChange={setFilterDept}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isTaskOnly && (
+                  <div>
+                    <Label className="text-xs">Department</Label>
+                    <Select value={filterDept} onValueChange={setFilterDept}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Departments</SelectItem>
+                        {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs">Priority</Label>
                   <Select value={filterPriority} onValueChange={setFilterPriority}>
@@ -575,6 +578,7 @@ function TaskListCard({ task, historyIds, pushCounts, groupMeta, onClick, readOn
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
   const { user, hasAnyRole, roles } = useAuth();
+  const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
@@ -1013,7 +1017,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {(t as any).meeting && (
+      {(t as any).meeting && !isTaskOnly && (
         <div>
           <span className="text-muted-foreground text-xs">Origin</span>
           <p className="text-sm">Created in: <a href={`/meetings/${(t as any).meeting.id}/workspace`} className="text-primary underline">{(t as any).meeting.title} ({format(new Date((t as any).meeting.scheduled_date), 'dd MMM')})</a></p>
