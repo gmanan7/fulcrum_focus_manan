@@ -361,7 +361,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
               recentlyClosed.map((task) => (
-                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} readOnly />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
           </TabsContent>
