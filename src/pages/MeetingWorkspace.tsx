@@ -57,6 +57,7 @@ export default function MeetingWorkspace() {
   const [notesUnsaved, setNotesUnsaved] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [redKpiCount, setRedKpiCount] = useState(0);
+  const [showExport, setShowExport] = useState(false);
 
   const { data: meeting, isLoading } = useQuery({
     queryKey: ['meeting', id],
