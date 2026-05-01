@@ -75,6 +75,7 @@ const roleLabels: Record<string, string> = {
   department_head: 'Dept Head',
   team_member: 'Member',
   shop_floor: 'Shop Floor',
+  task_only: 'Task Only',
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
