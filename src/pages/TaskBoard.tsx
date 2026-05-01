@@ -27,6 +27,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
+import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
