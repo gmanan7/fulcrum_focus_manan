@@ -391,7 +391,10 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] text-muted-foreground">#{task.task_number}</span>
-            <p className="text-sm font-medium leading-tight truncate">{task.title}</p>
+            <p className="text-sm font-medium leading-tight truncate flex items-center gap-1">
+              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              <span className="truncate">{task.title}</span>
+            </p>
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
