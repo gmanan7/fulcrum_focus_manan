@@ -977,6 +977,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
