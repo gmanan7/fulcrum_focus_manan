@@ -746,6 +746,13 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
         <div><Label>Due Date *</Label><Input type="date" min={today} value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="h-11 mt-1" /></div>
       </div>
+      <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label htmlFor="edit-private-toggle" className="text-sm">Private task</Label>
+          <p className="text-xs text-muted-foreground">Only you and the assignee will see this task</p>
+        </div>
+        <Switch id="edit-private-toggle" checked={editIsPrivate} onCheckedChange={setEditIsPrivate} />
+      </div>
       <div className="flex gap-2">
         <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !editDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
           {editTaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
