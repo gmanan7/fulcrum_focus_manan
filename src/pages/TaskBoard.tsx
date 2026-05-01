@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
-  Pencil, FileText, UserCheck, Lock, Users,
+  Pencil, FileText, UserCheck, Lock, Users, Download,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
@@ -33,6 +33,7 @@ import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskP
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
+import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -94,6 +95,7 @@ export default function TaskBoard() {
     return v && TASK_SORT_OPTIONS.some((o) => o.value === v) ? v : 'created_desc';
   });
   const [showGroupsPanel, setShowGroupsPanel] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [activeGroupFilter, setActiveGroupFilter] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(GROUP_FILTER_STORAGE_KEY) || null;
@@ -200,6 +202,36 @@ export default function TaskBoard() {
   const groupMetaById = new Map<string, { name: string; color: string }>(
     (myGroups || []).map((g) => [g.id, { name: g.name, color: g.color }])
   );
+  const groupNameById = new Map<string, string>(
+    (myGroups || []).map((g) => [g.id, g.name])
+  );
+
+  // All tasks (unfiltered) — fetched lazily for export "All tasks" scope
+  const { data: allTasksForExport } = useQuery({
+    queryKey: ['tasks-all-for-export'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, owner:profiles!tasks_owner_id_fkey(full_name), dept:department!tasks_department_id_fkey(name)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showExport,
+  });
+
+  // Profiles map for "Assigned By" lookup in export
+  const { data: profilesForExport } = useQuery({
+    queryKey: ['profiles-for-task-export'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name');
+      return (data || []) as Array<{ id: string; full_name: string | null }>;
+    },
+    enabled: showExport,
+  });
+  const userNameById = new Map<string, string>(
+    (profilesForExport || []).map((p) => [p.id, p.full_name ?? '']),
+  );
 
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
@@ -248,6 +280,9 @@ export default function TaskBoard() {
               ))}
             </SelectContent>
           </Select>
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowExport(true)}>
+            <Download className="h-3.5 w-3.5" /> Export
+          </Button>
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
           </Button>
@@ -447,6 +482,15 @@ export default function TaskBoard() {
       {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
       {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} myGroups={myGroups || []} />}
       <GroupsPanel open={showGroupsPanel} onOpenChange={setShowGroupsPanel} />
+      <TaskExportModal
+        open={showExport}
+        onOpenChange={setShowExport}
+        currentViewTasks={[...activeTasks, ...completedTasks, ...cancelledTasks]}
+        allTasks={allTasksForExport || tasks || []}
+        pushCounts={pushCounts}
+        groupNameById={groupNameById}
+        userNameById={userNameById}
+      />
     </div>
   );
 }
