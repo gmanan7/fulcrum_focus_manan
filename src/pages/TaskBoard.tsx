@@ -334,7 +334,7 @@ export default function TaskBoard() {
                 </div>
                 <div className="space-y-2 min-h-[100px] bg-muted/20 rounded-lg p-2">
                   {colTasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                    <KanbanCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
                   ))}
                 </div>
               </div>
