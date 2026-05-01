@@ -424,8 +424,10 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
   );
 }
 
-function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => void; readOnly?: boolean }) {
+function TaskListCard({ task, historyIds, pushCounts, onClick, readOnly }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick?: () => void; readOnly?: boolean }) {
   const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  const carryover = isCarryover(task, historyIds);
+  const pushes = pushCounts.get(task.id) ?? 0;
   return (
     <Card className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3">
@@ -439,7 +441,16 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
               <span className="text-xs text-muted-foreground">{(task as any).owner?.full_name}</span>
               {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
               {isOverdue && <span className="text-[10px] text-destructive">{Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))}d overdue</span>}
-              {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+              {carryover && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ Carryover
+                </Badge>
+              )}
+              {pushes >= 1 && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ {pushes}×
+                </Badge>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
