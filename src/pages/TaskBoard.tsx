@@ -164,9 +164,9 @@ export default function TaskBoard() {
     return result;
   };
 
-  const activeTasks = applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []);
-  const completedTasks = applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []);
-  const cancelledTasks = applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []);
+  const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
+  const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
+  const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
 
   return (
     <div className="space-y-4">
