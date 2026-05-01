@@ -242,6 +242,8 @@ export default function MeetingWorkspace() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MeetingExportModal open={showExport} onOpenChange={setShowExport} meeting={meeting} />
     </div>
   );
 }
