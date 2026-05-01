@@ -620,7 +620,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const editTaskMutation = useMutation({
     mutationFn: async () => {
       if (editDueDate < today) throw new Error('Due date cannot be in the past');
-      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date };
+      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date, is_private: (t as any).is_private };
       const { error } = await supabase.from('tasks').update({
         title: editTitle,
         description: editDescription || null,
@@ -628,6 +628,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         owner_id: editOwnerId,
         priority: editPriority,
         due_date: editDueDate,
+        is_private: editIsPrivate,
         updated_at: new Date().toISOString(),
       }).eq('id', task.id);
       if (error) throw error;
