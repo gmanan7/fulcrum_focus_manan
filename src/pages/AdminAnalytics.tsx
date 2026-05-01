@@ -650,6 +650,46 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
   });
   const repeated = Array.from(dueChangesByTask.entries()).filter(([, c]) => c >= 2).length;
 
+  // ---- Most Pushed Tasks (active only) ----
+  // Compute earliest previous_due_date per task to derive original due date.
+  const earliestPrevDueByTask = new Map<string, string>();
+  taskUpdates.forEach((u: any) => {
+    if (u.update_type !== 'due_date_change' || !u.previous_due_date) return;
+    const cur = earliestPrevDueByTask.get(u.task_id);
+    if (!cur || u.previous_due_date < cur) earliestPrevDueByTask.set(u.task_id, u.previous_due_date);
+  });
+  const deptByIdLocal = new Map<string, any>((depts ?? []).map((d: any) => [d.id, d]));
+  const profileByIdLocal = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
+  const mostPushedTasks = Array.from(dueChangesByTask.entries())
+    .map(([id, count]) => {
+      const t = tasks.find((tk: any) => tk.id === id);
+      if (!t) return null;
+      if (t.status === 'completed' || t.status === 'cancelled') return null;
+      const original = earliestPrevDueByTask.get(id) ?? null;
+      const slipped = original && t.due_date
+        ? Math.round((new Date(t.due_date + 'T00:00:00Z').getTime() - new Date(original + 'T00:00:00Z').getTime()) / 86400000)
+        : 0;
+      return {
+        id,
+        title: t.title,
+        owner: profileByIdLocal.get(t.owner_id)?.full_name ?? '—',
+        dept: deptByIdLocal.get(t.department_id)?.name ?? '—',
+        original_due: original,
+        current_due: t.due_date,
+        push_count: count,
+        days_slipped: slipped,
+      };
+    })
+    .filter(Boolean) as any[];
+  mostPushedTasks.sort((a, b) => b.push_count - a.push_count);
+  const topPushed = mostPushedTasks.slice(0, 10);
+
+  const avgPushesPerTask = mostPushedTasks.length === 0 ? 0
+    : Math.round((mostPushedTasks.reduce((s, r) => s + r.push_count, 0) / mostPushedTasks.length) * 10) / 10;
+  const totalDaysSlipped = mostPushedTasks.reduce((s, r) => s + Math.max(0, r.days_slipped), 0);
+  const pushed2plusTasks = mostPushedTasks.filter((r) => r.push_count >= 2);
+  const pushed2plusTotalChanges = pushed2plusTasks.reduce((s, r) => s + r.push_count, 0);
+
   const completedTasks = tasks.filter((t: any) => t.status === 'completed' && t.completed_at);
   const avgDays = completedTasks.length === 0 ? 0 : Math.round(
     completedTasks.reduce((s: number, t: any) => s + (new Date(t.completed_at).getTime() - new Date(t.created_at).getTime()) / 86400000, 0) / completedTasks.length,
