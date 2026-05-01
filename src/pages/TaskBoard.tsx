@@ -27,6 +27,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
+import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -79,11 +80,21 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('fulcrum-mytasks-filter') === '1';
   });
+  const [sortKey, setSortKey] = useState<TaskSortKey>(() => {
+    if (typeof window === 'undefined') return 'created_desc';
+    const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
+    return v && TASK_SORT_OPTIONS.some((o) => o.value === v) ? v : 'created_desc';
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     localStorage.setItem('fulcrum-mytasks-filter', chipMyTasks ? '1' : '0');
   }, [chipMyTasks]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(TASK_SORT_STORAGE_KEY, sortKey);
+  }, [sortKey]);
 
   useEffect(() => {
     const markCarryover = async () => {
@@ -153,9 +164,9 @@ export default function TaskBoard() {
     return result;
   };
 
-  const activeTasks = applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []);
-  const completedTasks = applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []);
-  const cancelledTasks = applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []);
+  const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
+  const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
+  const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
 
   return (
     <div className="space-y-4">
@@ -172,6 +183,16 @@ export default function TaskBoard() {
               </Button>
             </div>
           )}
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as TaskSortKey)}>
+            <SelectTrigger className="h-8 w-[150px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TASK_SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
           </Button>
@@ -321,7 +342,14 @@ export default function TaskBoard() {
 }
 
 function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
-  const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  const isClosed = ['completed', 'cancelled'].includes(task.status);
+  const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
+  const dueText = !isClosed ? formatDueDate(task.due_date) : null;
+  const dueTone = !isClosed ? getDueTone(task.due_date) : null;
+  const dueClass =
+    dueTone === 'overdue' ? 'text-destructive' :
+    dueTone === 'today' ? 'text-rag-amber' :
+    'text-muted-foreground';
   return (
     <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3 space-y-1.5">
@@ -332,15 +360,15 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
+        {dueText && (
+          <p className={cn('text-[10px] flex items-center gap-1', dueClass)}>
+            <CalendarIcon className="h-3 w-3" /> {dueText}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] text-muted-foreground">{(task as any).owner?.full_name}</span>
           {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
         </div>
-        {isOverdue && (
-          <p className="text-[10px] text-destructive flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> {Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))} days overdue
-          </p>
-        )}
         {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
         {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
       </CardContent>
