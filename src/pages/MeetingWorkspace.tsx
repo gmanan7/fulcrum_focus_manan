@@ -53,6 +53,7 @@ export default function MeetingWorkspace() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('kpi');
+  const [notesUnsaved, setNotesUnsaved] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [redKpiCount, setRedKpiCount] = useState(0);
 
@@ -182,7 +183,12 @@ export default function MeetingWorkspace() {
               <TabsList className="bg-transparent h-10 w-max min-w-full px-4 gap-0 rounded-none justify-start">
                 <TabsTrigger value="kpi" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">KPI Snapshot</TabsTrigger>
                 <TabsTrigger value="attendance" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Attendance</TabsTrigger>
-                <TabsTrigger value="notes" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Notes &amp; Discussion</TabsTrigger>
+                <TabsTrigger value="notes" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">
+                  <span className="inline-flex items-center gap-1.5">
+                    Notes &amp; Discussion
+                    {notesUnsaved && <span className="h-1.5 w-1.5 rounded-full bg-rag-amber" aria-label="Unsaved changes" />}
+                  </span>
+                </TabsTrigger>
                 <TabsTrigger value="decisions" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Decisions</TabsTrigger>
                 <TabsTrigger value="tasks" className="text-xs sm:text-sm whitespace-nowrap data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-3">Tasks</TabsTrigger>
               </TabsList>
@@ -198,7 +204,7 @@ export default function MeetingWorkspace() {
                   <Clock className="h-8 w-8 mb-2 opacity-50" />
                   <p className="text-sm">Start the meeting to enable notes</p>
                 </div>
-              ) : <NotesTab meeting={meeting} readOnly={readOnly} />}
+              ) : <NotesTab meeting={meeting} readOnly={readOnly} onUnsavedChange={setNotesUnsaved} />}
             </TabsContent>
             <TabsContent value="decisions" className="mt-0">
               {tabsLocked ? (
