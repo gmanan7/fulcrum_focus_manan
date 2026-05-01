@@ -1102,6 +1102,21 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
     enabled: !!deptId,
   });
 
+  // Fetch members of selected visibility group (only when visibility is a group id)
+  const isGroupVisibility = visibility !== 'everyone' && visibility !== 'private';
+  const { data: selectedGroupMembers } = useQuery({
+    queryKey: ['create-task-group-members', visibility],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_group_members').select('user_id').eq('group_id', visibility as string);
+      return (data || []).map((r) => r.user_id as string);
+    },
+    enabled: open && isGroupVisibility,
+  });
+  const groupMemberIds = isGroupVisibility ? new Set(selectedGroupMembers || []) : null;
+  const showOwnerNotInGroupWarning = shouldWarnOwnerNotInGroup(visibility, ownerId, groupMemberIds);
+  const selectedGroup = isGroupVisibility ? myGroups.find((g) => g.id === visibility) : null;
+  const ownerName = deptUsers?.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
