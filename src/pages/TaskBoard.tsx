@@ -265,16 +265,18 @@ export default function TaskBoard() {
           <Card>
             <CardContent className="p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Department</Label>
-                  <Select value={filterDept} onValueChange={setFilterDept}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isTaskOnly && (
+                  <div>
+                    <Label className="text-xs">Department</Label>
+                    <Select value={filterDept} onValueChange={setFilterDept}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Departments</SelectItem>
+                        {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs">Priority</Label>
                   <Select value={filterPriority} onValueChange={setFilterPriority}>
