@@ -182,6 +182,24 @@ export default function TaskBoard() {
     },
   });
 
+  // Groups the user belongs to (or created), plus all groups for admins
+  const { data: myGroups } = useQuery({
+    queryKey: ['my-task-groups', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_groups' as any)
+        .select('id, name, color, created_by');
+      if (error) throw error;
+      return ((data as unknown) || []) as Array<{ id: string; name: string; color: string; created_by: string }>;
+    },
+    enabled: !!user,
+  });
+
+  // Map task_group_id → group meta for card rendering
+  const groupMetaById = new Map<string, { name: string; color: string }>(
+    (myGroups || []).map((g) => [g.id, { name: g.name, color: g.color }])
+  );
+
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
@@ -196,6 +214,7 @@ export default function TaskBoard() {
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
     if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
+    if (activeGroupFilter) result = result.filter((t) => (t as any).task_group_id === activeGroupFilter);
     return result;
   };
 
