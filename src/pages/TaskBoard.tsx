@@ -425,7 +425,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No active tasks.</p>
             ) : (
               activeTasks.map((task) => (
-                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} />
               ))
             )}
           </TabsContent>
@@ -434,7 +434,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
               recentlyClosed.map((task) => (
-                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} readOnly />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
           </TabsContent>
@@ -442,7 +442,8 @@ export default function TaskBoard() {
       )}
 
       {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
-      {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} />}
+      {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} myGroups={myGroups || []} />}
+      <GroupsPanel open={showGroupsPanel} onOpenChange={setShowGroupsPanel} />
     </div>
   );
 }
