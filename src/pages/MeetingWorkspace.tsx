@@ -23,7 +23,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2, Save } from 'lucide-react';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2, Save, Download } from 'lucide-react';
+import { MeetingExportModal } from '@/components/meetings/MeetingExportModal';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -56,6 +57,7 @@ export default function MeetingWorkspace() {
   const [notesUnsaved, setNotesUnsaved] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [redKpiCount, setRedKpiCount] = useState(0);
+  const [showExport, setShowExport] = useState(false);
 
   const { data: meeting, isLoading } = useQuery({
     queryKey: ['meeting', id],
@@ -146,6 +148,9 @@ export default function MeetingWorkspace() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" variant="outline" className="h-9 gap-1" onClick={() => setShowExport(true)}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
             <Badge className={cn('text-[10px]', STATUS_COLORS[meeting.status])}>{meeting.status.replace('_', ' ')}</Badge>
             {meeting.status === 'scheduled' && (
               <Button size="sm" className="bg-rag-green hover:bg-rag-green/90 text-white h-9 gap-1" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
@@ -237,6 +242,8 @@ export default function MeetingWorkspace() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MeetingExportModal open={showExport} onOpenChange={setShowExport} meeting={meeting} />
     </div>
   );
 }
