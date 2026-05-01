@@ -1197,6 +1197,18 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
                 ))}
               </SelectContent>
             </Select>
+            {showOwnerNotInGroupWarning && selectedGroup && (
+              <div
+                role="alert"
+                data-testid="owner-not-in-group-warning"
+                className="mt-2 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>{ownerName}</strong> is not a member of <strong>{selectedGroup.name}</strong>. They will still be able to see this task as the assignee, but won't have access to other group tasks. Consider adding them to the group first.
+                </span>
+              </div>
+            )}
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
