@@ -1011,6 +1011,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         assigned_by: user!.id,
         priority,
         due_date: dueDate,
+        is_private: isPrivate,
         origin_type: 'standalone',
         created_by: user!.id,
       }).select('id').single();
