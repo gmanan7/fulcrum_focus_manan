@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
-  Pencil, FileText, UserCheck, Lock, Users,
+  Pencil, FileText, UserCheck, Lock, Users, Download,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
