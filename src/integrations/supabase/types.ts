@@ -1039,6 +1039,97 @@ export type Database = {
           },
         ]
       }
+      task_group_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_group_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "task_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_groups: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string
+          factory_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by: string
+          factory_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string
+          factory_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_groups_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_updates: {
         Row: {
           created_at: string
@@ -1118,6 +1209,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"]
           resolution_note: string | null
           status: Database["public"]["Enums"]["task_status"]
+          task_group_id: string | null
           task_number: number
           title: string
           updated_at: string
@@ -1140,6 +1232,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           resolution_note?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          task_group_id?: string | null
           task_number?: number
           title: string
           updated_at?: string
@@ -1162,6 +1255,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           resolution_note?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          task_group_id?: string | null
           task_number?: number
           title?: string
           updated_at?: string
@@ -1207,6 +1301,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_task_group_id_fkey"
+            columns: ["task_group_id"]
+            isOneToOne: false
+            referencedRelation: "task_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -1296,6 +1397,14 @@ export type Database = {
       }
       is_dept_member: {
         Args: { p_department_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_group_creator: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_group_member: {
+        Args: { p_group_id: string; p_user_id: string }
         Returns: boolean
       }
     }

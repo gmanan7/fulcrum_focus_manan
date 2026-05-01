@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
-  Pencil, FileText, UserCheck, Lock,
+  Pencil, FileText, UserCheck, Lock, Users,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
@@ -31,6 +31,8 @@ import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STOR
 import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
+import { taskVisibility, truncateGroupName, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
+import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -90,6 +92,11 @@ export default function TaskBoard() {
     const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
     return v && TASK_SORT_OPTIONS.some((o) => o.value === v) ? v : 'created_desc';
   });
+  const [showGroupsPanel, setShowGroupsPanel] = useState(false);
+  const [activeGroupFilter, setActiveGroupFilter] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(GROUP_FILTER_STORAGE_KEY) || null;
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +112,12 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
   }, [chipCarryover]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (activeGroupFilter) localStorage.setItem(GROUP_FILTER_STORAGE_KEY, activeGroupFilter);
+    else localStorage.removeItem(GROUP_FILTER_STORAGE_KEY);
+  }, [activeGroupFilter]);
 
   // Carryover is now derived from task_updates history at render time.
   // The previous effect that set tasks.is_carryover for every overdue task
@@ -169,6 +182,24 @@ export default function TaskBoard() {
     },
   });
 
+  // Groups the user belongs to (or created), plus all groups for admins
+  const { data: myGroups } = useQuery({
+    queryKey: ['my-task-groups', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_groups' as any)
+        .select('id, name, color, created_by');
+      if (error) throw error;
+      return ((data as unknown) || []) as Array<{ id: string; name: string; color: string; created_by: string }>;
+    },
+    enabled: !!user,
+  });
+
+  // Map task_group_id → group meta for card rendering
+  const groupMetaById = new Map<string, { name: string; color: string }>(
+    (myGroups || []).map((g) => [g.id, { name: g.name, color: g.color }])
+  );
+
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
@@ -183,6 +214,7 @@ export default function TaskBoard() {
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
     if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
+    if (activeGroupFilter) result = result.filter((t) => (t as any).task_group_id === activeGroupFilter);
     return result;
   };
 
@@ -217,6 +249,9 @@ export default function TaskBoard() {
           </Select>
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowGroupsPanel(true)}>
+            <Users className="h-3.5 w-3.5" /> Groups
           </Button>
           <Button onClick={() => setShowCreate(true)} className="h-8 gap-1 text-sm">
             <Plus className="h-3.5 w-3.5" /> New Task
@@ -313,6 +348,44 @@ export default function TaskBoard() {
         </button>
       </div>
 
+      {(myGroups && myGroups.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Groups:</span>
+          {myGroups.map((g) => {
+            const active = activeGroupFilter === g.id;
+            return (
+              <button
+                key={g.id}
+                onClick={() => setActiveGroupFilter(active ? null : g.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors',
+                  active ? 'text-white' : 'hover:opacity-80'
+                )}
+                style={
+                  active
+                    ? { backgroundColor: g.color, borderColor: g.color }
+                    : { color: g.color, borderColor: g.color, backgroundColor: 'transparent' }
+                }
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: active ? '#fff' : g.color }}
+                />
+                {truncateGroupName(g.name, 16)}
+              </button>
+            );
+          })}
+          {activeGroupFilter && (
+            <button
+              onClick={() => setActiveGroupFilter(null)}
+              className="text-[10px] text-muted-foreground hover:text-foreground underline"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : view === 'kanban' && !isMobile ? (
@@ -334,7 +407,7 @@ export default function TaskBoard() {
                 </div>
                 <div className="space-y-2 min-h-[100px] bg-muted/20 rounded-lg p-2">
                   {colTasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
+                    <KanbanCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} />
                   ))}
                 </div>
               </div>
@@ -352,7 +425,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No active tasks.</p>
             ) : (
               activeTasks.map((task) => (
-                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} />
               ))
             )}
           </TabsContent>
@@ -361,7 +434,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
               recentlyClosed.map((task) => (
-                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} readOnly />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
           </TabsContent>
@@ -369,12 +442,13 @@ export default function TaskBoard() {
       )}
 
       {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
-      {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} />}
+      {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} myGroups={myGroups || []} />}
+      <GroupsPanel open={showGroupsPanel} onOpenChange={setShowGroupsPanel} />
     </div>
   );
 }
 
-function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick: () => void }) {
+function KanbanCard({ task, historyIds, pushCounts, groupMeta, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; groupMeta?: { name: string; color: string }; onClick: () => void }) {
   const isClosed = ['completed', 'cancelled'].includes(task.status);
   const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
   const dueText = !isClosed ? formatDueDate(task.due_date) : null;
@@ -386,15 +460,29 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
   const carryover = isCarryover(task, historyIds);
   const pushes = pushCounts.get(task.id) ?? 0;
   return (
-    <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
+    <Card
+      className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')}
+      style={groupMeta ? { borderLeft: `3px solid ${groupMeta.color}` } : undefined}
+      onClick={onClick}
+    >
       <CardContent className="p-3 space-y-1.5">
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] text-muted-foreground">#{task.task_number}</span>
             <p className="text-sm font-medium leading-tight truncate flex items-center gap-1">
-              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              {task.is_private && !groupMeta && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
               <span className="truncate">{task.title}</span>
             </p>
+            {groupMeta && (
+              <span
+                className="inline-flex items-center gap-1 mt-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                style={{ color: groupMeta.color, border: `1px solid ${groupMeta.color}40`, backgroundColor: `${groupMeta.color}15` }}
+                title={groupMeta.name}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupMeta.color }} />
+                {truncateGroupName(groupMeta.name)}
+              </span>
+            )}
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
@@ -427,21 +515,35 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
   );
 }
 
-function TaskListCard({ task, historyIds, pushCounts, onClick, readOnly }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick?: () => void; readOnly?: boolean }) {
+function TaskListCard({ task, historyIds, pushCounts, groupMeta, onClick, readOnly }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; groupMeta?: { name: string; color: string }; onClick?: () => void; readOnly?: boolean }) {
   const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
   const carryover = isCarryover(task, historyIds);
   const pushes = pushCounts.get(task.id) ?? 0;
   return (
-    <Card className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')} onClick={onClick}>
+    <Card
+      className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')}
+      style={groupMeta ? { borderLeft: `3px solid ${groupMeta.color}` } : undefined}
+      onClick={onClick}
+    >
       <CardContent className="p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">#{task.task_number}</span>
-              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              {task.is_private && !groupMeta && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
               <p className="text-sm font-medium truncate">{task.title}</p>
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {groupMeta && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                  style={{ color: groupMeta.color, border: `1px solid ${groupMeta.color}40`, backgroundColor: `${groupMeta.color}15` }}
+                  title={groupMeta.name}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupMeta.color }} />
+                  {truncateGroupName(groupMeta.name)}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground">{(task as any).owner?.full_name}</span>
               {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
               {isOverdue && <span className="text-[10px] text-destructive">{Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))}d overdue</span>}
@@ -967,7 +1069,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   );
 }
 
-function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOpenChange: (v: boolean) => void; myGroups: Array<{ id: string; name: string; color: string }> }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -977,7 +1079,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [visibility, setVisibility] = useState<VisibilityChoice>('everyone');
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
@@ -1003,6 +1105,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
+      const vis = taskVisibility(visibility);
       const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
@@ -1011,10 +1114,11 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         assigned_by: user!.id,
         priority,
         due_date: dueDate,
-        is_private: isPrivate,
+        is_private: vis.is_private,
+        task_group_id: vis.task_group_id,
         origin_type: 'standalone',
         created_by: user!.id,
-      }).select('id').single();
+      } as any).select('id').single();
       if (error) throw error;
       return data;
     },
@@ -1061,12 +1165,23 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
             </div>
             <div><Label>Due Date *</Label><Input type="date" min={today} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
           </div>
-          <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label htmlFor="create-private-toggle" className="text-sm">Private task</Label>
-              <p className="text-xs text-muted-foreground">Only you and the assignee will see this task</p>
-            </div>
-            <Switch id="create-private-toggle" checked={isPrivate} onCheckedChange={setIsPrivate} />
+          <div>
+            <Label className="text-sm">Visible to</Label>
+            <Select value={visibility} onValueChange={(v) => setVisibility(v as VisibilityChoice)}>
+              <SelectTrigger className="h-11 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="everyone">Everyone</SelectItem>
+                <SelectItem value="private">Private (creator + assignee only)</SelectItem>
+                {myGroups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
+                      {g.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
