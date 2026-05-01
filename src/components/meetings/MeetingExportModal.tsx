@@ -10,9 +10,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getMeetingKpiReportingDate, getMtdDateRange, calculateMtd } from '@/lib/mtdUtils';
+import { getMeetingKpiReportingDate } from '@/lib/utils';
+import { getMtdDateRange, calculateMtd } from '@/lib/mtdUtils';
 import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
-import { computeKpiStatus } from '@/lib/kpiChartUtils';
 import {
   MEETING_EXPORT_SECTIONS,
   defaultSectionSelections,
