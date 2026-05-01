@@ -113,6 +113,12 @@ export default function TaskBoard() {
     localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
   }, [chipCarryover]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (activeGroupFilter) localStorage.setItem(GROUP_FILTER_STORAGE_KEY, activeGroupFilter);
+    else localStorage.removeItem(GROUP_FILTER_STORAGE_KEY);
+  }, [activeGroupFilter]);
+
   // Carryover is now derived from task_updates history at render time.
   // The previous effect that set tasks.is_carryover for every overdue task
   // was incorrect (it ignored whether the due date had ever been changed).
