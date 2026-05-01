@@ -92,6 +92,11 @@ export default function TaskBoard() {
     const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
     return v && TASK_SORT_OPTIONS.some((o) => o.value === v) ? v : 'created_desc';
   });
+  const [showGroupsPanel, setShowGroupsPanel] = useState(false);
+  const [activeGroupFilter, setActiveGroupFilter] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(GROUP_FILTER_STORAGE_KEY) || null;
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
