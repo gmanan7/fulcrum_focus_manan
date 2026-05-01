@@ -5,6 +5,7 @@ import {
   canManageGroup,
   taskVisibility,
   truncateGroupName,
+  shouldWarnOwnerNotInGroup,
 } from '@/lib/taskGroups';
 
 const groupTask = { task_group_id: 'g1' };
