@@ -80,7 +80,8 @@ export function buildTaskExportRow(
   const { pushCounts, groupNameById, userNameById, reference } = opts;
   const assignedTo = task.owner?.full_name
     ?? (task.owner_id ? userNameById?.get(task.owner_id) ?? '' : '');
-  const assignedBy = task.created_by ? userNameById?.get(task.created_by) ?? '' : '';
+  const assignerId = task.assigned_by ?? task.created_by ?? null;
+  const assignedBy = assignerId ? userNameById?.get(assignerId) ?? '' : '';
   const groupName = task.task_group_id ? groupNameById?.get(task.task_group_id) ?? '' : '';
   return {
     'Task Title': task.title ?? '',
