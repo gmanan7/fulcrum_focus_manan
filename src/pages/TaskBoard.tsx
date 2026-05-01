@@ -448,7 +448,7 @@ export default function TaskBoard() {
   );
 }
 
-function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick: () => void }) {
+function KanbanCard({ task, historyIds, pushCounts, groupMeta, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; groupMeta?: { name: string; color: string }; onClick: () => void }) {
   const isClosed = ['completed', 'cancelled'].includes(task.status);
   const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
   const dueText = !isClosed ? formatDueDate(task.due_date) : null;
@@ -460,15 +460,29 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
   const carryover = isCarryover(task, historyIds);
   const pushes = pushCounts.get(task.id) ?? 0;
   return (
-    <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
+    <Card
+      className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')}
+      style={groupMeta ? { borderLeft: `3px solid ${groupMeta.color}` } : undefined}
+      onClick={onClick}
+    >
       <CardContent className="p-3 space-y-1.5">
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] text-muted-foreground">#{task.task_number}</span>
             <p className="text-sm font-medium leading-tight truncate flex items-center gap-1">
-              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              {task.is_private && !groupMeta && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
               <span className="truncate">{task.title}</span>
             </p>
+            {groupMeta && (
+              <span
+                className="inline-flex items-center gap-1 mt-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                style={{ color: groupMeta.color, border: `1px solid ${groupMeta.color}40`, backgroundColor: `${groupMeta.color}15` }}
+                title={groupMeta.name}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupMeta.color }} />
+                {truncateGroupName(groupMeta.name)}
+              </span>
+            )}
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
@@ -496,6 +510,63 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
           </div>
         )}
         {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TaskListCard({ task, historyIds, pushCounts, groupMeta, onClick, readOnly }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; groupMeta?: { name: string; color: string }; onClick?: () => void; readOnly?: boolean }) {
+  const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  const carryover = isCarryover(task, historyIds);
+  const pushes = pushCounts.get(task.id) ?? 0;
+  return (
+    <Card
+      className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')}
+      style={groupMeta ? { borderLeft: `3px solid ${groupMeta.color}` } : undefined}
+      onClick={onClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">#{task.task_number}</span>
+              {task.is_private && !groupMeta && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              <p className="text-sm font-medium truncate">{task.title}</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {groupMeta && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                  style={{ color: groupMeta.color, border: `1px solid ${groupMeta.color}40`, backgroundColor: `${groupMeta.color}15` }}
+                  title={groupMeta.name}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupMeta.color }} />
+                  {truncateGroupName(groupMeta.name)}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">{(task as any).owner?.full_name}</span>
+              {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
+              {isOverdue && <span className="text-[10px] text-destructive">{Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))}d overdue</span>}
+              {carryover && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ Carryover
+                </Badge>
+              )}
+              {pushes >= 1 && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ {pushes}×
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge className={cn('text-[10px]', STATUS_COLORS[task.status])}>{task.status.replace('_', ' ')}</Badge>
+            <Badge className={cn('text-[10px]', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
+          </div>
+        </div>
+        {readOnly && task.resolution_note && (
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.resolution_note}</p>
+        )}
       </CardContent>
     </Card>
   );
