@@ -23,7 +23,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2 } from 'lucide-react';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -813,18 +813,51 @@ function AttendanceTab({ meeting, readOnly }: { meeting: any; readOnly: boolean 
 }
 
 // ─── NOTES & DISCUSSION TAB (FIX 2: merged) ─────────────────────────────
-function NotesTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
+function NotesTab({ meeting, readOnly, onUnsavedChange }: { meeting: any; readOnly: boolean; onUnsavedChange?: (v: boolean) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [summary, setSummary] = useState(meeting.summary || '');
+  const [lastSaved, setLastSaved] = useState<string>(meeting.summary || '');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const debounceRef = useRef<NodeJS.Timeout>();
+  const stateTimerRef = useRef<NodeJS.Timeout>();
 
-  const saveSummary = useCallback((val: string) => {
+  const unsaved = (summary ?? '') !== (lastSaved ?? '');
+
+  useEffect(() => {
+    onUnsavedChange?.(unsaved);
+  }, [unsaved, onUnsavedChange]);
+
+  useEffect(() => () => {
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      await supabase.from('meetings').update({ summary: val }).eq('id', meeting.id);
-    }, 1000);
+    clearTimeout(stateTimerRef.current);
+    onUnsavedChange?.(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const performSave = useCallback(async (val: string) => {
+    setSaveState('saving');
+    clearTimeout(stateTimerRef.current);
+    const { error } = await supabase.from('meetings').update({ summary: val }).eq('id', meeting.id);
+    if (error) {
+      setSaveState('error');
+      stateTimerRef.current = setTimeout(() => setSaveState('idle'), 3000);
+      return;
+    }
+    setLastSaved(val);
+    setSaveState('saved');
+    stateTimerRef.current = setTimeout(() => setSaveState('idle'), 2000);
   }, [meeting.id]);
+
+  const scheduleAutosave = useCallback((val: string) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { performSave(val); }, 3000);
+  }, [performSave]);
+
+  const handleManualSave = () => {
+    clearTimeout(debounceRef.current);
+    performSave(summary);
+  };
 
   const { data: points } = useQuery({
     queryKey: ['discussion-points', meeting.id],
@@ -873,14 +906,41 @@ function NotesTab({ meeting, readOnly }: { meeting: any; readOnly: boolean }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['discussion-points', meeting.id] }),
   });
 
+  const isSaving = saveState === 'saving';
+
   return (
     <div className="space-y-6">
       {/* Meeting Notes */}
       <div>
-        <Label className="text-sm font-semibold">Meeting Notes</Label>
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-sm font-semibold">Meeting Notes</Label>
+          <Button
+            size="sm"
+            onClick={handleManualSave}
+            disabled={readOnly || isSaving}
+            className={cn(
+              'h-8 gap-1.5',
+              saveState === 'saved' && 'bg-rag-green hover:bg-rag-green/90 text-white',
+              saveState === 'error' && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground',
+            )}
+          >
+            {isSaving ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</>
+            ) : saveState === 'saved' ? (
+              <><CheckCircle2 className="h-3.5 w-3.5" /> Saved</>
+            ) : saveState === 'error' ? (
+              <><AlertTriangle className="h-3.5 w-3.5" /> Save failed — Retry</>
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5" /> Save
+                {unsaved && <span className="h-1.5 w-1.5 rounded-full bg-rag-amber ml-0.5" aria-label="Unsaved changes" />}
+              </>
+            )}
+          </Button>
+        </div>
         <Textarea
           value={summary}
-          onChange={(e) => { setSummary(e.target.value); saveSummary(e.target.value); }}
+          onChange={(e) => { setSummary(e.target.value); scheduleAutosave(e.target.value); }}
           placeholder="Free-text meeting notes..."
           rows={4}
           disabled={readOnly}
