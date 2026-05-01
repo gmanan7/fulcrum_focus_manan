@@ -111,10 +111,10 @@ export default function AdminAnalytics() {
       const endISO = range.end;
 
       const tasksQ = supabase.from('tasks').select(
-        'id,title,status,due_date,owner_id,assigned_by,created_by,created_at,completed_at',
+        'id,title,status,due_date,owner_id,assigned_by,created_by,created_at,completed_at,department_id',
       );
       const taskUpdatesQ = supabase.from('task_updates').select(
-        'id,task_id,update_type,updated_by,created_at',
+        'id,task_id,update_type,updated_by,created_at,previous_due_date,new_due_date',
       );
       const kpiEntriesQ = supabase.from('kpi_entries').select(
         'id,kpi_id,submitted_by,reporting_date,submitted_at,is_late_entry',
@@ -626,7 +626,7 @@ function MeetingHealthSection({ data, period, lastUpdated, onRefresh }: any) {
  *  SECTION 4 — TASK ACCOUNTABILITY
  * ============================================================ */
 function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any) {
-  const { tasks, taskUpdates, profiles, meetings, kpiEntries } = data;
+  const { tasks, taskUpdates, profiles, meetings, kpiEntries, depts } = data;
   const range = resolvePeriodRange(period);
   const start = range.start ? new Date(range.start) : new Date(0);
   const end = new Date(range.end);
@@ -649,6 +649,46 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
     }
   });
   const repeated = Array.from(dueChangesByTask.entries()).filter(([, c]) => c >= 2).length;
+
+  // ---- Most Pushed Tasks (active only) ----
+  // Compute earliest previous_due_date per task to derive original due date.
+  const earliestPrevDueByTask = new Map<string, string>();
+  taskUpdates.forEach((u: any) => {
+    if (u.update_type !== 'due_date_change' || !u.previous_due_date) return;
+    const cur = earliestPrevDueByTask.get(u.task_id);
+    if (!cur || u.previous_due_date < cur) earliestPrevDueByTask.set(u.task_id, u.previous_due_date);
+  });
+  const deptByIdLocal = new Map<string, any>((depts ?? []).map((d: any) => [d.id, d]));
+  const profileByIdLocal = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
+  const mostPushedTasks = Array.from(dueChangesByTask.entries())
+    .map(([id, count]) => {
+      const t = tasks.find((tk: any) => tk.id === id);
+      if (!t) return null;
+      if (t.status === 'completed' || t.status === 'cancelled') return null;
+      const original = earliestPrevDueByTask.get(id) ?? null;
+      const slipped = original && t.due_date
+        ? Math.round((new Date(t.due_date + 'T00:00:00Z').getTime() - new Date(original + 'T00:00:00Z').getTime()) / 86400000)
+        : 0;
+      return {
+        id,
+        title: t.title,
+        owner: profileByIdLocal.get(t.owner_id)?.full_name ?? '—',
+        dept: deptByIdLocal.get(t.department_id)?.name ?? '—',
+        original_due: original,
+        current_due: t.due_date,
+        push_count: count,
+        days_slipped: slipped,
+      };
+    })
+    .filter(Boolean) as any[];
+  mostPushedTasks.sort((a, b) => b.push_count - a.push_count);
+  const topPushed = mostPushedTasks.slice(0, 10);
+
+  const avgPushesPerTask = mostPushedTasks.length === 0 ? 0
+    : Math.round((mostPushedTasks.reduce((s, r) => s + r.push_count, 0) / mostPushedTasks.length) * 10) / 10;
+  const totalDaysSlipped = mostPushedTasks.reduce((s, r) => s + Math.max(0, r.days_slipped), 0);
+  const pushed2plusTasks = mostPushedTasks.filter((r) => r.push_count >= 2);
+  const pushed2plusTotalChanges = pushed2plusTasks.reduce((s, r) => s + r.push_count, 0);
 
   const completedTasks = tasks.filter((t: any) => t.status === 'completed' && t.completed_at);
   const avgDays = completedTasks.length === 0 ? 0 : Math.round(
@@ -745,11 +785,13 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
 
   return (
     <Section title="Task Accountability" lastUpdated={lastUpdated} onRefresh={onRefresh}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Open tasks" value={formatIndianNumber(openTasks.length)} />
         <StatCard label="Overdue" value={formatIndianNumber(overdueTasks.length)} accent={overdueTasks.length > 0 ? 'red' : 'green'} />
         <StatCard label="Repeated pushbacks (2+)" value={formatIndianNumber(repeated)} accent={repeated > 0 ? 'amber' : undefined} />
         <StatCard label="Avg completion (days)" value={formatIndianNumber(avgDays)} />
+        <StatCard label="Avg pushes per task" value={String(avgPushesPerTask)} accent={avgPushesPerTask >= 2 ? 'amber' : undefined} />
+        <StatCard label="Total days slipped" value={formatIndianNumber(totalDaysSlipped)} accent={totalDaysSlipped > 0 ? 'amber' : undefined} />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-md border">
@@ -798,6 +840,47 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
         </div>
       )}
 
+      {/* Most Pushed Tasks */}
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Most Pushed Tasks (Active)</h3>
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Task</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Dept</TableHead>
+                <TableHead>Original Due</TableHead>
+                <TableHead>Current Due</TableHead>
+                <TableHead>Times Pushed</TableHead>
+                <TableHead>Days Slipped</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topPushed.map((r) => {
+                const rowClass = r.push_count >= 5
+                  ? 'bg-destructive/10'
+                  : r.push_count >= 3 ? 'bg-warning/10' : '';
+                return (
+                  <TableRow key={r.id} className={rowClass}>
+                    <TableCell className="font-medium max-w-[260px] truncate">{r.title}</TableCell>
+                    <TableCell className="text-xs">{r.owner}</TableCell>
+                    <TableCell className="text-xs">{r.dept}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.original_due ? format(new Date(r.original_due), 'd MMM yyyy') : '—'}</TableCell>
+                    <TableCell className="text-xs">{r.current_due ? format(new Date(r.current_due), 'd MMM yyyy') : '—'}</TableCell>
+                    <TableCell className={r.push_count >= 5 ? 'font-semibold text-destructive' : r.push_count >= 3 ? 'font-semibold text-warning' : ''}>{r.push_count}</TableCell>
+                    <TableCell>{r.days_slipped}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {topPushed.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">No pushed tasks</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
       {/* Non-compliance signals */}
       <div className="mt-6 space-y-3 rounded-md border bg-muted/30 p-4">
         <h3 className="text-sm font-semibold text-foreground">Non-compliance signals</h3>
@@ -813,6 +896,9 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
         <SignalRow severity="amber" icon={<AlertTriangle className="h-4 w-4" />}
           label={`Tasks with 3+ due-date changes (${repeatedPushbackTasks.length})`}
           detail={repeatedPushbackTasks.slice(0, 6).map((t: any) => t.title).join(', ') || 'None'} />
+        <SignalRow severity="amber" icon={<AlertTriangle className="h-4 w-4" />}
+          label={`Tasks pushed 2+ times: ${pushed2plusTasks.length} tasks, ${pushed2plusTotalChanges} total date changes`}
+          detail={pushed2plusTasks.slice(0, 6).map((r) => r.title).join(', ') || 'None'} />
       </div>
     </Section>
   );

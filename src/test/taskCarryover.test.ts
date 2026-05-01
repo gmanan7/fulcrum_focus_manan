@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isCarryover, filterCarryoverTasks } from '@/lib/taskCarryover';
+import {
+  isCarryover,
+  filterCarryoverTasks,
+  buildPushCountMap,
+  calculateDaysSlipped,
+} from '@/lib/taskCarryover';
 
 describe('carryover ids built from task_updates rows', () => {
   it('deduplicates 3 rows across 2 distinct task ids', () => {
@@ -75,5 +80,56 @@ describe('filterCarryoverTasks', () => {
 
   it('returns empty array when nothing matches', () => {
     expect(filterCarryoverTasks([{ id: 'z', status: 'open' }], historyIds)).toEqual([]);
+  });
+});
+
+describe('buildPushCountMap', () => {
+  it('counts duplicate task_ids correctly', () => {
+    const map = buildPushCountMap([
+      { task_id: 'A' },
+      { task_id: 'A' },
+      { task_id: 'B' },
+    ]);
+    expect(map.get('A')).toBe(2);
+    expect(map.get('B')).toBe(1);
+    expect(map.size).toBe(2);
+  });
+
+  it('returns an empty map for an empty input', () => {
+    expect(buildPushCountMap([]).size).toBe(0);
+  });
+
+  it('returns an empty map for null/undefined', () => {
+    expect(buildPushCountMap(null).size).toBe(0);
+    expect(buildPushCountMap(undefined).size).toBe(0);
+  });
+
+  it('skips rows without a task_id', () => {
+    const map = buildPushCountMap([
+      { task_id: '' } as any,
+      { task_id: 'X' },
+    ]);
+    expect(map.size).toBe(1);
+    expect(map.get('X')).toBe(1);
+  });
+});
+
+describe('calculateDaysSlipped', () => {
+  it('returns the difference in days for a forward push', () => {
+    expect(calculateDaysSlipped('2026-04-01', '2026-04-10')).toBe(9);
+  });
+
+  it('returns 0 when dates are equal', () => {
+    expect(calculateDaysSlipped('2026-04-01', '2026-04-01')).toBe(0);
+  });
+
+  it('returns negative when current is earlier than original', () => {
+    expect(calculateDaysSlipped('2026-04-10', '2026-04-01')).toBe(-9);
+  });
+
+  it('returns 0 when either input is missing', () => {
+    expect(calculateDaysSlipped(null, '2026-04-10')).toBe(0);
+    expect(calculateDaysSlipped('2026-04-10', null)).toBe(0);
+    expect(calculateDaysSlipped(undefined, undefined)).toBe(0);
   });
 });

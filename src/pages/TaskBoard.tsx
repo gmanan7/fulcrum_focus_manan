@@ -28,7 +28,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
-import { isCarryover, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
+import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -106,17 +106,9 @@ export default function TaskBoard() {
     localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
   }, [chipCarryover]);
 
-  useEffect(() => {
-    const markCarryover = async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      await supabase.from('tasks')
-        .update({ is_carryover: true })
-        .lt('due_date', today)
-        .not('status', 'in', '("completed","cancelled")')
-        .eq('is_carryover', false);
-    };
-    markCarryover();
-  }, []);
+  // Carryover is now derived from task_updates history at render time.
+  // The previous effect that set tasks.is_carryover for every overdue task
+  // was incorrect (it ignored whether the due date had ever been changed).
 
   const { data: departments } = useQuery({
     queryKey: ['departments-taskboard'],
@@ -162,7 +154,7 @@ export default function TaskBoard() {
     },
   });
 
-  const { data: carryoverHistoryIds } = useQuery({
+  const { data: carryoverHistory } = useQuery({
     queryKey: ['task-due-date-change-ids'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -170,11 +162,15 @@ export default function TaskBoard() {
         .select('task_id')
         .eq('update_type', 'due_date_change');
       if (error) throw error;
-      return new Set((data || []).map((r: any) => r.task_id as string));
+      const rows = (data || []) as Array<{ task_id: string }>;
+      const ids = new Set(rows.map((r) => r.task_id));
+      const counts = buildPushCountMap(rows);
+      return { ids, counts };
     },
   });
 
-  const historyIds = carryoverHistoryIds ?? new Set<string>();
+  const historyIds = carryoverHistory?.ids ?? new Set<string>();
+  const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
@@ -338,7 +334,7 @@ export default function TaskBoard() {
                 </div>
                 <div className="space-y-2 min-h-[100px] bg-muted/20 rounded-lg p-2">
                   {colTasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                    <KanbanCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
                   ))}
                 </div>
               </div>
@@ -356,7 +352,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No active tasks.</p>
             ) : (
               activeTasks.map((task) => (
-                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
               ))
             )}
           </TabsContent>
@@ -365,7 +361,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
               recentlyClosed.map((task) => (
-                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} readOnly />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
           </TabsContent>
@@ -378,7 +374,7 @@ export default function TaskBoard() {
   );
 }
 
-function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
+function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick: () => void }) {
   const isClosed = ['completed', 'cancelled'].includes(task.status);
   const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
   const dueText = !isClosed ? formatDueDate(task.due_date) : null;
@@ -387,6 +383,8 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
     dueTone === 'overdue' ? 'text-destructive' :
     dueTone === 'today' ? 'text-rag-amber' :
     'text-muted-foreground';
+  const carryover = isCarryover(task, historyIds);
+  const pushes = pushCounts.get(task.id) ?? 0;
   return (
     <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3 space-y-1.5">
@@ -406,15 +404,30 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
           <span className="text-[10px] text-muted-foreground">{(task as any).owner?.full_name}</span>
           {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
         </div>
-        {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+        {(carryover || pushes >= 1) && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {carryover && (
+              <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                ↩ Carryover
+              </Badge>
+            )}
+            {pushes >= 1 && (
+              <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                ↩ {pushes}×
+              </Badge>
+            )}
+          </div>
+        )}
         {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
       </CardContent>
     </Card>
   );
 }
 
-function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => void; readOnly?: boolean }) {
+function TaskListCard({ task, historyIds, pushCounts, onClick, readOnly }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick?: () => void; readOnly?: boolean }) {
   const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  const carryover = isCarryover(task, historyIds);
+  const pushes = pushCounts.get(task.id) ?? 0;
   return (
     <Card className={cn('cursor-pointer active:bg-muted/50', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3">
@@ -428,7 +441,16 @@ function TaskListCard({ task, onClick, readOnly }: { task: any; onClick?: () => 
               <span className="text-xs text-muted-foreground">{(task as any).owner?.full_name}</span>
               {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
               {isOverdue && <span className="text-[10px] text-destructive">{Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))}d overdue</span>}
-              {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+              {carryover && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ Carryover
+                </Badge>
+              )}
+              {pushes >= 1 && (
+                <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                  ↩ {pushes}×
+                </Badge>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
