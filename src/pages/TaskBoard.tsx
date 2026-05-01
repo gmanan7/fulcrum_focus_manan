@@ -81,6 +81,10 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('fulcrum-mytasks-filter') === '1';
   });
+  const [chipCarryover, setChipCarryover] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(CARRYOVER_FILTER_STORAGE_KEY) === '1';
+  });
   const [sortKey, setSortKey] = useState<TaskSortKey>(() => {
     if (typeof window === 'undefined') return 'created_desc';
     const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
