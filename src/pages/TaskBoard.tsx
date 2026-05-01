@@ -28,6 +28,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
+import { isCarryover, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -80,6 +81,10 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('fulcrum-mytasks-filter') === '1';
   });
+  const [chipCarryover, setChipCarryover] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(CARRYOVER_FILTER_STORAGE_KEY) === '1';
+  });
   const [sortKey, setSortKey] = useState<TaskSortKey>(() => {
     if (typeof window === 'undefined') return 'created_desc';
     const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
@@ -95,6 +100,11 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(TASK_SORT_STORAGE_KEY, sortKey);
   }, [sortKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CARRYOVER_FILTER_STORAGE_KEY, chipCarryover ? '1' : '0');
+  }, [chipCarryover]);
 
   useEffect(() => {
     const markCarryover = async () => {
@@ -152,15 +162,30 @@ export default function TaskBoard() {
     },
   });
 
+  const { data: carryoverHistoryIds } = useQuery({
+    queryKey: ['task-due-date-history-ids'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_due_date_history')
+        .select('task_id');
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.task_id as string));
+    },
+  });
+
+  const historyIds = carryoverHistoryIds ?? new Set<string>();
+
   const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
   const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
   const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
+  const carryoverCount = (tasks ?? []).filter((t) => isCarryover(t, historyIds)).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
     if (chipMyTasks && user) result = filterMyTasksFn(result, user.id);
     if (chipOverdue) result = result.filter(isTaskOverdue);
     if (chipDueToday) result = result.filter(isTaskDueToday);
+    if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
     return result;
   };
 
@@ -277,6 +302,17 @@ export default function TaskBoard() {
           )}
         >
           <User className="h-3 w-3" /> My Tasks ({myTasksCount})
+        </button>
+        <button
+          onClick={() => setChipCarryover(!chipCarryover)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipCarryover
+              ? 'bg-violet-600 text-white border-violet-600'
+              : 'bg-violet-500/10 text-violet-600 border-violet-500/40 hover:bg-violet-500/20 dark:text-violet-300'
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" /> Carryover ({carryoverCount})
         </button>
       </div>
 
