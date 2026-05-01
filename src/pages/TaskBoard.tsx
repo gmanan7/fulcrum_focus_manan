@@ -374,7 +374,7 @@ export default function TaskBoard() {
   );
 }
 
-function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
+function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; historyIds: Set<string>; pushCounts: Map<string, number>; onClick: () => void }) {
   const isClosed = ['completed', 'cancelled'].includes(task.status);
   const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
   const dueText = !isClosed ? formatDueDate(task.due_date) : null;
@@ -383,6 +383,8 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
     dueTone === 'overdue' ? 'text-destructive' :
     dueTone === 'today' ? 'text-rag-amber' :
     'text-muted-foreground';
+  const carryover = isCarryover(task, historyIds);
+  const pushes = pushCounts.get(task.id) ?? 0;
   return (
     <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3 space-y-1.5">
@@ -402,7 +404,20 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
           <span className="text-[10px] text-muted-foreground">{(task as any).owner?.full_name}</span>
           {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
         </div>
-        {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
+        {(carryover || pushes >= 1) && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {carryover && (
+              <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                ↩ Carryover
+              </Badge>
+            )}
+            {pushes >= 1 && (
+              <Badge variant="outline" className="text-[10px] border-violet-500/40 text-violet-600 dark:text-violet-300">
+                ↩ {pushes}×
+              </Badge>
+            )}
+          </div>
+        )}
         {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
       </CardContent>
     </Card>
