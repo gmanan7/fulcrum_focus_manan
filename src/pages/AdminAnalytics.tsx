@@ -785,11 +785,13 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
 
   return (
     <Section title="Task Accountability" lastUpdated={lastUpdated} onRefresh={onRefresh}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Open tasks" value={formatIndianNumber(openTasks.length)} />
         <StatCard label="Overdue" value={formatIndianNumber(overdueTasks.length)} accent={overdueTasks.length > 0 ? 'red' : 'green'} />
         <StatCard label="Repeated pushbacks (2+)" value={formatIndianNumber(repeated)} accent={repeated > 0 ? 'amber' : undefined} />
         <StatCard label="Avg completion (days)" value={formatIndianNumber(avgDays)} />
+        <StatCard label="Avg pushes per task" value={String(avgPushesPerTask)} accent={avgPushesPerTask >= 2 ? 'amber' : undefined} />
+        <StatCard label="Total days slipped" value={formatIndianNumber(totalDaysSlipped)} accent={totalDaysSlipped > 0 ? 'amber' : undefined} />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-md border">
