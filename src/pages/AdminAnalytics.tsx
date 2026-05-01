@@ -111,10 +111,10 @@ export default function AdminAnalytics() {
       const endISO = range.end;
 
       const tasksQ = supabase.from('tasks').select(
-        'id,title,status,due_date,owner_id,assigned_by,created_by,created_at,completed_at',
+        'id,title,status,due_date,owner_id,assigned_by,created_by,created_at,completed_at,department_id',
       );
       const taskUpdatesQ = supabase.from('task_updates').select(
-        'id,task_id,update_type,updated_by,created_at',
+        'id,task_id,update_type,updated_by,created_at,previous_due_date,new_due_date',
       );
       const kpiEntriesQ = supabase.from('kpi_entries').select(
         'id,kpi_id,submitted_by,reporting_date,submitted_at,is_late_entry',
