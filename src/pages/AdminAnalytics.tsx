@@ -840,6 +840,47 @@ function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any
         </div>
       )}
 
+      {/* Most Pushed Tasks */}
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Most Pushed Tasks (Active)</h3>
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Task</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Dept</TableHead>
+                <TableHead>Original Due</TableHead>
+                <TableHead>Current Due</TableHead>
+                <TableHead>Times Pushed</TableHead>
+                <TableHead>Days Slipped</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topPushed.map((r) => {
+                const rowClass = r.push_count >= 5
+                  ? 'bg-destructive/10'
+                  : r.push_count >= 3 ? 'bg-warning/10' : '';
+                return (
+                  <TableRow key={r.id} className={rowClass}>
+                    <TableCell className="font-medium max-w-[260px] truncate">{r.title}</TableCell>
+                    <TableCell className="text-xs">{r.owner}</TableCell>
+                    <TableCell className="text-xs">{r.dept}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.original_due ? format(new Date(r.original_due), 'd MMM yyyy') : '—'}</TableCell>
+                    <TableCell className="text-xs">{r.current_due ? format(new Date(r.current_due), 'd MMM yyyy') : '—'}</TableCell>
+                    <TableCell className={r.push_count >= 5 ? 'font-semibold text-destructive' : r.push_count >= 3 ? 'font-semibold text-warning' : ''}>{r.push_count}</TableCell>
+                    <TableCell>{r.days_slipped}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {topPushed.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">No pushed tasks</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
       {/* Non-compliance signals */}
       <div className="mt-6 space-y-3 rounded-md border bg-muted/30 p-4">
         <h3 className="text-sm font-semibold text-foreground">Non-compliance signals</h3>
