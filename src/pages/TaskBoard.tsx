@@ -482,6 +482,15 @@ export default function TaskBoard() {
       {selectedTask && <TaskDetailDrawer task={selectedTask} open={!!selectedTask} onOpenChange={(v) => !v && setSelectedTask(null)} />}
       {showCreate && <CreateTaskModal open={showCreate} onOpenChange={setShowCreate} myGroups={myGroups || []} />}
       <GroupsPanel open={showGroupsPanel} onOpenChange={setShowGroupsPanel} />
+      <TaskExportModal
+        open={showExport}
+        onOpenChange={setShowExport}
+        currentViewTasks={[...activeTasks, ...completedTasks, ...cancelledTasks]}
+        allTasks={allTasksForExport || tasks || []}
+        pushCounts={pushCounts}
+        groupNameById={groupNameById}
+        userNameById={userNameById}
+      />
     </div>
   );
 }
