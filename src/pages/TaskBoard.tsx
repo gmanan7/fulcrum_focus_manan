@@ -348,6 +348,44 @@ export default function TaskBoard() {
         </button>
       </div>
 
+      {(myGroups && myGroups.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Groups:</span>
+          {myGroups.map((g) => {
+            const active = activeGroupFilter === g.id;
+            return (
+              <button
+                key={g.id}
+                onClick={() => setActiveGroupFilter(active ? null : g.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors',
+                  active ? 'text-white' : 'hover:opacity-80'
+                )}
+                style={
+                  active
+                    ? { backgroundColor: g.color, borderColor: g.color }
+                    : { color: g.color, borderColor: g.color, backgroundColor: 'transparent' }
+                }
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: active ? '#fff' : g.color }}
+                />
+                {truncateGroupName(g.name, 16)}
+              </button>
+            );
+          })}
+          {activeGroupFilter && (
+            <button
+              onClick={() => setActiveGroupFilter(null)}
+              className="text-[10px] text-muted-foreground hover:text-foreground underline"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : view === 'kanban' && !isMobile ? (
