@@ -5,6 +5,7 @@ import {
   canManageGroup,
   taskVisibility,
   truncateGroupName,
+  shouldWarnOwnerNotInGroup,
 } from '@/lib/taskGroups';
 
 const groupTask = { task_group_id: 'g1' };
@@ -76,5 +77,33 @@ describe('truncateGroupName', () => {
     const out = truncateGroupName('Production Engineering Team');
     expect(out.length).toBeLessThanOrEqual(12);
     expect(out.endsWith('…')).toBe(true);
+  });
+});
+
+describe('shouldWarnOwnerNotInGroup', () => {
+  const members = new Set(['member-1', 'member-2']);
+
+  it('warns when owner is not in selected group', () => {
+    expect(shouldWarnOwnerNotInGroup('group-1', 'outsider', members)).toBe(true);
+  });
+  it('does not warn when owner IS a group member', () => {
+    expect(shouldWarnOwnerNotInGroup('group-1', 'member-1', members)).toBe(false);
+  });
+  it('does not warn when visibility is everyone', () => {
+    expect(shouldWarnOwnerNotInGroup('everyone', 'outsider', members)).toBe(false);
+  });
+  it('does not warn when visibility is private', () => {
+    expect(shouldWarnOwnerNotInGroup('private', 'outsider', members)).toBe(false);
+  });
+  it('does not warn when no owner selected yet', () => {
+    expect(shouldWarnOwnerNotInGroup('group-1', '', members)).toBe(false);
+    expect(shouldWarnOwnerNotInGroup('group-1', null, members)).toBe(false);
+  });
+  it('does not warn while members are still loading (null set)', () => {
+    expect(shouldWarnOwnerNotInGroup('group-1', 'outsider', null)).toBe(false);
+  });
+  it('clears once owner changes to a group member', () => {
+    expect(shouldWarnOwnerNotInGroup('group-1', 'outsider', members)).toBe(true);
+    expect(shouldWarnOwnerNotInGroup('group-1', 'member-2', members)).toBe(false);
   });
 });

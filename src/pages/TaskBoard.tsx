@@ -31,7 +31,7 @@ import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STOR
 import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
-import { taskVisibility, truncateGroupName, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
+import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
@@ -1102,6 +1102,21 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
     enabled: !!deptId,
   });
 
+  // Fetch members of selected visibility group (only when visibility is a group id)
+  const isGroupVisibility = visibility !== 'everyone' && visibility !== 'private';
+  const { data: selectedGroupMembers } = useQuery({
+    queryKey: ['create-task-group-members', visibility],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_group_members').select('user_id').eq('group_id', visibility as string);
+      return (data || []).map((r) => r.user_id as string);
+    },
+    enabled: open && isGroupVisibility,
+  });
+  const groupMemberIds = isGroupVisibility ? new Set(selectedGroupMembers || []) : null;
+  const showOwnerNotInGroupWarning = shouldWarnOwnerNotInGroup(visibility, ownerId, groupMemberIds);
+  const selectedGroup = isGroupVisibility ? myGroups.find((g) => g.id === visibility) : null;
+  const ownerName = deptUsers?.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
@@ -1182,6 +1197,18 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
                 ))}
               </SelectContent>
             </Select>
+            {showOwnerNotInGroupWarning && selectedGroup && (
+              <div
+                role="alert"
+                data-testid="owner-not-in-group-warning"
+                className="mt-2 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>{ownerName}</strong> is not a member of <strong>{selectedGroup.name}</strong>. They will still be able to see this task as the assignee, but won't have access to other group tasks. Consider adding them to the group first.
+                </span>
+              </div>
+            )}
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
