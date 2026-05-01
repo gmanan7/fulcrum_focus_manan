@@ -352,7 +352,7 @@ export default function TaskBoard() {
               <p className="text-sm text-muted-foreground text-center py-8">No active tasks.</p>
             ) : (
               activeTasks.map((task) => (
-                <TaskListCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} onClick={() => setSelectedTask(task)} />
               ))
             )}
           </TabsContent>
