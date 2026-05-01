@@ -438,6 +438,7 @@ function TaskListCard({ task, historyIds, pushCounts, onClick, readOnly }: { tas
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">#{task.task_number}</span>
+              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
               <p className="text-sm font-medium truncate">{task.title}</p>
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
