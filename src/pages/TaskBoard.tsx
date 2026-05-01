@@ -486,6 +486,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [editOwnerId, setEditOwnerId] = useState('');
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
   const canEdit = hasAnyRole('super_admin', 'factory_manager');
 
