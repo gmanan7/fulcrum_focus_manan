@@ -342,7 +342,14 @@ export default function TaskBoard() {
 }
 
 function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
-  const isOverdue = !['completed', 'cancelled'].includes(task.status) && new Date(task.due_date) < new Date();
+  const isClosed = ['completed', 'cancelled'].includes(task.status);
+  const isOverdue = !isClosed && task.due_date && new Date(task.due_date) < new Date();
+  const dueText = !isClosed ? formatDueDate(task.due_date) : null;
+  const dueTone = !isClosed ? getDueTone(task.due_date) : null;
+  const dueClass =
+    dueTone === 'overdue' ? 'text-destructive' :
+    dueTone === 'today' ? 'text-rag-amber' :
+    'text-muted-foreground';
   return (
     <Card className={cn('cursor-pointer hover:shadow-md transition-shadow', isOverdue && 'border-destructive/30')} onClick={onClick}>
       <CardContent className="p-3 space-y-1.5">
@@ -353,15 +360,15 @@ function KanbanCard({ task, onClick }: { task: any; onClick: () => void }) {
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
+        {dueText && (
+          <p className={cn('text-[10px] flex items-center gap-1', dueClass)}>
+            <CalendarIcon className="h-3 w-3" /> {dueText}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] text-muted-foreground">{(task as any).owner?.full_name}</span>
           {(task as any).dept?.name && <Badge variant="secondary" className="text-[10px]">{(task as any).dept.name}</Badge>}
         </div>
-        {isOverdue && (
-          <p className="text-[10px] text-destructive flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> {Math.ceil(differenceInDays(new Date(), new Date(task.due_date)))} days overdue
-          </p>
-        )}
         {task.is_carryover && <Badge variant="secondary" className="text-[10px]">Carryover</Badge>}
         {(task as any).meeting && <span className="text-[10px] text-muted-foreground">Meeting: {(task as any).meeting.title}</span>}
       </CardContent>
