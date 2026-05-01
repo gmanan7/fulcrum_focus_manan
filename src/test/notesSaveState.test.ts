@@ -12,10 +12,8 @@ describe('notesSaveState', () => {
 
   it('treats null/undefined and empty as equivalent', () => {
     expect(hasUnsavedChanges('', '')).toBe(false);
-    // @ts-expect-error testing nullish
-    expect(hasUnsavedChanges(undefined, '')).toBe(false);
-    // @ts-expect-error testing nullish
-    expect(hasUnsavedChanges(null, undefined)).toBe(false);
+    expect(hasUnsavedChanges(undefined as unknown as string, '')).toBe(false);
+    expect(hasUnsavedChanges(null as unknown as string, undefined as unknown as string)).toBe(false);
   });
 
   it('SAVED_DISPLAY_MS is 2000ms', () => {
