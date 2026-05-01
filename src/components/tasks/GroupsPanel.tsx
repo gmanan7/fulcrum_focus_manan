@@ -55,7 +55,7 @@ export function GroupsPanel({ open, onOpenChange }: GroupsPanelProps) {
         .from('task_group_members' as any)
         .select('group_id, user_id');
       if (error) throw error;
-      return (data || []) as Array<{ group_id: string; user_id: string }>;
+      return ((data as unknown) || []) as Array<{ group_id: string; user_id: string }>;
     },
     enabled: open && !!user,
   });
