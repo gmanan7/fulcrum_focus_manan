@@ -250,6 +250,9 @@ export default function TaskBoard() {
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
           </Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowGroupsPanel(true)}>
+            <Users className="h-3.5 w-3.5" /> Groups
+          </Button>
           <Button onClick={() => setShowCreate(true)} className="h-8 gap-1 text-sm">
             <Plus className="h-3.5 w-3.5" /> New Task
           </Button>
