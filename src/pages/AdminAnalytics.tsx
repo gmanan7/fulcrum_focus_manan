@@ -626,7 +626,7 @@ function MeetingHealthSection({ data, period, lastUpdated, onRefresh }: any) {
  *  SECTION 4 — TASK ACCOUNTABILITY
  * ============================================================ */
 function TaskAccountabilitySection({ data, period, lastUpdated, onRefresh }: any) {
-  const { tasks, taskUpdates, profiles, meetings, kpiEntries } = data;
+  const { tasks, taskUpdates, profiles, meetings, kpiEntries, depts } = data;
   const range = resolvePeriodRange(period);
   const start = range.start ? new Date(range.start) : new Date(0);
   const end = new Date(range.end);
