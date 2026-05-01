@@ -80,11 +80,21 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('fulcrum-mytasks-filter') === '1';
   });
+  const [sortKey, setSortKey] = useState<TaskSortKey>(() => {
+    if (typeof window === 'undefined') return 'created_desc';
+    const v = localStorage.getItem(TASK_SORT_STORAGE_KEY) as TaskSortKey | null;
+    return v && TASK_SORT_OPTIONS.some((o) => o.value === v) ? v : 'created_desc';
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     localStorage.setItem('fulcrum-mytasks-filter', chipMyTasks ? '1' : '0');
   }, [chipMyTasks]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(TASK_SORT_STORAGE_KEY, sortKey);
+  }, [sortKey]);
 
   useEffect(() => {
     const markCarryover = async () => {
