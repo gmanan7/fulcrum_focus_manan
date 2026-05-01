@@ -1017,7 +1017,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       )}
 
-      {(t as any).meeting && (
+      {(t as any).meeting && !isTaskOnly && (
         <div>
           <span className="text-muted-foreground text-xs">Origin</span>
           <p className="text-sm">Created in: <a href={`/meetings/${(t as any).meeting.id}/workspace`} className="text-primary underline">{(t as any).meeting.title} ({format(new Date((t as any).meeting.scheduled_date), 'dd MMM')})</a></p>
