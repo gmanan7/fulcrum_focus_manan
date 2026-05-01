@@ -1110,6 +1110,7 @@ export type Database = {
           due_date: string
           id: string
           is_carryover: boolean
+          is_private: boolean
           origin_kpi_entry_id: string | null
           origin_meeting_id: string | null
           origin_type: Database["public"]["Enums"]["task_origin"]
@@ -1131,6 +1132,7 @@ export type Database = {
           due_date: string
           id?: string
           is_carryover?: boolean
+          is_private?: boolean
           origin_kpi_entry_id?: string | null
           origin_meeting_id?: string | null
           origin_type?: Database["public"]["Enums"]["task_origin"]
@@ -1152,6 +1154,7 @@ export type Database = {
           due_date?: string
           id?: string
           is_carryover?: boolean
+          is_private?: boolean
           origin_kpi_entry_id?: string | null
           origin_meeting_id?: string | null
           origin_type?: Database["public"]["Enums"]["task_origin"]

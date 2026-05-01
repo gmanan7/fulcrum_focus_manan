@@ -22,7 +22,7 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
-  Pencil, FileText, UserCheck,
+  Pencil, FileText, UserCheck, Lock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
@@ -391,7 +391,10 @@ function KanbanCard({ task, historyIds, pushCounts, onClick }: { task: any; hist
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] text-muted-foreground">#{task.task_number}</span>
-            <p className="text-sm font-medium leading-tight truncate">{task.title}</p>
+            <p className="text-sm font-medium leading-tight truncate flex items-center gap-1">
+              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
+              <span className="truncate">{task.title}</span>
+            </p>
           </div>
           <Badge className={cn('text-[10px] shrink-0', PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
         </div>
@@ -435,6 +438,7 @@ function TaskListCard({ task, historyIds, pushCounts, onClick, readOnly }: { tas
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">#{task.task_number}</span>
+              {task.is_private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label="Private task" />}
               <p className="text-sm font-medium truncate">{task.title}</p>
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -482,6 +486,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [editOwnerId, setEditOwnerId] = useState('');
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
   const canEdit = hasAnyRole('super_admin', 'factory_manager');
 
@@ -615,7 +620,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const editTaskMutation = useMutation({
     mutationFn: async () => {
       if (editDueDate < today) throw new Error('Due date cannot be in the past');
-      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date };
+      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date, is_private: (t as any).is_private };
       const { error } = await supabase.from('tasks').update({
         title: editTitle,
         description: editDescription || null,
@@ -623,6 +628,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         owner_id: editOwnerId,
         priority: editPriority,
         due_date: editDueDate,
+        is_private: editIsPrivate,
         updated_at: new Date().toISOString(),
       }).eq('id', task.id);
       if (error) throw error;
@@ -697,6 +703,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     setEditOwnerId(t.owner_id);
     setEditPriority(t.priority);
     setEditDueDate(t.due_date);
+    setEditIsPrivate(!!(t as any).is_private);
     setEditMode(true);
   };
 
@@ -738,6 +745,13 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
           </Select>
         </div>
         <div><Label>Due Date *</Label><Input type="date" min={today} value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="h-11 mt-1" /></div>
+      </div>
+      <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label htmlFor="edit-private-toggle" className="text-sm">Private task</Label>
+          <p className="text-xs text-muted-foreground">Only you and the assignee will see this task</p>
+        </div>
+        <Switch id="edit-private-toggle" checked={editIsPrivate} onCheckedChange={setEditIsPrivate} />
       </div>
       <div className="flex gap-2">
         <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !editDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
@@ -963,6 +977,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [ownerId, setOwnerId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: departments } = useQuery({
@@ -996,6 +1011,7 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
         assigned_by: user!.id,
         priority,
         due_date: dueDate,
+        is_private: isPrivate,
         origin_type: 'standalone',
         created_by: user!.id,
       }).select('id').single();
@@ -1044,6 +1060,13 @@ function CreateTaskModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
               </Select>
             </div>
             <div><Label>Due Date *</Label><Input type="date" min={today} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-11 mt-1" /></div>
+          </div>
+          <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="create-private-toggle" className="text-sm">Private task</Label>
+              <p className="text-xs text-muted-foreground">Only you and the assignee will see this task</p>
+            </div>
+            <Switch id="create-private-toggle" checked={isPrivate} onCheckedChange={setIsPrivate} />
           </div>
           <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
