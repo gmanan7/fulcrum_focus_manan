@@ -163,11 +163,12 @@ export default function TaskBoard() {
   });
 
   const { data: carryoverHistoryIds } = useQuery({
-    queryKey: ['task-due-date-history-ids'],
+    queryKey: ['task-due-date-change-ids'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('task_due_date_history')
-        .select('task_id');
+        .from('task_updates')
+        .select('task_id')
+        .eq('update_type', 'due_date_change');
       if (error) throw error;
       return new Set((data || []).map((r: any) => r.task_id as string));
     },
