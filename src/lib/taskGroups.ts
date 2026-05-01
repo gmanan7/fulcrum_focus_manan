@@ -84,6 +84,22 @@ export function taskVisibility(choice: VisibilityChoice): VisibilityFlags {
   return { is_private: false, task_group_id: choice };
 }
 
+/**
+ * Whether to show the "owner is not in selected group" warning in Create Task.
+ * - Only relevant when visibility is a specific group id (not 'everyone'/'private').
+ * - True when ownerId is set, visibility is a group id, and ownerId is NOT in groupMemberIds.
+ */
+export function shouldWarnOwnerNotInGroup(
+  visibility: VisibilityChoice,
+  ownerId: string | null | undefined,
+  groupMemberIds: Set<string> | null | undefined,
+): boolean {
+  if (!ownerId) return false;
+  if (visibility === 'everyone' || visibility === 'private') return false;
+  if (!groupMemberIds) return false;
+  return !groupMemberIds.has(ownerId);
+}
+
 /** Truncate a group name for display in a pill (max 12 chars + ellipsis). */
 export function truncateGroupName(name: string, max = 12): string {
   if (!name) return '';
