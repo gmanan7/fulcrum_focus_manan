@@ -10,6 +10,7 @@ export interface TaskExportInput {
   is_private?: boolean | null;
   task_group_id?: string | null;
   owner_id?: string | null;
+  assigned_by?: string | null;
   created_by?: string | null;
   owner?: { full_name?: string | null } | null;
   dept?: { name?: string | null } | null;
