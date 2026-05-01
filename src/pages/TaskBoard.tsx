@@ -578,6 +578,7 @@ function TaskListCard({ task, historyIds, pushCounts, groupMeta, onClick, readOn
 function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const isMobile = useIsMobile();
   const { user, hasAnyRole, roles } = useAuth();
+  const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
   const [resolutionNote, setResolutionNote] = useState('');
   const [updateNote, setUpdateNote] = useState('');
