@@ -303,6 +303,17 @@ export default function TaskBoard() {
         >
           <User className="h-3 w-3" /> My Tasks ({myTasksCount})
         </button>
+        <button
+          onClick={() => setChipCarryover(!chipCarryover)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+            chipCarryover
+              ? 'bg-violet-600 text-white border-violet-600'
+              : 'bg-violet-500/10 text-violet-600 border-violet-500/40 hover:bg-violet-500/20 dark:text-violet-300'
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" /> Carryover ({carryoverCount})
+        </button>
       </div>
 
       {isLoading ? (
