@@ -256,7 +256,7 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
       <div>
         <Label className="text-xs">Members</Label>
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users…" className="h-9 mt-1" />
-        <p className="text-[10px] text-muted-foreground mt-1">You'll be added automatically as creator.</p>
+        <p className="text-[10px] text-muted-foreground mt-1">Pick the members for this group. You are not added automatically — select yourself if you want to belong to it.</p>
         <ScrollArea className="h-56 mt-2 rounded border">
           <div className="p-2 space-y-1">
             {filtered.map((u) => {
