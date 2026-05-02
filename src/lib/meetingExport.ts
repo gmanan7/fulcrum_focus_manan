@@ -16,15 +16,21 @@ export interface MeetingMeta {
   auto_closed?: boolean | null;
 }
 
-export interface AttendanceInput {
-  invitee_id: string;
-  status: string | null;
-  invitee?: {
-    user?: { full_name?: string | null } | null;
-    role?: string | null;
-    is_mandatory?: boolean | null;
-    dept?: { name?: string | null } | null;
-  };
+export interface AttendanceRecord {
+  status?: string | null;
+  remarks?: string | null;
+}
+
+export interface InviteeWithAttendance {
+  id: string;
+  user_id?: string | null;
+  guest_name?: string | null;
+  guest_designation?: string | null;
+  department_id?: string | null;
+  is_mandatory?: boolean | null;
+  profile?: { full_name?: string | null } | null;
+  dept?: { name?: string | null } | null;
+  attendance?: AttendanceRecord[] | null;
 }
 
 export interface KpiSnapshotInput {
@@ -104,19 +110,50 @@ export function formatDuration(start?: string | null, end?: string | null): stri
 export interface AttendanceRow {
   Name: string;
   Department: string;
-  Role: string;
+  Designation: string;
+  Mandatory: string;
   Status: string;
+  Remarks: string;
+}
+
+const ATTENDANCE_STATUS_DISPLAY: Record<string, string> = {
+  present: 'Present ✓',
+  absent: 'Absent',
+  excused: 'Excused',
+  not_marked: 'Not Marked',
+};
+
+export function attendanceStatusDisplay(status: string | null | undefined): string {
+  const key = status ?? 'not_marked';
+  return ATTENDANCE_STATUS_DISPLAY[key] ?? key;
 }
 
 export function buildAttendanceRows(
-  attendance: AttendanceInput[],
+  invitees: InviteeWithAttendance[] | null | undefined,
 ): AttendanceRow[] {
-  return (attendance || []).map((a) => ({
-    Name: a.invitee?.user?.full_name ?? '',
-    Department: a.invitee?.dept?.name ?? '',
-    Role: a.invitee?.is_mandatory ? 'Mandatory' : (a.invitee?.role ?? 'Optional'),
-    Status: a.status ? (STATUS_LABELS[a.status] ?? a.status) : 'Absent',
-  }));
+  return (invitees ?? []).map((inv) => {
+    const status = inv.attendance?.[0]?.status ?? 'not_marked';
+    const remarks = inv.attendance?.[0]?.remarks ?? '—';
+    return {
+      Name: inv.profile?.full_name ?? inv.guest_name ?? 'Unknown',
+      Department: inv.dept?.name ?? '—',
+      Designation: inv.guest_designation ?? '—',
+      Mandatory: inv.is_mandatory ? 'Yes' : 'No',
+      Status: attendanceStatusDisplay(status),
+      Remarks: remarks,
+    };
+  });
+}
+
+export function countAttendance(invitees: InviteeWithAttendance[] | null | undefined) {
+  const list = invitees ?? [];
+  const by = (s: string) => list.filter((i) => i.attendance?.[0]?.status === s).length;
+  return {
+    totalInvited: list.length,
+    totalPresent: by('present'),
+    totalAbsent: by('absent'),
+    totalExcused: by('excused'),
+  };
 }
 
 export interface KpiRow {
