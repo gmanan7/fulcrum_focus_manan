@@ -59,7 +59,8 @@ function getKpiSubtitle(date: Date): string {
 }
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, hasAnyRole } = useAuth();
+  const canExport = hasAnyRole('super_admin', 'factory_manager');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -389,9 +390,11 @@ export default function Dashboard() {
                 />
               </PopoverContent>
             </Popover>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
-              <Download className="h-4 w-4" /> Export
-            </Button>
+            {canExport && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+                <Download className="h-4 w-4" /> Export
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -51,7 +51,8 @@ const itemStatusStyle: Record<string, React.CSSProperties> = {
 export default function KpiTrends() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { user, roles } = useAuth();
+  const { user, roles, hasAnyRole } = useAuth();
+  const canExport = hasAnyRole('super_admin', 'factory_manager');
   const isShopFloorOnly = roles.length === 1 && roles[0] === 'shop_floor';
   const [period, setPeriod] = useState<Period>('this_month');
   const [customFrom, setCustomFrom] = useState<Date>();
@@ -202,9 +203,11 @@ export default function KpiTrends() {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your department's KPI trends</p>
           )}
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
-          <Download className="h-4 w-4" /> Export
-        </Button>
+        {canExport && (
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}
