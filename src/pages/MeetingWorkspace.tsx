@@ -837,13 +837,25 @@ function AttendanceTab({ meeting, readOnly }: { meeting: any; readOnly: boolean 
 function NotesTab({ meeting, readOnly, onUnsavedChange }: { meeting: any; readOnly: boolean; onUnsavedChange?: (v: boolean) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [summary, setSummary] = useState(meeting.summary || '');
-  const [lastSaved, setLastSaved] = useState<string>(meeting.summary || '');
+  const [summary, setSummary] = useState<string>(meeting.summary ?? '');
+  const [lastSaved, setLastSaved] = useState<string>(meeting.summary ?? '');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const debounceRef = useRef<NodeJS.Timeout>();
   const stateTimerRef = useRef<NodeJS.Timeout>();
 
   const unsaved = (summary ?? '') !== (lastSaved ?? '');
+
+  // Sync local state from fetched meeting whenever the meeting record changes
+  // (mount, route change, or cache invalidation). Depending on `meeting.id`
+  // — not the notes content — keeps this from clobbering keystrokes.
+  useEffect(() => {
+    if (meeting?.summary !== undefined) {
+      setSummary(meeting.summary ?? '');
+      setLastSaved(meeting.summary ?? '');
+      onUnsavedChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meeting?.id]);
 
   useEffect(() => {
     onUnsavedChange?.(unsaved);
@@ -859,16 +871,24 @@ function NotesTab({ meeting, readOnly, onUnsavedChange }: { meeting: any; readOn
   const performSave = useCallback(async (val: string) => {
     setSaveState('saving');
     clearTimeout(stateTimerRef.current);
-    const { error } = await supabase.from('meetings').update({ summary: val }).eq('id', meeting.id);
+    const { error } = await supabase
+      .from('meetings')
+      .update({ summary: val })
+      .eq('id', meeting.id);
     if (error) {
+      console.error('[MeetingWorkspace] Failed to save meeting notes', { meetingId: meeting.id, error });
       setSaveState('error');
       stateTimerRef.current = setTimeout(() => setSaveState('idle'), 3000);
       return;
     }
     setLastSaved(val);
     setSaveState('saved');
+    // Invalidate cached meeting data so a later remount reads the fresh row,
+    // not a stale cached version that pre-dates the save.
+    queryClient.invalidateQueries({ queryKey: ['meeting', meeting.id] });
+    queryClient.invalidateQueries({ queryKey: ['meetings'] });
     stateTimerRef.current = setTimeout(() => setSaveState('idle'), 2000);
-  }, [meeting.id]);
+  }, [meeting.id, queryClient]);
 
   const scheduleAutosave = useCallback((val: string) => {
     clearTimeout(debounceRef.current);
