@@ -203,7 +203,7 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
     },
   });
 
-  const filtered = (users || []).filter((u) => u.id !== user?.id && (
+  const filtered = (users || []).filter((u) => (
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase())
   ));
 
@@ -218,10 +218,13 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
         .single();
       if (e1) throw e1;
       const groupId = (g as any).id as string;
-      const memberIds = Array.from(new Set([user!.id, ...Array.from(selected)]));
-      const rows = memberIds.map((uid) => ({ group_id: groupId, user_id: uid, added_by: user!.id }));
-      const { error: e2 } = await supabase.from('task_group_members' as any).insert(rows as any);
-      if (e2) throw e2;
+      // Do NOT auto-add the creator. Insert only explicitly selected members.
+      const memberIds = Array.from(selected);
+      if (memberIds.length > 0) {
+        const rows = memberIds.map((uid) => ({ group_id: groupId, user_id: uid, added_by: user!.id }));
+        const { error: e2 } = await supabase.from('task_group_members' as any).insert(rows as any);
+        if (e2) throw e2;
+      }
     },
     onSuccess: () => { toast({ title: 'Group created' }); onCreated(); },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
