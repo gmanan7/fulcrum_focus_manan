@@ -3,6 +3,7 @@ import {
   buildAttendanceRows,
   buildKpiRows,
   buildTaskRows,
+  countAttendance,
   sanitiseMeetingTitle,
   generateMeetingFilename,
   formatDuration,
@@ -47,27 +48,70 @@ describe('formatDuration', () => {
 });
 
 describe('buildAttendanceRows', () => {
-  it('maps name, department, role, status', () => {
-    const rows = buildAttendanceRows([
-      {
-        invitee_id: 'i1',
-        status: 'present',
-        invitee: {
-          user: { full_name: 'Alice' },
-          dept: { name: 'Production' },
-          is_mandatory: true,
-        },
-      },
-      {
-        invitee_id: 'i2',
-        status: null,
-        invitee: { user: { full_name: 'Bob' }, dept: { name: 'Quality' }, is_mandatory: false },
-      },
-    ]);
-    expect(rows).toEqual([
-      { Name: 'Alice', Department: 'Production', Role: 'Mandatory', Status: 'Present' },
-      { Name: 'Bob', Department: 'Quality', Role: 'Optional', Status: 'Absent' },
-    ]);
+  const sample = [
+    {
+      id: 'i1',
+      is_mandatory: true,
+      profile: { full_name: 'Marut' },
+      dept: { name: 'Production' },
+      attendance: [{ status: 'present', remarks: null }],
+    },
+    {
+      id: 'i2',
+      is_mandatory: false,
+      profile: { full_name: 'Binoy' },
+      dept: { name: 'Quality' },
+      attendance: [{ status: 'absent', remarks: 'Sick' }],
+    },
+    {
+      id: 'i3',
+      is_mandatory: false,
+      guest_name: 'Guest User',
+      guest_designation: 'Auditor',
+      attendance: [],
+    },
+  ];
+
+  it('maps profile, guest fallback, mandatory flag, status display', () => {
+    const rows = buildAttendanceRows(sample as any);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual({
+      Name: 'Marut',
+      Department: 'Production',
+      Designation: '—',
+      Mandatory: 'Yes',
+      Status: 'Present ✓',
+      Remarks: '—',
+    });
+    expect(rows[1].Name).toBe('Binoy');
+    expect(rows[1].Status).toBe('Absent');
+    expect(rows[1].Remarks).toBe('Sick');
+    expect(rows[2].Name).toBe('Guest User');
+    expect(rows[2].Status).toBe('Not Marked');
+    expect(rows[2].Designation).toBe('Auditor');
+  });
+
+  it('handles empty array', () => {
+    expect(buildAttendanceRows([])).toEqual([]);
+  });
+
+  it('handles null/undefined invitees', () => {
+    expect(buildAttendanceRows(null as any)).toEqual([]);
+    expect(buildAttendanceRows(undefined as any)).toEqual([]);
+  });
+
+  it('counts attendance correctly', () => {
+    const counts = countAttendance(sample as any);
+    expect(counts.totalInvited).toBe(3);
+    expect(counts.totalPresent).toBe(1);
+    expect(counts.totalAbsent).toBe(1);
+    expect(counts.totalExcused).toBe(0);
+  });
+
+  it('countAttendance handles null', () => {
+    expect(countAttendance(null as any)).toEqual({
+      totalInvited: 0, totalPresent: 0, totalAbsent: 0, totalExcused: 0,
+    });
   });
 });
 
