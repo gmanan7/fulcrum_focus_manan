@@ -19,7 +19,9 @@ import {
 import { cn } from '@/lib/utils';
 import {
   GROUP_COLOR_PRESETS,
-  canManageGroup,
+  canManageGroupMembers,
+  canDeleteGroup,
+  canCreateGroup,
 } from '@/lib/taskGroups';
 
 type Mode = 'list' | 'create' | { kind: 'detail'; groupId: string };
@@ -94,9 +96,11 @@ export function GroupsPanel({ open, onOpenChange }: GroupsPanelProps) {
         <div className="mt-4">
           {mode === 'list' && (
             <div className="space-y-3">
-              <Button size="sm" className="w-full gap-1" onClick={() => setMode('create')}>
-                <Plus className="h-4 w-4" /> Create Group
-              </Button>
+              {canCreateGroup(user?.id ?? null, roles as string[]) && (
+                <Button size="sm" className="w-full gap-1" onClick={() => setMode('create')}>
+                  <Plus className="h-4 w-4" /> Create Group
+                </Button>
+              )}
               {isLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin" /></div>
               ) : visibleGroups.length === 0 ? (
@@ -199,7 +203,7 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
     },
   });
 
-  const filtered = (users || []).filter((u) => u.id !== user?.id && (
+  const filtered = (users || []).filter((u) => (
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase())
   ));
 
@@ -214,10 +218,13 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
         .single();
       if (e1) throw e1;
       const groupId = (g as any).id as string;
-      const memberIds = Array.from(new Set([user!.id, ...Array.from(selected)]));
-      const rows = memberIds.map((uid) => ({ group_id: groupId, user_id: uid, added_by: user!.id }));
-      const { error: e2 } = await supabase.from('task_group_members' as any).insert(rows as any);
-      if (e2) throw e2;
+      // Do NOT auto-add the creator. Insert only explicitly selected members.
+      const memberIds = Array.from(selected);
+      if (memberIds.length > 0) {
+        const rows = memberIds.map((uid) => ({ group_id: groupId, user_id: uid, added_by: user!.id }));
+        const { error: e2 } = await supabase.from('task_group_members' as any).insert(rows as any);
+        if (e2) throw e2;
+      }
     },
     onSuccess: () => { toast({ title: 'Group created' }); onCreated(); },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -249,7 +256,7 @@ function CreateGroupForm({ onCreated, onCancel }: { onCreated: () => void; onCan
       <div>
         <Label className="text-xs">Members</Label>
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users…" className="h-9 mt-1" />
-        <p className="text-[10px] text-muted-foreground mt-1">You'll be added automatically as creator.</p>
+        <p className="text-[10px] text-muted-foreground mt-1">Pick the members for this group. You are not added automatically — select yourself if you want to belong to it.</p>
         <ScrollArea className="h-56 mt-2 rounded border">
           <div className="p-2 space-y-1">
             {filtered.map((u) => {
@@ -311,7 +318,9 @@ function GroupDetail({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
-  const canManage = group ? canManageGroup(group, userId, roles) : false;
+  const canManage = group ? canManageGroupMembers(group, userId, roles) : false;
+  const canDelete = group ? canDeleteGroup(userId, roles) : false;
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ id: string; name: string } | null>(null);
   const isMember = !!userId; // membership lookup happens via RLS on member rows
 
   const { data: members, refetch } = useQuery({
@@ -440,7 +449,12 @@ function GroupDetail({
             <div key={m.id} className="flex items-center justify-between p-2 rounded border text-sm">
               <span className="truncate">{m.profile?.full_name ?? m.user_id}</span>
               {canManage && m.user_id !== group.created_by && (
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeMember.mutate(m.id)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
+                >
                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               )}
@@ -462,7 +476,7 @@ function GroupDetail({
       )}
 
       <div className="flex gap-2 pt-2 border-t">
-        {canManage && (
+        {canDelete && (
           <Button variant="destructive" size="sm" className="flex-1 gap-1" onClick={() => setConfirmDelete(true)}>
             <Trash2 className="h-3.5 w-3.5" /> Delete Group
           </Button>
@@ -477,14 +491,49 @@ function GroupDetail({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete group "{group.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {group.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tasks in this group will lose their group association but will not be deleted.
+              This will permanently delete the group. Active tasks in this group will become private —
+              visible only to their assignees and admins. Completed and cancelled tasks are not affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => del.mutate()}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => del.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Group
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmRemoveMember}
+        onOpenChange={(v) => { if (!v) setConfirmRemoveMember(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {confirmRemoveMember?.name} from {group.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Their active tasks in this group will become private — visible only to them and admins.
+              Their completed tasks are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmRemoveMember) removeMember.mutate(confirmRemoveMember.id);
+                setConfirmRemoveMember(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Member
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

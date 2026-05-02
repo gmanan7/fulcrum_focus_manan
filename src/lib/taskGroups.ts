@@ -48,21 +48,93 @@ export function canSeeGroupTask(
   return memberGroupIds.has(task.task_group_id);
 }
 
-/** Any authenticated user can create a group. */
-export function canCreateGroup(viewerId: string | null): boolean {
-  return !!viewerId;
+/**
+ * Only super_admin, factory_manager, and department_head can create groups.
+ */
+export function canCreateGroup(
+  viewerId: string | null,
+  viewerRoles: GroupRole[] = [],
+): boolean {
+  if (!viewerId) return false;
+  return (
+    viewerRoles.includes('super_admin') ||
+    viewerRoles.includes('factory_manager') ||
+    viewerRoles.includes('department_head')
+  );
 }
 
-/** Only the creator (or super_admin) can rename, delete, or manage members. */
-export function canManageGroup(
+/** Only super_admin and factory_manager can delete groups. */
+export function canDeleteGroup(
+  viewerId: string | null,
+  viewerRoles: GroupRole[],
+): boolean {
+  if (!viewerId) return false;
+  return (
+    viewerRoles.includes('super_admin') ||
+    viewerRoles.includes('factory_manager')
+  );
+}
+
+/**
+ * Member management (add/remove):
+ * - super_admin and factory_manager can manage any group
+ * - department_head can only manage groups they created
+ * - Everyone else cannot manage members
+ */
+export function canManageGroupMembers(
   group: GroupShape,
   viewerId: string | null,
   viewerRoles: GroupRole[],
 ): boolean {
   if (!viewerId) return false;
-  if (group.created_by === viewerId) return true;
-  if (viewerRoles.includes('super_admin')) return true;
+  if (
+    viewerRoles.includes('super_admin') ||
+    viewerRoles.includes('factory_manager')
+  ) {
+    return true;
+  }
+  if (viewerRoles.includes('department_head') && group.created_by === viewerId) {
+    return true;
+  }
   return false;
+}
+
+/**
+ * Whether the viewer can rename the group.
+ * Same rules as managing members — super_admin/factory_manager always,
+ * department_head only for groups they created.
+ */
+export function canManageGroup(
+  group: GroupShape,
+  viewerId: string | null,
+  viewerRoles: GroupRole[],
+): boolean {
+  return canManageGroupMembers(group, viewerId, viewerRoles);
+}
+
+/**
+ * Whether a group should appear in the "Visible to" selector when creating a task.
+ * - super_admin / factory_manager see all groups
+ * - shop_floor / task_only never see groups
+ * - others only see groups they belong to
+ */
+export function canPickGroupForTask(
+  group: GroupShape,
+  viewerId: string | null,
+  viewerRoles: GroupRole[],
+  memberGroupIds: Set<string>,
+): boolean {
+  if (!viewerId) return false;
+  if (viewerRoles.includes('shop_floor') || viewerRoles.includes('task_only')) {
+    return false;
+  }
+  if (
+    viewerRoles.includes('super_admin') ||
+    viewerRoles.includes('factory_manager')
+  ) {
+    return true;
+  }
+  return memberGroupIds.has(group.id);
 }
 
 export type VisibilityChoice = 'everyone' | 'private' | string; // string = group id
