@@ -1119,8 +1119,8 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   );
 }
 
-function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOpenChange: (v: boolean) => void; myGroups: Array<{ id: string; name: string; color: string }> }) {
-  const { user } = useAuth();
+function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOpenChange: (v: boolean) => void; myGroups: Array<{ id: string; name: string; color: string; created_by?: string }> }) {
+  const { user, roles } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
@@ -1131,6 +1131,30 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
   const [dueDate, setDueDate] = useState('');
   const [visibility, setVisibility] = useState<VisibilityChoice>('everyone');
   const today = format(new Date(), 'yyyy-MM-dd');
+
+  // Groups the current user belongs to — drives which groups appear
+  // in the "Visible to" selector for non-admin roles.
+  const { data: myMemberships } = useQuery({
+    queryKey: ['my-group-memberships', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as string[];
+      const { data } = await supabase
+        .from('task_group_members')
+        .select('group_id')
+        .eq('user_id', user.id);
+      return ((data || []) as Array<{ group_id: string }>).map((r) => r.group_id);
+    },
+    enabled: open && !!user?.id,
+  });
+  const myGroupIdSet = new Set(myMemberships || []);
+  const pickableGroups = (myGroups || []).filter((g) =>
+    canPickGroupForTask(
+      { id: g.id, created_by: g.created_by ?? '' },
+      user?.id ?? null,
+      roles as string[],
+      myGroupIdSet,
+    ),
+  );
 
   const { data: departments } = useQuery({
     queryKey: ['departments-create-task'],
