@@ -476,7 +476,7 @@ function GroupDetail({
       )}
 
       <div className="flex gap-2 pt-2 border-t">
-        {canManage && (
+        {canDelete && (
           <Button variant="destructive" size="sm" className="flex-1 gap-1" onClick={() => setConfirmDelete(true)}>
             <Trash2 className="h-3.5 w-3.5" /> Delete Group
           </Button>
@@ -491,14 +491,49 @@ function GroupDetail({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete group "{group.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {group.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tasks in this group will lose their group association but will not be deleted.
+              This will permanently delete the group. Active tasks in this group will become private —
+              visible only to their assignees and admins. Completed and cancelled tasks are not affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => del.mutate()}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => del.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Group
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmRemoveMember}
+        onOpenChange={(v) => { if (!v) setConfirmRemoveMember(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {confirmRemoveMember?.name} from {group.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Their active tasks in this group will become private — visible only to them and admins.
+              Their completed tasks are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmRemoveMember) removeMember.mutate(confirmRemoveMember.id);
+                setConfirmRemoveMember(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Member
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
