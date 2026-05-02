@@ -449,7 +449,12 @@ function GroupDetail({
             <div key={m.id} className="flex items-center justify-between p-2 rounded border text-sm">
               <span className="truncate">{m.profile?.full_name ?? m.user_id}</span>
               {canManage && m.user_id !== group.created_by && (
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeMember.mutate(m.id)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
+                >
                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               )}
