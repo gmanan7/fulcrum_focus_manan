@@ -19,7 +19,9 @@ import {
 import { cn } from '@/lib/utils';
 import {
   GROUP_COLOR_PRESETS,
-  canManageGroup,
+  canManageGroupMembers,
+  canDeleteGroup,
+  canCreateGroup,
 } from '@/lib/taskGroups';
 
 type Mode = 'list' | 'create' | { kind: 'detail'; groupId: string };
