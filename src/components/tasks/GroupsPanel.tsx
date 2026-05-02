@@ -96,9 +96,11 @@ export function GroupsPanel({ open, onOpenChange }: GroupsPanelProps) {
         <div className="mt-4">
           {mode === 'list' && (
             <div className="space-y-3">
-              <Button size="sm" className="w-full gap-1" onClick={() => setMode('create')}>
-                <Plus className="h-4 w-4" /> Create Group
-              </Button>
+              {canCreateGroup(user?.id ?? null, roles as string[]) && (
+                <Button size="sm" className="w-full gap-1" onClick={() => setMode('create')}>
+                  <Plus className="h-4 w-4" /> Create Group
+                </Button>
+              )}
               {isLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin" /></div>
               ) : visibleGroups.length === 0 ? (
