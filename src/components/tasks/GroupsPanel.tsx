@@ -318,7 +318,9 @@ function GroupDetail({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
-  const canManage = group ? canManageGroup(group, userId, roles) : false;
+  const canManage = group ? canManageGroupMembers(group, userId, roles) : false;
+  const canDelete = group ? canDeleteGroup(userId, roles) : false;
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ id: string; name: string } | null>(null);
   const isMember = !!userId; // membership lookup happens via RLS on member rows
 
   const { data: members, refetch } = useQuery({
