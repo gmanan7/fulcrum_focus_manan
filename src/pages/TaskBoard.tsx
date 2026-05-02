@@ -66,7 +66,7 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
 
 export default function TaskBoard() {
   const isMobile = useIsMobile();
-  const { user, roles } = useAuth();
+  const { user, roles, hasAnyRole } = useAuth();
   const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
   const [view, setView] = useState<'kanban' | 'list'>(isMobile ? 'list' : 'kanban');
