@@ -1261,7 +1261,7 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
               <SelectContent>
                 <SelectItem value="everyone">Everyone</SelectItem>
                 <SelectItem value="private">Private (creator + assignee only)</SelectItem>
-                {myGroups.map((g) => (
+                {pickableGroups.map((g) => (
                   <SelectItem key={g.id} value={g.id}>
                     <span className="inline-flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
