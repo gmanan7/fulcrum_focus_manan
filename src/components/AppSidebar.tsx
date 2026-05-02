@@ -17,6 +17,7 @@ import {
   Moon,
   Sparkles,
   BarChart2,
+  Eye,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink } from '@/components/NavLink';
@@ -66,6 +67,7 @@ const adminNav: { title: string; url: string; icon: any; roles?: readonly string
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Departments', url: '/admin/departments', icon: Building2 },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart2, roles: ['super_admin', 'factory_manager'] },
+  { title: 'All Tasks', url: '/admin/tasks', icon: Eye, roles: ['super_admin', 'factory_manager'] },
   { title: 'Audit Log', url: '/admin/audit', icon: ScrollText },
 ];
 
