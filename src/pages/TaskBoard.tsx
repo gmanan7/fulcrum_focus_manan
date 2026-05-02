@@ -185,15 +185,20 @@ export default function TaskBoard() {
     },
   });
 
-  // Groups the user belongs to (or created), plus all groups for admins
+  // Groups the user is an actual member of — pills are membership-scoped
+  // regardless of role. Admins/WM use /admin/tasks for full visibility.
   const { data: myGroups } = useQuery({
     queryKey: ['my-task-groups', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('task_groups' as any)
-        .select('id, name, color, created_by');
+        .from('task_group_members')
+        .select('group:task_groups!task_group_members_group_id_fkey(id, name, color, created_by)')
+        .eq('user_id', user!.id);
       if (error) throw error;
-      return ((data as unknown) || []) as Array<{ id: string; name: string; color: string; created_by: string }>;
+      const rows = (data ?? []) as Array<{ group: { id: string; name: string; color: string; created_by: string } | null }>;
+      return rows
+        .map((r) => r.group)
+        .filter((g): g is { id: string; name: string; color: string; created_by: string } => Boolean(g));
     },
     enabled: !!user,
   });
