@@ -31,7 +31,7 @@ import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STOR
 import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
-import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
+import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
