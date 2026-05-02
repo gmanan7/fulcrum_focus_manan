@@ -20,6 +20,7 @@ import {
   buildAttendanceRows,
   buildKpiRows,
   buildTaskRows,
+  countAttendance,
   formatDuration,
   generateMeetingFilename,
   type SectionFormat,
@@ -70,18 +71,21 @@ export function MeetingExportModal({ open, onOpenChange, meeting }: MeetingExpor
   const { data: attendance } = useQuery({
     queryKey: ['meeting-export-attendance', meeting?.id],
     queryFn: async () => {
-      const [{ data: invitees }, { data: rows }] = await Promise.all([
-        supabase
-          .from('meeting_invitees')
-          .select('id, role, is_mandatory, user:profiles!meeting_invitees_user_id_fkey(full_name), dept:department!meeting_invitees_department_id_fkey(name)')
-          .eq('meeting_id', meeting.id),
-        supabase.from('meeting_attendance').select('invitee_id, status').eq('meeting_id', meeting.id),
-      ]);
-      const inviteeMap = new Map((invitees || []).map((i: any) => [i.id, i]));
-      return (invitees || []).map((inv: any) => {
-        const att = (rows || []).find((r: any) => r.invitee_id === inv.id);
-        return { invitee_id: inv.id, status: att?.status ?? null, invitee: inviteeMap.get(inv.id) };
-      });
+      const { data } = await supabase
+        .from('meeting_invitees')
+        .select(`
+          id,
+          user_id,
+          guest_name,
+          guest_designation,
+          department_id,
+          is_mandatory,
+          profile:profiles!meeting_invitees_user_id_fkey(full_name),
+          dept:department!meeting_invitees_department_id_fkey(name),
+          attendance:meeting_attendance!meeting_attendance_invitee_id_fkey(status, remarks)
+        `)
+        .eq('meeting_id', meeting.id);
+      return (data ?? []) as any[];
     },
     enabled: !!open && !!meeting?.id && needAttendance,
   });
@@ -218,8 +222,10 @@ export function MeetingExportModal({ open, onOpenChange, meeting }: MeetingExpor
           writeHeading('Meeting Summary');
           writeLine(`Status: ${meeting.status}`);
           if (attendance) {
-            const present = attendance.filter((a: any) => a.status === 'present').length;
-            writeLine(`Attendance: ${present} present / ${attendance.length} invited`);
+            const counts = countAttendance(attendance as any);
+            writeLine(
+              `Attendance: ${counts.totalPresent} present, ${counts.totalAbsent} absent, ${counts.totalExcused} excused / ${counts.totalInvited} invited`,
+            );
           }
           if (tasks) writeLine(`Tasks created: ${tasks.length}`);
           if (decisions) writeLine(`Decisions recorded: ${decisions.length}`);
@@ -227,8 +233,14 @@ export function MeetingExportModal({ open, onOpenChange, meeting }: MeetingExpor
         if (pdfSections.includes('attendance') && attendance) {
           pdf.addPage(); y = margin;
           writeHeading('Attendance');
-          const rows = buildAttendanceRows(attendance);
-          rows.forEach((r) => writeLine(`• ${r.Name} — ${r.Department} — ${r.Role} — ${r.Status}`));
+          const rows = buildAttendanceRows(attendance as any);
+          if (rows.length === 0) {
+            writeLine('No invitees recorded.');
+          } else {
+            rows.forEach((r) =>
+              writeLine(`• ${r.Name} — ${r.Department} — ${r.Mandatory === 'Yes' ? 'Mandatory' : 'Optional'} — ${r.Status}${r.Remarks && r.Remarks !== '—' ? ` — ${r.Remarks}` : ''}`),
+            );
+          }
         }
         if (pdfSections.includes('notes') && notesData) {
           pdf.addPage(); y = margin;
