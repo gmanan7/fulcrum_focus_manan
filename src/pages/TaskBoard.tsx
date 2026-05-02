@@ -280,9 +280,11 @@ export default function TaskBoard() {
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowExport(true)}>
-            <Download className="h-3.5 w-3.5" /> Export
-          </Button>
+          {hasAnyRole('super_admin', 'factory_manager') && (
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowExport(true)}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
+          )}
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
           </Button>
