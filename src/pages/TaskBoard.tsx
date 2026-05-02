@@ -66,7 +66,7 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
 
 export default function TaskBoard() {
   const isMobile = useIsMobile();
-  const { user, roles } = useAuth();
+  const { user, roles, hasAnyRole } = useAuth();
   const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
   const [view, setView] = useState<'kanban' | 'list'>(isMobile ? 'list' : 'kanban');
@@ -280,9 +280,11 @@ export default function TaskBoard() {
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowExport(true)}>
-            <Download className="h-3.5 w-3.5" /> Export
-          </Button>
+          {hasAnyRole('super_admin', 'factory_manager') && (
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowExport(true)}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
+          )}
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-3.5 w-3.5" /> Filters
           </Button>
