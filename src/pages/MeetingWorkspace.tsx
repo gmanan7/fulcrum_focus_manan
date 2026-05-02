@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,7 +23,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, Info, CheckCircle2, Save, Download } from 'lucide-react';
+import { Loader2, Play, Square, Clock, AlertTriangle, Plus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, Info, CheckCircle2, Save, Download } from 'lucide-react';
 import { MeetingExportModal } from '@/components/meetings/MeetingExportModal';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -141,6 +141,14 @@ export default function MeetingWorkspace() {
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 space-y-1">
         <div className="flex items-center justify-between gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-9 gap-1 px-2 shrink-0"
+            onClick={() => navigate('/meetings')}
+          >
+            <ChevronLeft className="h-4 w-4" /> Meetings
+          </Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-lg font-bold truncate">{meeting.title}</h1>
             <p className="text-xs text-muted-foreground">
