@@ -68,6 +68,9 @@ export default function MeetingWorkspace() {
       return data;
     },
     enabled: !!id,
+    // Always refetch on mount so notes typed in a previous session
+    // (and saved server-side) are not masked by a stale React Query cache.
+    staleTime: 0,
   });
 
   const startMutation = useMutation({
