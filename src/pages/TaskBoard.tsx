@@ -483,6 +483,15 @@ export default function TaskBoard() {
             );
           })}
         </div>
+      ) : view === 'calendar' && !isMobile ? (
+        <TaskCalendarView
+          tasks={[...activeTasks, ...completedTasks, ...cancelledTasks]}
+          historyIds={historyIds}
+          groupMetaById={groupMetaById}
+          departments={departments || []}
+          defaultDays={isTablet ? 7 : 14}
+          onTaskClick={setSelectedTask}
+        />
       ) : (
         <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
           <TabsList className="bg-muted/50">
