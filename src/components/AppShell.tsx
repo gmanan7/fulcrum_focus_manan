@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -6,11 +7,19 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserInitials, getUserDisplayName } from '@/lib/userDisplay';
+import { DailyDigestModal, useAutoDigest } from '@/components/DailyDigestModal';
 
 export function AppShell() {
   const isMobile = useIsMobile();
   useTheme();
   const { profile } = useAuth();
+  const auto = useAutoDigest();
+  const [manualOpen, setManualOpen] = useState(false);
+  useEffect(() => {
+    const handler = () => setManualOpen(true);
+    window.addEventListener('fulcrum-open-digest', handler);
+    return () => window.removeEventListener('fulcrum-open-digest', handler);
+  }, []);
   const displayName = getUserDisplayName(profile);
   const initials = getUserInitials(profile?.full_name);
 
