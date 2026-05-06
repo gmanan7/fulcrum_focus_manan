@@ -168,7 +168,7 @@ export default function MeetingWorkspace() {
               </Button>
             )}
             <Badge className={cn('text-[10px]', STATUS_COLORS[meeting.status])}>{meeting.status.replace('_', ' ')}</Badge>
-            {meeting.status === 'scheduled' && (
+            {meeting.status === 'scheduled' && canManage && (
               <Button size="sm" className="bg-rag-green hover:bg-rag-green/90 text-white h-9 gap-1" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
                 <Play className="h-3.5 w-3.5" /> Start
               </Button>
@@ -176,9 +176,11 @@ export default function MeetingWorkspace() {
             {meeting.status === 'in_progress' && (
               <>
                 <ElapsedTimer start={meeting.actual_start!} />
-                <Button size="sm" variant="destructive" className="h-9 gap-1" onClick={handleEnd} disabled={endMutation.isPending}>
-                  <Square className="h-3.5 w-3.5" /> End
-                </Button>
+                {canManage && (
+                  <Button size="sm" variant="destructive" className="h-9 gap-1" onClick={handleEnd} disabled={endMutation.isPending}>
+                    <Square className="h-3.5 w-3.5" /> End
+                  </Button>
+                )}
               </>
             )}
             {isCompleted && meeting.actual_start && meeting.actual_end && (
