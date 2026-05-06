@@ -22,8 +22,9 @@ import {
   Plus, Loader2, Filter, AlertTriangle, Clock, User,
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
-  Pencil, FileText, UserCheck, Lock, Users, Download,
+  Pencil, FileText, UserCheck, Lock, Users, Download, CalendarDays,
 } from 'lucide-react';
+import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { formatDistanceToNow } from 'date-fns';
 import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
@@ -69,7 +70,16 @@ export default function TaskBoard() {
   const { user, roles, hasAnyRole } = useAuth();
   const isTaskOnly = roles.length === 1 && roles[0] === 'task_only';
   const queryClient = useQueryClient();
-  const [view, setView] = useState<'kanban' | 'list'>(isMobile ? 'list' : 'kanban');
+  const [view, setView] = useState<'kanban' | 'list' | 'calendar'>(isMobile ? 'list' : 'kanban');
+  const [isTablet, setIsTablet] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+    const onChange = () => setIsTablet(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -273,6 +283,20 @@ export default function TaskBoard() {
               <Button size="sm" variant={view === 'list' ? 'default' : 'ghost'} className="h-8 rounded-none gap-1" onClick={() => setView('list')}>
                 <ListTodo className="h-3.5 w-3.5" /> List
               </Button>
+              <Button
+                size="sm"
+                variant={view === 'calendar' ? 'default' : 'ghost'}
+                className="h-8 rounded-none gap-1"
+                onClick={() => {
+                  if (isMobile) {
+                    toast({ title: 'Calendar view is best on desktop. Try Kanban or List view.' });
+                    return;
+                  }
+                  setView('calendar');
+                }}
+              >
+                <CalendarDays className="h-3.5 w-3.5" /> Calendar
+              </Button>
             </div>
           )}
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as TaskSortKey)}>
@@ -459,6 +483,15 @@ export default function TaskBoard() {
             );
           })}
         </div>
+      ) : view === 'calendar' && !isMobile ? (
+        <TaskCalendarView
+          tasks={[...activeTasks, ...completedTasks, ...cancelledTasks]}
+          historyIds={historyIds}
+          groupMetaById={groupMetaById}
+          departments={departments || []}
+          defaultDays={isTablet ? 7 : 14}
+          onTaskClick={setSelectedTask}
+        />
       ) : (
         <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
           <TabsList className="bg-muted/50">
