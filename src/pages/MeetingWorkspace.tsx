@@ -13,6 +13,7 @@ import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { buildTaskPayload } from '@/lib/taskPayload';
+import { canManageMeeting as canManageMeetingFn } from '@/lib/meetingPermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +52,7 @@ const RAG_COLORS: Record<RagStatus, string> = {
 export default function MeetingWorkspace() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasAnyRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('kpi');
@@ -134,11 +135,12 @@ export default function MeetingWorkspace() {
   const isCompleted = meeting.status === 'completed' || meeting.status === 'cancelled';
   const isScheduled = meeting.status === 'scheduled';
   const isInProgress = meeting.status === 'in_progress';
-  const canEditAfterComplete = hasAnyRole('super_admin', 'factory_manager');
-  const readOnly = isCompleted && !canEditAfterComplete;
+  const canManage = canManageMeetingFn(roles, meeting.created_by, user?.id);
+  const canEditAfterComplete = canManage;
+  const readOnly = (isCompleted && !canEditAfterComplete) || !canManage;
   // Tabs that require meeting to be started
   const tabsLocked = isScheduled; // Notes, Decisions, Tasks locked when scheduled
-  const tabsEditable = isInProgress || (isCompleted && canEditAfterComplete);
+  const tabsEditable = canManage && (isInProgress || (isCompleted && canEditAfterComplete));
 
   return (
     <div className="flex flex-col h-full">
@@ -166,7 +168,7 @@ export default function MeetingWorkspace() {
               </Button>
             )}
             <Badge className={cn('text-[10px]', STATUS_COLORS[meeting.status])}>{meeting.status.replace('_', ' ')}</Badge>
-            {meeting.status === 'scheduled' && (
+            {meeting.status === 'scheduled' && canManage && (
               <Button size="sm" className="bg-rag-green hover:bg-rag-green/90 text-white h-9 gap-1" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
                 <Play className="h-3.5 w-3.5" /> Start
               </Button>
@@ -174,9 +176,11 @@ export default function MeetingWorkspace() {
             {meeting.status === 'in_progress' && (
               <>
                 <ElapsedTimer start={meeting.actual_start!} />
-                <Button size="sm" variant="destructive" className="h-9 gap-1" onClick={handleEnd} disabled={endMutation.isPending}>
-                  <Square className="h-3.5 w-3.5" /> End
-                </Button>
+                {canManage && (
+                  <Button size="sm" variant="destructive" className="h-9 gap-1" onClick={handleEnd} disabled={endMutation.isPending}>
+                    <Square className="h-3.5 w-3.5" /> End
+                  </Button>
+                )}
               </>
             )}
             {isCompleted && meeting.actual_start && meeting.actual_end && (

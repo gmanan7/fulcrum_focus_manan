@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Plus, Loader2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { canCreateMeeting as canCreateMeetingFn } from '@/lib/meetingPermissions';
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-primary/10 text-primary',
@@ -28,10 +29,11 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Meetings() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const canCreateMeeting = canCreateMeetingFn(roles);
 
   const { data: meetings, isLoading } = useQuery({
     queryKey: ['meetings', statusFilter],
@@ -51,9 +53,11 @@ export default function Meetings() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">Meetings</h1>
-        <Button onClick={() => setShowCreate(true)} className="h-10 gap-1.5">
-          <Plus className="h-4 w-4" /> {!isMobile && 'New Meeting'}
-        </Button>
+        {canCreateMeeting && (
+          <Button onClick={() => setShowCreate(true)} className="h-10 gap-1.5">
+            <Plus className="h-4 w-4" /> {!isMobile && 'New Meeting'}
+          </Button>
+        )}
       </div>
 
       <Select value={statusFilter} onValueChange={setStatusFilter}>
