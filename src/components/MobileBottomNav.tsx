@@ -25,7 +25,7 @@ const mainItems = [
 const moreItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null as string[] | null, requireEng: false },
   { label: 'PM Schedule', icon: ClipboardList, path: '/pm-schedule', roles: null as string[] | null, requireEng: true },
-  { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: ['super_admin', 'factory_manager'], requireEng: false },
+  { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: null as string[] | null, requireEng: false },
   { label: 'Decision Log', icon: ClipboardList, path: '/meetings/decisions', roles: ['super_admin', 'factory_manager'], requireEng: false },
   { label: 'KPI Trends', icon: TrendingUp, path: '/kpi/trends', roles: null as string[] | null, requireEng: false },
   { label: 'KPI Master', icon: Settings2, path: '/kpi/master', roles: ['super_admin', 'factory_manager'], requireEng: false },
