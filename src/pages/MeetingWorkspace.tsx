@@ -13,6 +13,7 @@ import { logAudit } from '@/lib/auditLog';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { buildTaskPayload } from '@/lib/taskPayload';
+import { canManageMeeting as canManageMeetingFn } from '@/lib/meetingPermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
