@@ -53,9 +53,11 @@ export default function Meetings() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">Meetings</h1>
-        <Button onClick={() => setShowCreate(true)} className="h-10 gap-1.5">
-          <Plus className="h-4 w-4" /> {!isMobile && 'New Meeting'}
-        </Button>
+        {canCreateMeeting && (
+          <Button onClick={() => setShowCreate(true)} className="h-10 gap-1.5">
+            <Plus className="h-4 w-4" /> {!isMobile && 'New Meeting'}
+          </Button>
+        )}
       </div>
 
       <Select value={statusFilter} onValueChange={setStatusFilter}>
