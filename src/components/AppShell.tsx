@@ -58,6 +58,8 @@ export function AppShell() {
           </main>
         </div>
         {isMobile && <MobileBottomNav />}
+        <DailyDigestModal open={auto.open} onOpenChange={auto.setOpen} />
+        <DailyDigestModal open={manualOpen} onOpenChange={setManualOpen} manual />
       </div>
     </SidebarProvider>
   );
