@@ -134,11 +134,12 @@ export default function MeetingWorkspace() {
   const isCompleted = meeting.status === 'completed' || meeting.status === 'cancelled';
   const isScheduled = meeting.status === 'scheduled';
   const isInProgress = meeting.status === 'in_progress';
-  const canEditAfterComplete = hasAnyRole('super_admin', 'factory_manager');
-  const readOnly = isCompleted && !canEditAfterComplete;
+  const canManage = canManageMeetingFn(roles, meeting.created_by, user?.id);
+  const canEditAfterComplete = canManage;
+  const readOnly = (isCompleted && !canEditAfterComplete) || !canManage;
   // Tabs that require meeting to be started
   const tabsLocked = isScheduled; // Notes, Decisions, Tasks locked when scheduled
-  const tabsEditable = isInProgress || (isCompleted && canEditAfterComplete);
+  const tabsEditable = canManage && (isInProgress || (isCompleted && canEditAfterComplete));
 
   return (
     <div className="flex flex-col h-full">
