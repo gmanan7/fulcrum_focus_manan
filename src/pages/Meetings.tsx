@@ -28,10 +28,11 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Meetings() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const canCreateMeeting = canCreateMeetingFn(roles);
 
   const { data: meetings, isLoading } = useQuery({
     queryKey: ['meetings', statusFilter],
