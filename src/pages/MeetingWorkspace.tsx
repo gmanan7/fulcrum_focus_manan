@@ -52,7 +52,7 @@ const RAG_COLORS: Record<RagStatus, string> = {
 export default function MeetingWorkspace() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasAnyRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('kpi');
