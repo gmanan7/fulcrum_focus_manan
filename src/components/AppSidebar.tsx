@@ -244,8 +244,18 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="sm"
-              asChild
               className="mt-2 w-full justify-start"
+              style={{ color: 'var(--text-sidebar)' }}
+              onClick={() => window.dispatchEvent(new Event('fulcrum-open-digest'))}
+            >
+              <ListTodo className="mr-2 h-4 w-4" />
+              Today's Tasks
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="mt-1 w-full justify-start"
               style={{ color: 'var(--text-sidebar)' }}
             >
               <NavLink to="/profile" className="flex items-center">
