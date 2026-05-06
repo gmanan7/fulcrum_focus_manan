@@ -57,7 +57,7 @@ const mainNav = [
   { title: 'KPI Trends', url: '/kpi/trends', icon: TrendingUp, roles: null, hideForShopFloor: false },
   { title: 'My Planner', url: '/planner', icon: BookCheck, roles: null, hideForShopFloor: false },
   { title: 'KPI Master', url: '/kpi/master', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
-  { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
+  { title: 'Meetings', url: '/meetings', icon: CalendarDays, roles: null, hideForShopFloor: false },
   { title: 'Decision Log', url: '/meetings/decisions', icon: ClipboardList, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
   { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
   { title: 'Compliance', url: '/compliance', icon: ShieldCheck, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
