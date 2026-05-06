@@ -11,6 +11,7 @@ import {
   ScrollText,
   ClipboardList,
   LogOut,
+  KeyRound,
   Factory,
   TrendingUp,
   Sun,
@@ -243,7 +244,19 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="sm"
+              asChild
               className="mt-2 w-full justify-start"
+              style={{ color: 'var(--text-sidebar)' }}
+            >
+              <NavLink to="/profile" className="flex items-center">
+                <KeyRound className="mr-2 h-4 w-4" />
+                Change Password
+              </NavLink>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 w-full justify-start"
               style={{ color: 'var(--text-sidebar)' }}
               onClick={signOut}
             >
