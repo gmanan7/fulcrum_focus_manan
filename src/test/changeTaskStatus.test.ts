@@ -9,10 +9,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 type Status = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 
 function makeSupabaseMock() {
-  const rpc = vi.fn<any, any>().mockResolvedValue({ error: null });
-  const updateEq = vi.fn<any, any>().mockResolvedValue({ error: null });
-  const update = vi.fn<any, any>(() => ({ eq: updateEq }));
-  const from = vi.fn<any, any>(() => ({ update }));
+  const rpc: any = vi.fn().mockResolvedValue({ error: null });
+  const updateEq: any = vi.fn().mockResolvedValue({ error: null });
+  const update: any = vi.fn(() => ({ eq: updateEq }));
+  const from: any = vi.fn(() => ({ update }));
   return { rpc, from, update, updateEq };
 }
 
