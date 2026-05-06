@@ -693,24 +693,20 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const changeStatusMutation = useMutation({
     mutationFn: async ({ newStatus, note }: { newStatus: TaskStatus; note?: string }) => {
-      const updates: any = { status: newStatus, updated_at: new Date().toISOString() };
+      const { error } = await supabase.rpc('update_task_status' as any, {
+        p_task_id: task.id,
+        p_new_status: newStatus,
+        p_note: note || updateNote || null,
+      });
+      if (error) throw error;
+
       if (newStatus === 'completed' || newStatus === 'cancelled') {
-        updates.completed_at = new Date().toISOString();
-        updates.resolution_note = note || resolutionNote;
+        const { error: resErr } = await supabase
+          .from('tasks')
+          .update({ resolution_note: note || resolutionNote, completed_at: new Date().toISOString() })
+          .eq('id', task.id);
+        if (resErr) throw resErr;
       }
-
-      const { error: updateErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
-      if (updateErr) throw updateErr;
-
-      const { error: logErr } = await supabase.from('task_updates').insert({
-        task_id: task.id,
-        previous_status: freshTask?.status || task.status,
-        new_status: newStatus,
-        updated_by: user!.id,
-        update_note: note || updateNote || null,
-        update_type: 'status_change',
-      } as any);
-      if (logErr) throw logErr;
     },
     onSuccess: (_, vars) => {
       toast({ title: 'Status updated' });
