@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Plus, Loader2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { canCreateMeeting as canCreateMeetingFn } from '@/lib/meetingPermissions';
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-primary/10 text-primary',
