@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,6 +23,7 @@ import {
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
   Pencil, FileText, UserCheck, Lock, Users, Download, CalendarDays,
+  Search, X,
 } from 'lucide-react';
 import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { formatDistanceToNow } from 'date-fns';
@@ -34,6 +35,7 @@ import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskP
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
+import { searchMatches } from '@/lib/taskSearch';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
@@ -110,6 +112,32 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(GROUP_FILTER_STORAGE_KEY) || null;
   });
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce search by 250ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Cmd/Ctrl+K focuses, Escape clears + blurs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchInput('');
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -263,12 +291,28 @@ export default function TaskBoard() {
     if (chipDueToday) result = result.filter(isTaskDueToday);
     if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
     if (activeGroupFilter) result = result.filter((t) => (t as any).task_group_id === activeGroupFilter);
+    if (debouncedSearch.trim()) {
+      result = result.filter((t) =>
+        searchMatches(
+          {
+            ...t,
+            group: (t as any).task_group_id
+              ? { name: groupNameById.get((t as any).task_group_id) }
+              : undefined,
+          },
+          debouncedSearch,
+        ),
+      );
+    }
     return result;
   };
 
   const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
   const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
   const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
+  const totalAfterFilters = activeTasks.length + completedTasks.length + cancelledTasks.length;
+  const searchActive = debouncedSearch.trim().length > 0;
+  const noSearchResults = searchActive && totalAfterFilters === 0;
 
   return (
     <div className="space-y-4">
@@ -370,6 +414,33 @@ export default function TaskBoard() {
         </CollapsibleContent>
       </Collapsible>
 
+      {/* Search */}
+      <div className="relative w-full sm:w-[280px]">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          ref={searchInputRef}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search tasks by title, owner, or #number"
+          aria-label="Search tasks"
+          data-testid="task-search-input"
+          className="h-8 pl-8 pr-8 text-xs"
+        />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchInput('');
+              searchInputRef.current?.focus();
+            }}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setChipOverdue(!chipOverdue)}
@@ -457,6 +528,13 @@ export default function TaskBoard() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : noSearchResults ? (
+        <div
+          className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
+          data-testid="task-search-empty"
+        >
+          No tasks match "{debouncedSearch.trim()}"
+        </div>
       ) : view === 'kanban' && !isMobile ? (
         /* FIX 6: Kanban with 5 columns, completed/cancelled controlled by toggle */
         <div className={cn('grid gap-3', showCompleted ? 'grid-cols-5' : 'grid-cols-3')}>
