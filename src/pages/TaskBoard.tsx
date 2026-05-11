@@ -35,6 +35,7 @@ import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskP
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
+import { searchMatches } from '@/lib/taskSearch';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
