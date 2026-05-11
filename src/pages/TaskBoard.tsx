@@ -291,12 +291,28 @@ export default function TaskBoard() {
     if (chipDueToday) result = result.filter(isTaskDueToday);
     if (chipCarryover) result = result.filter((t) => isCarryover(t, historyIds));
     if (activeGroupFilter) result = result.filter((t) => (t as any).task_group_id === activeGroupFilter);
+    if (debouncedSearch.trim()) {
+      result = result.filter((t) =>
+        searchMatches(
+          {
+            ...t,
+            group: (t as any).task_group_id
+              ? { name: groupNameById.get((t as any).task_group_id) }
+              : undefined,
+          },
+          debouncedSearch,
+        ),
+      );
+    }
     return result;
   };
 
   const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
   const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
   const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
+  const totalAfterFilters = activeTasks.length + completedTasks.length + cancelledTasks.length;
+  const searchActive = debouncedSearch.trim().length > 0;
+  const noSearchResults = searchActive && totalAfterFilters === 0;
 
   return (
     <div className="space-y-4">
