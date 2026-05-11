@@ -23,6 +23,7 @@ import {
   ArrowRight, CheckCircle2, XCircle, Pause, Play, ListTodo, Columns3,
   MessageSquare, Calendar as CalendarIcon, Send,
   Pencil, FileText, UserCheck, Lock, Users, Download, CalendarDays,
+  Search, X,
 } from 'lucide-react';
 import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { formatDistanceToNow } from 'date-fns';
