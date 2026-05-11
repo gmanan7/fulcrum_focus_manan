@@ -528,6 +528,13 @@ export default function TaskBoard() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : noSearchResults ? (
+        <div
+          className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
+          data-testid="task-search-empty"
+        >
+          No tasks match "{debouncedSearch.trim()}"
+        </div>
       ) : view === 'kanban' && !isMobile ? (
         /* FIX 6: Kanban with 5 columns, completed/cancelled controlled by toggle */
         <div className={cn('grid gap-3', showCompleted ? 'grid-cols-5' : 'grid-cols-3')}>
