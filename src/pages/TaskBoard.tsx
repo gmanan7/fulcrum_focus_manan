@@ -112,6 +112,32 @@ export default function TaskBoard() {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(GROUP_FILTER_STORAGE_KEY) || null;
   });
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce search by 250ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Cmd/Ctrl+K focuses, Escape clears + blurs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchInput('');
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
