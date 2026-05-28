@@ -766,7 +766,40 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [editDueDate, setEditDueDate] = useState('');
   const [editIsPrivate, setEditIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
-  const canEdit = hasAnyRole('super_admin', 'factory_manager');
+
+  // Fetch user's department membership + leader-of group memberships,
+  // so we can compute action permissions matching the new DB rules.
+  const { data: userDeptIds = [] } = useQuery({
+    queryKey: ['user-dept-ids', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_departments')
+        .select('department_id')
+        .eq('user_id', user!.id);
+      return (data || []).map((r: any) => r.department_id as string);
+    },
+  });
+
+  const { data: leaderGroupIds = [] } = useQuery({
+    queryKey: ['user-leader-groups', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('task_group_members')
+        .select('group_id, is_leader' as any)
+        .eq('user_id', user!.id)
+        .eq('is_leader' as any, true);
+      return (data || []).map((r: any) => r.group_id as string);
+    },
+  });
+
+  const permCtx = {
+    userId: user?.id || '',
+    roles: roles as string[],
+    userDepartmentIds: userDeptIds,
+    leaderGroupIds,
+  };
 
   const { data: freshTask } = useQuery({
     queryKey: ['task-detail', task.id],
