@@ -328,7 +328,7 @@ export default function TaskBoard() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-foreground">Task Board</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           {!isMobile && (
             <div className="flex border rounded-md overflow-hidden">
               <Button size="sm" variant={view === 'kanban' ? 'default' : 'ghost'} className="h-8 rounded-none gap-1" onClick={() => setView('kanban')}>
