@@ -32,6 +32,16 @@ import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
 import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
+import {
+  canCloseTask,
+  canChangeDueDate as canChangeDueDateFn,
+  canChangeStatus as canChangeStatusFn,
+  canEditFields,
+  TOOLTIP_CLOSE,
+  TOOLTIP_DUE_DATE,
+  TOOLTIP_EDIT,
+  TOOLTIP_STATUS,
+} from '@/lib/taskActionPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
