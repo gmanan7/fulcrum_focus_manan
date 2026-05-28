@@ -44,6 +44,7 @@ import {
 } from '@/lib/taskActionPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
+import { resolveTaskDepartmentId, type UserDeptRow } from '@/lib/taskOwnerResolution';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { searchMatches } from '@/lib/taskSearch';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
