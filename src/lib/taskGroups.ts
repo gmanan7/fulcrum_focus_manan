@@ -100,6 +100,44 @@ export function canManageGroupMembers(
 }
 
 /**
+ * Who can mark/unmark a member as group leader.
+ * - super_admin and factory_manager
+ * - the group creator
+ * Group leaders themselves CANNOT promote others.
+ */
+export function canManageLeaders(
+  group: GroupShape,
+  viewerId: string | null,
+  viewerRoles: GroupRole[],
+): boolean {
+  if (!viewerId) return false;
+  if (
+    viewerRoles.includes('super_admin') ||
+    viewerRoles.includes('factory_manager')
+  ) {
+    return true;
+  }
+  return group.created_by === viewerId;
+}
+
+export interface LeaderSortMember {
+  is_leader?: boolean;
+  profile?: { full_name?: string | null } | null;
+  user_id?: string;
+}
+
+/** Sort: leaders first, then regular; alphabetical within each group. */
+export function sortMembersLeadersFirst<T extends LeaderSortMember>(members: T[]): T[] {
+  const name = (m: T) => (m.profile?.full_name ?? '').toLowerCase();
+  return [...members].sort((a, b) => {
+    const al = a.is_leader ? 1 : 0;
+    const bl = b.is_leader ? 1 : 0;
+    if (al !== bl) return bl - al;
+    return name(a).localeCompare(name(b));
+  });
+}
+
+/**
  * Whether the viewer can rename the group.
  * Same rules as managing members — super_admin/factory_manager always,
  * department_head only for groups they created.

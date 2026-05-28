@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Plus, Loader2, Trash2, Pencil, ArrowLeft, Check, LogOut, X,
+  Plus, Loader2, Trash2, Pencil, ArrowLeft, Check, LogOut, X, Star,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -22,6 +22,8 @@ import {
   canManageGroupMembers,
   canDeleteGroup,
   canCreateGroup,
+  canManageLeaders,
+  sortMembersLeadersFirst,
 } from '@/lib/taskGroups';
 
 type Mode = 'list' | 'create' | { kind: 'detail'; groupId: string };
@@ -320,6 +322,7 @@ function GroupDetail({
 
   const canManage = group ? canManageGroupMembers(group, userId, roles) : false;
   const canDelete = group ? canDeleteGroup(userId, roles) : false;
+  const canLead = group ? canManageLeaders(group, userId, roles) : false;
   const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ id: string; name: string } | null>(null);
   const isMember = !!userId; // membership lookup happens via RLS on member rows
 
@@ -328,16 +331,17 @@ function GroupDetail({
     queryFn: async () => {
       const { data: rows } = await supabase
         .from('task_group_members' as any)
-        .select('id, user_id, added_by, created_at')
+        .select('id, user_id, added_by, created_at, is_leader')
         .eq('group_id', groupId);
-      const ids = (rows || []).map((r: any) => r.user_id);
+      const ids = ((rows as any[]) || []).map((r: any) => r.user_id);
       if (ids.length === 0) return [];
       const { data: profs } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', ids);
       const profMap = new Map((profs || []).map((p) => [p.id, p]));
-      return (rows || []).map((r: any) => ({ ...r, profile: profMap.get(r.user_id) }));
+      const enriched = ((rows as any[]) || []).map((r: any) => ({ ...r, profile: profMap.get(r.user_id) }));
+      return sortMembersLeadersFirst(enriched as any);
     },
   });
 
@@ -355,6 +359,26 @@ function GroupDetail({
       queryClient.invalidateQueries({ queryKey: ['task-group-members-all'] });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const setLeader = useMutation({
+    mutationFn: async ({ memberUserId, isLeader }: { memberUserId: string; isLeader: boolean }) => {
+      const { error } = await supabase
+        .from('task_group_members' as any)
+        .update({ is_leader: isLeader } as any)
+        .eq('group_id', groupId)
+        .eq('user_id', memberUserId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: vars.isLeader ? 'Marked as leader' : 'Leader removed' });
+      refetch();
+    },
+    onError: (e: Error) => toast({
+      title: 'Could not update leader',
+      description: `${e.message}. An RLS UPDATE policy on task_group_members may be required.`,
+      variant: 'destructive',
+    }),
   });
 
   const leave = useMutation({
@@ -446,21 +470,44 @@ function GroupDetail({
         </div>
         <div className="space-y-1">
           {(members || []).map((m: any) => (
-            <div key={m.id} className="flex items-center justify-between p-2 rounded border text-sm">
-              <span className="truncate">{m.profile?.full_name ?? m.user_id}</span>
-              {canManage && m.user_id !== group.created_by && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              )}
-              {m.user_id === group.created_by && (
-                <Badge variant="secondary" className="text-[10px]">creator</Badge>
-              )}
+            <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded border text-sm">
+              <span className="truncate flex-1">{m.profile?.full_name ?? m.user_id}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                {m.is_leader && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                  >
+                    <Star className="h-3 w-3 fill-current" /> Leader
+                  </Badge>
+                )}
+                {m.user_id === group.created_by && (
+                  <Badge variant="secondary" className="text-[10px]">creator</Badge>
+                )}
+                {canLead && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title={m.is_leader ? 'Remove leader' : 'Make leader'}
+                    aria-label={m.is_leader ? 'Remove leader' : 'Make leader'}
+                    disabled={setLeader.isPending}
+                    onClick={() => setLeader.mutate({ memberUserId: m.user_id, isLeader: !m.is_leader })}
+                  >
+                    <Star className={cn('h-3.5 w-3.5', m.is_leader ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground')} />
+                  </Button>
+                )}
+                {canManage && m.user_id !== group.created_by && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
