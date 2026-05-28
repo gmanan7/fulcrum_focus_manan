@@ -1058,7 +1058,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       if (activityRows.length > 0) {
         await supabase.from('task_updates').insert(activityRows as any);
       }
-      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
+      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: effectiveEditDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
     },
     onSuccess: () => {
       toast({ title: 'Task updated' });
