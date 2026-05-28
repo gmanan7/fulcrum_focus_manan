@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
-  Columns3, ListTodo, Lock, Users, Search, Info,
+  Columns3, ListTodo, Lock, Users, Search, Info, CalendarDays, X,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,9 +19,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { formatDueDate } from '@/lib/taskSort';
+import { cn, isTaskOverdue, isTaskDueToday } from '@/lib/utils';
+import { formatDueDate, sortTasks, TASK_SORT_OPTIONS, type TaskSortKey } from '@/lib/taskSort';
 import { isCarryover, buildPushCountMap } from '@/lib/taskCarryover';
+import { searchMatches } from '@/lib/taskSearch';
 import {
   canAccessTaskOverview,
   getVisibilityKind,
@@ -29,6 +30,7 @@ import {
   type VisibilityFilter,
 } from '@/lib/taskOverview';
 import { TaskOverviewDrawer } from '@/components/tasks/TaskOverviewDrawer';
+import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import type { Database } from '@/integrations/supabase/types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -56,22 +58,26 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: 'cancelled', label: 'Cancelled' },
 ];
 
-type SortKey = 'created' | 'title' | 'status' | 'due' | 'push';
-type SortDir = 'asc' | 'desc';
+type View = 'kanban' | 'table' | 'calendar';
 
 export default function AdminTaskOverview() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const isMobile = useIsMobile();
   const allowed = canAccessTaskOverview(roles);
 
-  const [view, setView] = useState<'kanban' | 'table'>(isMobile ? 'table' : 'kanban');
+  const [view, setView] = useState<View>(isMobile ? 'table' : 'kanban');
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<any>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('created');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sortKey, setSortKey] = useState<TaskSortKey>('created_desc');
+
+  // Chip filters (compose with AND on top of the dropdown filters above)
+  const [chipOverdue, setChipOverdue] = useState(false);
+  const [chipDueToday, setChipDueToday] = useState(false);
+  const [chipCarryover, setChipCarryover] = useState(false);
+  const [chipMyTasks, setChipMyTasks] = useState(false);
 
   const { data: departments } = useQuery({
     queryKey: ['departments-admin-tasks'],
@@ -119,42 +125,45 @@ export default function AdminTaskOverview() {
   const historyIds = carryover?.ids ?? new Set<string>();
   const pushCounts = carryover?.counts ?? new Map<string, number>();
 
+  // group metadata map for calendar dot ring
+  const groupMetaById = useMemo(() => {
+    const m = new Map<string, { name: string; color: string }>();
+    (tasks || []).forEach((t: any) => {
+      if (t.task_group_id && t.group && !m.has(t.task_group_id)) {
+        m.set(t.task_group_id, { name: t.group.name, color: t.group.color });
+      }
+    });
+    return m;
+  }, [tasks]);
+
   const filtered = useMemo(() => {
     const list = tasks || [];
-    const q = search.trim().toLowerCase();
     return list.filter((t: any) => {
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       if (!matchesVisibilityFilter(t, visibilityFilter)) return false;
       if (deptFilter !== 'all' && t.department_id !== deptFilter) return false;
-      if (q && !(t.title || '').toLowerCase().includes(q)) return false;
+
+      // Chip filters
+      if (chipOverdue && !isTaskOverdue(t)) return false;
+      if (chipDueToday && !isTaskDueToday(t)) return false;
+      if (chipCarryover && !isCarryover(t, historyIds)) return false;
+      if (chipMyTasks && user && t.owner_id !== user.id) return false;
+
+      // Full search (title, description, owner, dept, #number, group, resolution note)
+      if (!searchMatches(t, search)) return false;
       return true;
     });
-  }, [tasks, statusFilter, visibilityFilter, deptFilter, search]);
+  }, [tasks, statusFilter, visibilityFilter, deptFilter, search,
+      chipOverdue, chipDueToday, chipCarryover, chipMyTasks, historyIds, user]);
 
   if (!allowed) return <Navigate to="/dashboard" replace />;
 
-  const sortedForTable = [...filtered].sort((a: any, b: any) => {
-    const dir = sortDir === 'asc' ? 1 : -1;
-    const get = (t: any): string | number => {
-      switch (sortKey) {
-        case 'title': return (t.title || '').toLowerCase();
-        case 'status': return t.status || '';
-        case 'due': return t.due_date || '';
-        case 'push': return pushCounts.get(t.id) || 0;
-        case 'created':
-        default: return t.created_at || '';
-      }
-    };
-    const av = get(a); const bv = get(b);
-    if (av < bv) return -1 * dir;
-    if (av > bv) return 1 * dir;
-    return 0;
-  });
+  const sorted = useMemo(() => sortTasks(filtered, sortKey), [filtered, sortKey]);
 
-  const toggleSort = (k: SortKey) => {
-    if (sortKey === k) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(k); setSortDir(k === 'created' || k === 'push' ? 'desc' : 'asc'); }
-  };
+  const overdueCount = (tasks || []).filter((t: any) => isTaskOverdue(t)).length;
+  const dueTodayCount = (tasks || []).filter((t: any) => isTaskDueToday(t)).length;
+  const carryoverCount = (tasks || []).filter((t: any) => isCarryover(t, historyIds)).length;
+  const myTasksCount = user ? (tasks || []).filter((t: any) => t.owner_id === user.id).length : 0;
 
   return (
     <div className="space-y-4 pb-12">
@@ -165,23 +174,65 @@ export default function AdminTaskOverview() {
             All tasks across the organisation — read only
           </p>
         </div>
-        <div className="flex border rounded-md overflow-hidden self-start md:self-auto">
-          <Button
-            size="sm"
-            variant={view === 'kanban' ? 'default' : 'ghost'}
-            className="h-8 rounded-none gap-1"
-            onClick={() => setView('kanban')}
-          >
-            <Columns3 className="h-3.5 w-3.5" /> Kanban
-          </Button>
-          <Button
-            size="sm"
-            variant={view === 'table' ? 'default' : 'ghost'}
-            className="h-8 rounded-none gap-1"
-            onClick={() => setView('table')}
-          >
-            <ListTodo className="h-3.5 w-3.5" /> Table
-          </Button>
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          <div className="flex border rounded-md overflow-hidden">
+            <Button
+              size="sm"
+              variant={view === 'kanban' ? 'default' : 'ghost'}
+              className="h-8 rounded-none gap-1"
+              onClick={() => setView('kanban')}
+            >
+              <Columns3 className="h-3.5 w-3.5" /> Kanban
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'table' ? 'default' : 'ghost'}
+              className="h-8 rounded-none gap-1"
+              onClick={() => setView('table')}
+            >
+              <ListTodo className="h-3.5 w-3.5" /> Table
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'calendar' ? 'default' : 'ghost'}
+              className="h-8 rounded-none gap-1"
+              onClick={() => setView('calendar')}
+            >
+              <CalendarDays className="h-3.5 w-3.5" /> Calendar
+            </Button>
+          </div>
+
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as TaskSortKey)}>
+            <SelectTrigger className="h-8 w-[150px] text-xs" aria-label="Sort tasks">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TASK_SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-8 pl-7 w-[200px] text-xs"
+              placeholder="Search tasks…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search tasks"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -193,9 +244,41 @@ export default function AdminTaskOverview() {
         </p>
       </div>
 
+      {/* Chip filters row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <ChipToggle
+          active={chipOverdue}
+          onClick={() => setChipOverdue((v) => !v)}
+          label="Overdue"
+          count={overdueCount}
+          tone="destructive"
+        />
+        <ChipToggle
+          active={chipDueToday}
+          onClick={() => setChipDueToday((v) => !v)}
+          label="Due Today"
+          count={dueTodayCount}
+          tone="warning"
+        />
+        <ChipToggle
+          active={chipCarryover}
+          onClick={() => setChipCarryover((v) => !v)}
+          label="Carryover"
+          count={carryoverCount}
+          tone="violet"
+        />
+        <ChipToggle
+          active={chipMyTasks}
+          onClick={() => setChipMyTasks((v) => !v)}
+          label="My Tasks"
+          count={myTasksCount}
+          tone="primary"
+        />
+      </div>
+
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Status</label>
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
@@ -234,18 +317,6 @@ export default function AdminTaskOverview() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Search</label>
-              <div className="relative mt-1">
-                <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="h-9 pl-7"
-                  placeholder="Search title…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -255,15 +326,20 @@ export default function AdminTaskOverview() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
         </div>
       ) : view === 'kanban' ? (
-        <KanbanView tasks={filtered} onSelect={setSelected} historyIds={historyIds} />
+        <KanbanView tasks={sorted} onSelect={setSelected} historyIds={historyIds} />
+      ) : view === 'calendar' ? (
+        <TaskCalendarView
+          tasks={sorted}
+          historyIds={historyIds}
+          groupMetaById={groupMetaById}
+          departments={departments || []}
+          onTaskClick={setSelected}
+        />
       ) : (
         <TableView
-          tasks={sortedForTable}
+          tasks={sorted}
           onSelect={setSelected}
           pushCounts={pushCounts}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={toggleSort}
         />
       )}
 
@@ -273,6 +349,43 @@ export default function AdminTaskOverview() {
         onClose={() => setSelected(null)}
       />
     </div>
+  );
+}
+
+// ---------- Chip ----------
+
+function ChipToggle({
+  active, onClick, label, count, tone,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+  tone: 'destructive' | 'warning' | 'violet' | 'primary';
+}) {
+  const toneClass =
+    tone === 'destructive' ? 'border-destructive/40 text-destructive data-[on=true]:bg-destructive data-[on=true]:text-destructive-foreground'
+    : tone === 'warning' ? 'border-warning/40 text-warning data-[on=true]:bg-warning data-[on=true]:text-white'
+    : tone === 'violet' ? 'border-violet-500/40 text-violet-600 data-[on=true]:bg-violet-600 data-[on=true]:text-white'
+    : 'border-primary/40 text-primary data-[on=true]:bg-primary data-[on=true]:text-primary-foreground';
+  return (
+    <button
+      type="button"
+      data-on={active}
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+        toneClass,
+      )}
+    >
+      <span>{label}</span>
+      <span className={cn(
+        'rounded-full px-1.5 text-[10px]',
+        active ? 'bg-background/20' : 'bg-muted text-muted-foreground'
+      )}>
+        {count}
+      </span>
+    </button>
   );
 }
 
@@ -371,22 +484,12 @@ function KanbanCardRO({
 // ---------- Table ----------
 
 function TableView({
-  tasks, onSelect, pushCounts, sortKey, sortDir, onSort,
+  tasks, onSelect, pushCounts,
 }: {
   tasks: any[];
   onSelect: (t: any) => void;
   pushCounts: Map<string, number>;
-  sortKey: SortKey;
-  sortDir: SortDir;
-  onSort: (k: SortKey) => void;
 }) {
-  const arrow = (k: SortKey) => sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-  const thBtn = (label: string, k: SortKey) => (
-    <button onClick={() => onSort(k)} className="font-medium hover:text-foreground">
-      {label}{arrow(k)}
-    </button>
-  );
-
   return (
     <Card>
       <CardContent className="p-0">
@@ -394,15 +497,15 @@ function TableView({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">#</TableHead>
-              <TableHead>{thBtn('Title', 'title')}</TableHead>
-              <TableHead>{thBtn('Status', 'status')}</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Visibility</TableHead>
               <TableHead>Group / Team</TableHead>
               <TableHead>Owner</TableHead>
               <TableHead>Department</TableHead>
-              <TableHead>{thBtn('Due Date', 'due')}</TableHead>
-              <TableHead className="text-right">{thBtn('Push Count', 'push')}</TableHead>
-              <TableHead>{thBtn('Created', 'created')}</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead className="text-right">Push Count</TableHead>
+              <TableHead>Created</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
