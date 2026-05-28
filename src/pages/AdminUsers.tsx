@@ -309,7 +309,19 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
           </div>
           <div className="space-y-2">
             <Label>Role *</Label>
-            <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as AppRole }))}>
+            <Select
+              value={form.role}
+              onValueChange={(v) =>
+                setForm((f) => {
+                  const nextRole = v as AppRole;
+                  return {
+                    ...f,
+                    role: nextRole,
+                    department_ids: nextRole === 'task_only' ? [] : f.department_ids,
+                  };
+                })
+              }
+            >
               <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(ROLE_LABELS).map(([k, v]) => (
@@ -318,17 +330,19 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Departments</Label>
-            <div className="max-h-40 overflow-y-auto rounded-md border p-3 space-y-2">
-              {departments?.map((d) => (
-                <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer min-h-[2.5rem]">
-                  <Checkbox checked={form.department_ids.includes(d.id)} onCheckedChange={() => toggleDept(d.id)} />
-                  <span>{d.name} ({d.code})</span>
-                </label>
-              ))}
+          {form.role !== 'task_only' && (
+            <div className="space-y-2">
+              <Label>Departments</Label>
+              <div className="max-h-40 overflow-y-auto rounded-md border p-3 space-y-2">
+                {departments?.map((d) => (
+                  <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer min-h-[2.5rem]">
+                    <Checkbox checked={form.department_ids.includes(d.id)} onCheckedChange={() => toggleDept(d.id)} />
+                    <span>{d.name} ({d.code})</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <Button type="submit" className="w-full h-11" disabled={updateMutation.isPending}>
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
