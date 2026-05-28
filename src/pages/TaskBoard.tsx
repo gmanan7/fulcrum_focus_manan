@@ -1096,16 +1096,22 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       <div><Label>Description</Label><Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2} className="mt-1" /></div>
       <div>
         <Label>Department *</Label>
-        <Select value={editDeptId} onValueChange={(v) => { setEditDeptId(v); setEditOwnerId(''); }}>
-          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-          <SelectContent>{editDepartments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-        </Select>
+        {editIsGroupTask ? (
+          <div className="h-11 mt-1 flex items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+            {editDerivedDeptName || 'Auto from owner'}
+          </div>
+        ) : (
+          <Select value={editDeptId} onValueChange={(v) => { setEditDeptId(v); setEditOwnerId(''); }}>
+            <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent>{editDepartments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
       </div>
       <div>
         <Label>Owner *</Label>
         <Select value={editOwnerId} onValueChange={setEditOwnerId}>
-          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-          <SelectContent>{editDeptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder={editIsGroupTask ? 'Select group member' : 'Select'} /></SelectTrigger>
+          <SelectContent>{editOwnerOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
