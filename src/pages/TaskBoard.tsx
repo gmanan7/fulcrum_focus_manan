@@ -785,12 +785,13 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     queryKey: ['user-leader-groups', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data } = await supabase
+      const client = supabase as any;
+      const { data } = await client
         .from('task_group_members')
-        .select('group_id, is_leader' as any)
+        .select('group_id, is_leader')
         .eq('user_id', user!.id)
-        .eq('is_leader' as any, true);
-      return (data || []).map((r: any) => r.group_id as string);
+        .eq('is_leader', true);
+      return ((data as any[]) || []).map((r: any) => r.group_id as string);
     },
   });
 
