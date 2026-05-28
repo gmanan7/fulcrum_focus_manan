@@ -1000,74 +1000,34 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const editTaskMutation = useMutation({
     mutationFn: async () => {
-      if (editDueDate < today) throw new Error('Due date cannot be in the past');
       if (editIsGroupTask && !effectiveEditDeptId) {
         throw new Error('Cannot derive a department for this owner');
       }
-      const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date, is_private: (t as any).is_private };
-      const { error } = await supabase.from('tasks').update({
+      const oldValues = {
+        title: t.title,
+        description: t.description,
+        department_id: t.department_id,
+        owner_id: t.owner_id,
+        priority: t.priority,
+      };
+      // Use RPC — direct table updates are blocked for HODs/owners.
+      // RPC also logs title/assignee changes to task_updates internally.
+      const { error } = await supabase.rpc('update_task_fields' as any, {
+        p_task_id: task.id,
+        p_title: editTitle,
+        p_description: editDescription || null,
+        p_owner_id: editOwnerId,
+        p_priority: editPriority,
+        p_department_id: effectiveEditDeptId,
+      });
+      if (error) throw error;
+      logAudit('tasks', task.id, 'UPDATE', oldValues, {
         title: editTitle,
-        description: editDescription || null,
+        description: editDescription,
         department_id: effectiveEditDeptId,
         owner_id: editOwnerId,
         priority: editPriority,
-        due_date: editDueDate,
-        is_private: editIsPrivate,
-        updated_at: new Date().toISOString(),
-      }).eq('id', task.id);
-      if (error) throw error;
-
-      const activityRows: any[] = [];
-      if (t.due_date !== editDueDate) {
-        activityRows.push({
-          task_id: task.id,
-          updated_by: user!.id,
-          update_type: 'due_date_change',
-          previous_due_date: t.due_date,
-          new_due_date: editDueDate,
-        });
-      }
-      if (t.title !== editTitle) {
-        activityRows.push({
-          task_id: task.id,
-          updated_by: user!.id,
-          update_type: 'title_change',
-          previous_text: t.title,
-          new_text: editTitle,
-        });
-      }
-      const oldDesc = t.description ?? '(none)';
-      const newDesc = editDescription ? editDescription : '(none)';
-      if (oldDesc !== newDesc) {
-        activityRows.push({
-          task_id: task.id,
-          updated_by: user!.id,
-          update_type: 'description_change',
-          previous_text: oldDesc,
-          new_text: newDesc,
-        });
-      }
-      if (t.owner_id !== editOwnerId) {
-        const { data: profs } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', [t.owner_id, editOwnerId].filter(Boolean) as string[]);
-        const nameOf = (id: string | null) =>
-          (profs || []).find((p) => p.id === id)?.full_name ?? null;
-        const prevName = nameOf(t.owner_id) ?? '(unassigned)';
-        const newName = nameOf(editOwnerId) ?? '(unassigned)';
-        activityRows.push({
-          task_id: task.id,
-          updated_by: user!.id,
-          update_type: 'assignee_change',
-          previous_text: prevName,
-          new_text: newName,
-        });
-      }
-      if (activityRows.length > 0) {
-        await supabase.from('task_updates').insert(activityRows as any);
-      }
-      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: effectiveEditDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
+      });
     },
     onSuccess: () => {
       toast({ title: 'Task updated' });
@@ -1078,6 +1038,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
+
 
   const enterEditMode = () => {
     const t = freshTask || task;
