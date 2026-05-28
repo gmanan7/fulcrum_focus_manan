@@ -1104,12 +1104,8 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </Button>
         <Button variant="outline" onClick={() => setEditMode(false)} className="h-11">Cancel</Button>
       </div>
-
-          {editTaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
-        </Button>
-        <Button variant="outline" onClick={() => setEditMode(false)} className="h-11">Cancel</Button>
-      </div>
     </div>
+
   ) : (
     <div className="space-y-6 pb-6">
       <div>
