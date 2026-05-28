@@ -1338,29 +1338,94 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
     enabled: !!deptId,
   });
 
-  // Fetch members of selected visibility group (only when visibility is a group id)
+  // Fetch members (with profiles) of selected visibility group
   const isGroupVisibility = visibility !== 'everyone' && visibility !== 'private';
-  const { data: selectedGroupMembers } = useQuery({
-    queryKey: ['create-task-group-members', visibility],
+  const { data: groupMemberProfiles } = useQuery({
+    queryKey: ['create-task-group-member-profiles', visibility],
     queryFn: async () => {
-      const { data } = await supabase.from('task_group_members').select('user_id').eq('group_id', visibility as string);
-      return (data || []).map((r) => r.user_id as string);
+      const { data: rows } = await supabase
+        .from('task_group_members')
+        .select('user_id')
+        .eq('group_id', visibility as string);
+      const ids = (rows || []).map((r) => r.user_id as string);
+      if (!ids.length) return [] as { id: string; full_name: string }[];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+        .eq('is_active', true);
+      return (data || []) as { id: string; full_name: string }[];
     },
     enabled: open && isGroupVisibility,
   });
-  const groupMemberIds = isGroupVisibility ? new Set(selectedGroupMembers || []) : null;
+  const groupMemberIds = isGroupVisibility
+    ? new Set((groupMemberProfiles || []).map((p) => p.id))
+    : null;
+
+  // Departments for: every group member (to derive task department from owner)
+  // and the creator (fallback when owner has no department).
+  const groupMemberIdList = (groupMemberProfiles || []).map((p) => p.id);
+  const { data: groupMemberDepts } = useQuery({
+    queryKey: ['create-task-group-member-depts', groupMemberIdList.sort().join(',')],
+    queryFn: async () => {
+      if (!groupMemberIdList.length) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .in('user_id', groupMemberIdList);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: open && isGroupVisibility && groupMemberIdList.length > 0,
+  });
+  const { data: creatorDepts } = useQuery({
+    queryKey: ['create-task-creator-depts', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .eq('user_id', user.id);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: open && !!user?.id,
+  });
+
+  const derivedDeptId = isGroupVisibility
+    ? resolveTaskDepartmentId({
+        ownerId,
+        ownerDeptRows: groupMemberDepts ?? [],
+        creatorId: user?.id ?? null,
+        creatorDeptRows: creatorDepts ?? [],
+      })
+    : null;
+  const effectiveDeptId = isGroupVisibility ? (derivedDeptId ?? '') : deptId;
+  const derivedDeptName = isGroupVisibility && derivedDeptId
+    ? (departments?.find((d) => d.id === derivedDeptId)?.name ?? '—')
+    : '';
+
   const showOwnerNotInGroupWarning = shouldWarnOwnerNotInGroup(visibility, ownerId, groupMemberIds);
   const selectedGroup = isGroupVisibility ? myGroups.find((g) => g.id === visibility) : null;
-  const ownerName = deptUsers?.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+  const ownerOptions = isGroupVisibility
+    ? (groupMemberProfiles || [])
+    : (deptUsers || []);
+  const ownerName = ownerOptions.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+
+  // Reset owner when visibility mode flips between dept-driven and group-driven
+  useEffect(() => {
+    setOwnerId('');
+  }, [isGroupVisibility, visibility]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
       const vis = taskVisibility(visibility);
+      if (isGroupVisibility && !effectiveDeptId) {
+        throw new Error('Cannot derive a department for this owner');
+      }
       const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
-        department_id: deptId,
+        department_id: effectiveDeptId,
         owner_id: ownerId,
         assigned_by: user!.id,
         priority,
@@ -1391,16 +1456,22 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
           <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1" /></div>
           <div>
             <Label>Department *</Label>
-            <Select value={deptId} onValueChange={setDeptId}>
-              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-            </Select>
+            {isGroupVisibility ? (
+              <div className="h-11 mt-1 flex items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                {derivedDeptName || 'Auto from owner'}
+              </div>
+            ) : (
+              <Select value={deptId} onValueChange={setDeptId}>
+                <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
           </div>
           <div>
             <Label>Owner *</Label>
             <Select value={ownerId} onValueChange={setOwnerId}>
-              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>{deptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder={isGroupVisibility ? 'Select group member' : 'Select'} /></SelectTrigger>
+              <SelectContent>{ownerOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1446,7 +1517,7 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
               </div>
             )}
           </div>
-          <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
+          <Button onClick={() => createMutation.mutate()} disabled={!title || !effectiveDeptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
           </Button>
         </div>
