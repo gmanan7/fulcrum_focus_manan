@@ -328,7 +328,7 @@ export default function TaskBoard() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-foreground">Task Board</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           {!isMobile && (
             <div className="flex border rounded-md overflow-hidden">
               <Button size="sm" variant={view === 'kanban' ? 'default' : 'ghost'} className="h-8 rounded-none gap-1" onClick={() => setView('kanban')}>
@@ -374,9 +374,19 @@ export default function TaskBoard() {
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setShowGroupsPanel(true)}>
             <Users className="h-3.5 w-3.5" /> Groups
           </Button>
-          <Button onClick={() => setShowCreate(true)} className="h-8 gap-1 text-sm">
-            <Plus className="h-3.5 w-3.5" /> New Task
-          </Button>
+          {isMobile ? (
+            <Button
+              onClick={() => setShowCreate(true)}
+              className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+              aria-label="New Task"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          ) : (
+            <Button onClick={() => setShowCreate(true)} className="h-8 gap-1 text-sm">
+              <Plus className="h-3.5 w-3.5" /> New Task
+            </Button>
+          )}
         </div>
       </div>
 
