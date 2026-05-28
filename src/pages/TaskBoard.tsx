@@ -32,6 +32,16 @@ import { filterMyTasks as filterMyTasksFn } from '@/lib/myTasksFilter';
 import { sortTasks, formatDueDate, getDueTone, TASK_SORT_OPTIONS, TASK_SORT_STORAGE_KEY, type TaskSortKey } from '@/lib/taskSort';
 import { isCarryover, buildPushCountMap, CARRYOVER_FILTER_STORAGE_KEY } from '@/lib/taskCarryover';
 import { canUpdateTaskAnyRole, TASK_UPDATE_FORBIDDEN_TOOLTIP } from '@/lib/taskPermissions';
+import {
+  canCloseTask,
+  canChangeDueDate as canChangeDueDateFn,
+  canChangeStatus as canChangeStatusFn,
+  canEditFields,
+  TOOLTIP_CLOSE,
+  TOOLTIP_DUE_DATE,
+  TOOLTIP_EDIT,
+  TOOLTIP_STATUS,
+} from '@/lib/taskActionPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
@@ -756,7 +766,41 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [editDueDate, setEditDueDate] = useState('');
   const [editIsPrivate, setEditIsPrivate] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
-  const canEdit = hasAnyRole('super_admin', 'factory_manager');
+
+  // Fetch user's department membership + leader-of group memberships,
+  // so we can compute action permissions matching the new DB rules.
+  const { data: userDeptIds = [] } = useQuery({
+    queryKey: ['user-dept-ids', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_departments')
+        .select('department_id')
+        .eq('user_id', user!.id);
+      return (data || []).map((r: any) => r.department_id as string);
+    },
+  });
+
+  const { data: leaderGroupIds = [] } = useQuery({
+    queryKey: ['user-leader-groups', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const client = supabase as any;
+      const { data } = await client
+        .from('task_group_members')
+        .select('group_id, is_leader')
+        .eq('user_id', user!.id)
+        .eq('is_leader', true);
+      return ((data as any[]) || []).map((r: any) => r.group_id as string);
+    },
+  });
+
+  const permCtx = {
+    userId: user?.id || '',
+    roles: roles as string[],
+    userDepartmentIds: userDeptIds,
+    leaderGroupIds,
+  };
 
   const { data: freshTask } = useQuery({
     queryKey: ['task-detail', task.id],
@@ -834,24 +878,12 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const changeDueDateMutation = useMutation({
     mutationFn: async () => {
-      const prevDue = freshTask?.due_date || task.due_date;
-      await supabase.from('task_due_date_history').insert({
-        task_id: task.id,
-        previous_due_date: prevDue,
-        new_due_date: newDueDate,
-        reason: dueDateReason,
-        changed_by: user!.id,
+      const { error } = await supabase.rpc('update_task_due_date' as any, {
+        p_task_id: task.id,
+        p_new_due_date: newDueDate,
+        p_reason: dueDateReason || null,
       });
-      await supabase.from('tasks').update({ due_date: newDueDate, updated_at: new Date().toISOString() }).eq('id', task.id);
-      // Log to activity feed
-      await supabase.from('task_updates').insert({
-        task_id: task.id,
-        updated_by: user!.id,
-        update_type: 'due_date_change',
-        previous_due_date: prevDue,
-        new_due_date: newDueDate,
-        update_note: dueDateReason || null,
-      } as any);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: 'Due date changed' });
@@ -863,6 +895,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       setDueDateReason('');
       logAudit('tasks', task.id, 'UPDATE', { due_date: freshTask?.due_date || task.due_date }, { due_date: newDueDate });
     },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const addCommentMutation = useMutation({
@@ -1034,7 +1067,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
         <div className="flex items-center justify-between mt-1">
           <h2 className="text-base font-bold">{t.title}</h2>
-          {canEdit && !isTerminal && (
+          {canEditFields(t as any, permCtx) && !isTerminal && (
             <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={enterEditMode}>
               Edit Task
             </Button>
@@ -1054,7 +1087,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       </div>
 
-      {!isTerminal && (
+      {!isTerminal && canChangeDueDateFn(t as any, permCtx) && (
         <div>
           <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowDueDateChange(!showDueDateChange)}>Change Due Date</Button>
           {showDueDateChange && (
@@ -1075,50 +1108,19 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       )}
 
       {!isTerminal && (() => {
-        const canUpdate = !!user && canUpdateTaskAnyRole(t, user.id, roles as string[]);
+        const canStatus = canChangeStatusFn(t as any, permCtx);
+        const canClose = canCloseTask(t as any, permCtx);
         const onSelectStatus = (newStatus: TaskStatus) => {
-          if (!canUpdate || newStatus === t.status) return;
+          if (newStatus === t.status) return;
           if (newStatus === 'completed' || newStatus === 'cancelled') {
+            if (!canClose) return;
             setCompletingAs(newStatus);
             setShowCompleteDialog(true);
             return;
           }
+          if (!canStatus) return;
           changeStatusMutation.mutate({ newStatus });
         };
-        const Buttons = (
-          <div className="flex flex-wrap gap-2">
-            {t.status === 'open' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
-                  <Play className="h-3.5 w-3.5" /> Start Work
-                </Button>
-                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
-                  <XCircle className="h-3.5 w-3.5" /> Cancel
-                </Button>
-              </>
-            )}
-            {t.status === 'in_progress' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
-                  <Pause className="h-3.5 w-3.5" /> Mark Blocked
-                </Button>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
-                </Button>
-              </>
-            )}
-            {t.status === 'blocked' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
-                  <Play className="h-3.5 w-3.5" /> Resume
-                </Button>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
-                </Button>
-              </>
-            )}
-          </div>
-        );
         return (
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
@@ -1126,15 +1128,15 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
             {/* Status dropdown — allows changing in any direction */}
             <div className="space-y-1">
               <Label className="text-xs">Change Status</Label>
-              {canUpdate ? (
+              {canStatus ? (
                 <Select value={t.status} onValueChange={(v) => onSelectStatus(v as TaskStatus)}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="blocked">Blocked</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="completed" disabled={!canClose}>Completed</SelectItem>
+                    <SelectItem value="cancelled" disabled={!canClose}>Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -1147,22 +1149,59 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
                         </Select>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
+                    <TooltipContent>{TOOLTIP_STATUS}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
             </div>
 
-            {/* Quick action buttons — disabled & tooltipped if not permitted */}
-            {canUpdate ? Buttons : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="opacity-60 cursor-not-allowed">{Buttons}</div>
-                  </TooltipTrigger>
-                  <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {/* Quick action buttons */}
+            <div className="flex flex-wrap gap-2">
+              {t.status === 'open' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                      <Play className="h-3.5 w-3.5" /> Start Work
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
+                      <XCircle className="h-3.5 w-3.5" /> Cancel
+                    </Button>
+                  )}
+                </>
+              )}
+              {t.status === 'in_progress' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
+                      <Pause className="h-3.5 w-3.5" /> Mark Blocked
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                    </Button>
+                  )}
+                </>
+              )}
+              {t.status === 'blocked' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                      <Play className="h-3.5 w-3.5" /> Resume
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+            {!canClose && canStatus && (
+              <p className="text-xs text-muted-foreground italic">{TOOLTIP_CLOSE}</p>
             )}
           </div>
         );
