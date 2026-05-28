@@ -47,6 +47,7 @@ import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGr
 import { resolveTaskDepartmentId, type UserDeptRow } from '@/lib/taskOwnerResolution';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { searchMatches } from '@/lib/taskSearch';
+import { scopeTasksToMyBoard } from '@/lib/taskBoardScope';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
@@ -290,10 +291,17 @@ export default function TaskBoard() {
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
-  const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
-  const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
-  const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
-  const carryoverCount = (tasks ?? []).filter((t) => isCarryover(t, historyIds)).length;
+  // Main-board scoping — uniform for ALL roles incl. super_admin/factory_manager.
+  // Admin/WM use /admin/tasks for full visibility; the main /tasks board shows
+  // only tasks the viewer is involved in (public, owned, created, or in their groups).
+  const myGroupIdSetForScope = new Set((myGroups || []).map((g) => g.id));
+  const scopedTasks = scopeTasksToMyBoard(tasks, user?.id, myGroupIdSetForScope);
+  const scopedRecentlyClosed = scopeTasksToMyBoard(recentlyClosed, user?.id, myGroupIdSetForScope);
+
+  const overdueCount = scopedTasks.filter(isTaskOverdue).length;
+  const dueTodayCount = scopedTasks.filter(isTaskDueToday).length;
+  const myTasksCount = filterMyTasksFn(scopedTasks, user?.id).length;
+  const carryoverCount = scopedTasks.filter((t) => isCarryover(t, historyIds)).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
