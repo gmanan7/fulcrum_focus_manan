@@ -44,6 +44,7 @@ import {
 } from '@/lib/taskActionPermissions';
 import { formatActivityItem, sortActivityOldestFirst } from '@/lib/taskActivity';
 import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGroupForTask, GROUP_FILTER_STORAGE_KEY, type VisibilityChoice } from '@/lib/taskGroups';
+import { resolveTaskDepartmentId, type UserDeptRow } from '@/lib/taskOwnerResolution';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { searchMatches } from '@/lib/taskSearch';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
@@ -833,6 +834,54 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     enabled: editMode,
   });
 
+  const editTaskGroupId: string | null = (freshTask as any)?.task_group_id ?? (task as any)?.task_group_id ?? null;
+  const editIsGroupTask = !!editTaskGroupId;
+
+  const { data: editGroupMemberProfiles } = useQuery({
+    queryKey: ['edit-task-group-member-profiles', editTaskGroupId],
+    queryFn: async () => {
+      const { data: rows } = await supabase
+        .from('task_group_members')
+        .select('user_id')
+        .eq('group_id', editTaskGroupId as string);
+      const ids = (rows || []).map((r) => r.user_id as string);
+      if (!ids.length) return [] as { id: string; full_name: string }[];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+        .eq('is_active', true);
+      return (data || []) as { id: string; full_name: string }[];
+    },
+    enabled: editMode && editIsGroupTask,
+  });
+
+  const editGroupMemberIdList = (editGroupMemberProfiles || []).map((p) => p.id);
+  const { data: editGroupMemberDepts } = useQuery({
+    queryKey: ['edit-task-group-member-depts', editGroupMemberIdList.sort().join(',')],
+    queryFn: async () => {
+      if (!editGroupMemberIdList.length) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .in('user_id', editGroupMemberIdList);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: editMode && editIsGroupTask && editGroupMemberIdList.length > 0,
+  });
+  const { data: editCreatorDepts } = useQuery({
+    queryKey: ['edit-task-creator-depts', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .eq('user_id', user.id);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: editMode && editIsGroupTask && !!user?.id,
+  });
+
   const { data: editDeptUsers } = useQuery({
     queryKey: ['dept-users-edit-task', editDeptId],
     queryFn: async () => {
@@ -841,7 +890,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       const { data } = await supabase.from('profiles').select('id, full_name').in('id', uds.map((u) => u.user_id)).eq('is_active', true);
       return data || [];
     },
-    enabled: !!editDeptId && editMode,
+    enabled: !!editDeptId && editMode && !editIsGroupTask,
   });
 
   const { data: statusHistory } = useQuery({
@@ -924,14 +973,33 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const editDerivedDeptId = editIsGroupTask
+    ? resolveTaskDepartmentId({
+        ownerId: editOwnerId,
+        ownerDeptRows: editGroupMemberDepts ?? [],
+        creatorId: user?.id ?? null,
+        creatorDeptRows: editCreatorDepts ?? [],
+      })
+    : null;
+  const effectiveEditDeptId = editIsGroupTask ? (editDerivedDeptId ?? '') : editDeptId;
+  const editOwnerOptions = editIsGroupTask
+    ? (editGroupMemberProfiles || [])
+    : (editDeptUsers || []);
+  const editDerivedDeptName = editIsGroupTask && editDerivedDeptId
+    ? (editDepartments?.find((d) => d.id === editDerivedDeptId)?.name ?? '—')
+    : '';
+
   const editTaskMutation = useMutation({
     mutationFn: async () => {
       if (editDueDate < today) throw new Error('Due date cannot be in the past');
+      if (editIsGroupTask && !effectiveEditDeptId) {
+        throw new Error('Cannot derive a department for this owner');
+      }
       const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date, is_private: (t as any).is_private };
       const { error } = await supabase.from('tasks').update({
         title: editTitle,
         description: editDescription || null,
-        department_id: editDeptId,
+        department_id: effectiveEditDeptId,
         owner_id: editOwnerId,
         priority: editPriority,
         due_date: editDueDate,
@@ -990,7 +1058,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       if (activityRows.length > 0) {
         await supabase.from('task_updates').insert(activityRows as any);
       }
-      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: editDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
+      logAudit('tasks', task.id, 'UPDATE', oldValues, { title: editTitle, description: editDescription, department_id: effectiveEditDeptId, owner_id: editOwnerId, priority: editPriority, due_date: editDueDate });
     },
     onSuccess: () => {
       toast({ title: 'Task updated' });
@@ -1028,16 +1096,22 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       <div><Label>Description</Label><Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2} className="mt-1" /></div>
       <div>
         <Label>Department *</Label>
-        <Select value={editDeptId} onValueChange={(v) => { setEditDeptId(v); setEditOwnerId(''); }}>
-          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-          <SelectContent>{editDepartments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-        </Select>
+        {editIsGroupTask ? (
+          <div className="h-11 mt-1 flex items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+            {editDerivedDeptName || 'Auto from owner'}
+          </div>
+        ) : (
+          <Select value={editDeptId} onValueChange={(v) => { setEditDeptId(v); setEditOwnerId(''); }}>
+            <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent>{editDepartments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
       </div>
       <div>
         <Label>Owner *</Label>
         <Select value={editOwnerId} onValueChange={setEditOwnerId}>
-          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-          <SelectContent>{editDeptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-11 mt-1"><SelectValue placeholder={editIsGroupTask ? 'Select group member' : 'Select'} /></SelectTrigger>
+          <SelectContent>{editOwnerOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1061,7 +1135,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         <Switch id="edit-private-toggle" checked={editIsPrivate} onCheckedChange={setEditIsPrivate} />
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !editDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
+        <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !effectiveEditDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
           {editTaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
         </Button>
         <Button variant="outline" onClick={() => setEditMode(false)} className="h-11">Cancel</Button>
@@ -1337,29 +1411,94 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
     enabled: !!deptId,
   });
 
-  // Fetch members of selected visibility group (only when visibility is a group id)
+  // Fetch members (with profiles) of selected visibility group
   const isGroupVisibility = visibility !== 'everyone' && visibility !== 'private';
-  const { data: selectedGroupMembers } = useQuery({
-    queryKey: ['create-task-group-members', visibility],
+  const { data: groupMemberProfiles } = useQuery({
+    queryKey: ['create-task-group-member-profiles', visibility],
     queryFn: async () => {
-      const { data } = await supabase.from('task_group_members').select('user_id').eq('group_id', visibility as string);
-      return (data || []).map((r) => r.user_id as string);
+      const { data: rows } = await supabase
+        .from('task_group_members')
+        .select('user_id')
+        .eq('group_id', visibility as string);
+      const ids = (rows || []).map((r) => r.user_id as string);
+      if (!ids.length) return [] as { id: string; full_name: string }[];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+        .eq('is_active', true);
+      return (data || []) as { id: string; full_name: string }[];
     },
     enabled: open && isGroupVisibility,
   });
-  const groupMemberIds = isGroupVisibility ? new Set(selectedGroupMembers || []) : null;
+  const groupMemberIds = isGroupVisibility
+    ? new Set((groupMemberProfiles || []).map((p) => p.id))
+    : null;
+
+  // Departments for: every group member (to derive task department from owner)
+  // and the creator (fallback when owner has no department).
+  const groupMemberIdList = (groupMemberProfiles || []).map((p) => p.id);
+  const { data: groupMemberDepts } = useQuery({
+    queryKey: ['create-task-group-member-depts', groupMemberIdList.sort().join(',')],
+    queryFn: async () => {
+      if (!groupMemberIdList.length) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .in('user_id', groupMemberIdList);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: open && isGroupVisibility && groupMemberIdList.length > 0,
+  });
+  const { data: creatorDepts } = useQuery({
+    queryKey: ['create-task-creator-depts', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .eq('user_id', user.id);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: open && !!user?.id,
+  });
+
+  const derivedDeptId = isGroupVisibility
+    ? resolveTaskDepartmentId({
+        ownerId,
+        ownerDeptRows: groupMemberDepts ?? [],
+        creatorId: user?.id ?? null,
+        creatorDeptRows: creatorDepts ?? [],
+      })
+    : null;
+  const effectiveDeptId = isGroupVisibility ? (derivedDeptId ?? '') : deptId;
+  const derivedDeptName = isGroupVisibility && derivedDeptId
+    ? (departments?.find((d) => d.id === derivedDeptId)?.name ?? '—')
+    : '';
+
   const showOwnerNotInGroupWarning = shouldWarnOwnerNotInGroup(visibility, ownerId, groupMemberIds);
   const selectedGroup = isGroupVisibility ? myGroups.find((g) => g.id === visibility) : null;
-  const ownerName = deptUsers?.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+  const ownerOptions = isGroupVisibility
+    ? (groupMemberProfiles || [])
+    : (deptUsers || []);
+  const ownerName = ownerOptions.find((u) => u.id === ownerId)?.full_name || 'The assignee';
+
+  // Reset owner when visibility mode flips between dept-driven and group-driven
+  useEffect(() => {
+    setOwnerId('');
+  }, [isGroupVisibility, visibility]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (dueDate < today) throw new Error('Due date cannot be in the past');
       const vis = taskVisibility(visibility);
+      if (isGroupVisibility && !effectiveDeptId) {
+        throw new Error('Cannot derive a department for this owner');
+      }
       const { data, error } = await supabase.from('tasks').insert({
         title,
         description: description || null,
-        department_id: deptId,
+        department_id: effectiveDeptId,
         owner_id: ownerId,
         assigned_by: user!.id,
         priority,
@@ -1390,16 +1529,22 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
           <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1" /></div>
           <div>
             <Label>Department *</Label>
-            <Select value={deptId} onValueChange={setDeptId}>
-              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-            </Select>
+            {isGroupVisibility ? (
+              <div className="h-11 mt-1 flex items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                {derivedDeptName || 'Auto from owner'}
+              </div>
+            ) : (
+              <Select value={deptId} onValueChange={setDeptId}>
+                <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
           </div>
           <div>
             <Label>Owner *</Label>
             <Select value={ownerId} onValueChange={setOwnerId}>
-              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>{deptUsers?.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="h-11 mt-1"><SelectValue placeholder={isGroupVisibility ? 'Select group member' : 'Select'} /></SelectTrigger>
+              <SelectContent>{ownerOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1445,7 +1590,7 @@ function CreateTaskModal({ open, onOpenChange, myGroups }: { open: boolean; onOp
               </div>
             )}
           </div>
-          <Button onClick={() => createMutation.mutate()} disabled={!title || !deptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
+          <Button onClick={() => createMutation.mutate()} disabled={!title || !effectiveDeptId || !ownerId || !dueDate || createMutation.isPending} className="w-full h-12">
             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Create Task
           </Button>
         </div>
