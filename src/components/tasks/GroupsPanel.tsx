@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Plus, Loader2, Trash2, Pencil, ArrowLeft, Check, LogOut, X,
+  Plus, Loader2, Trash2, Pencil, ArrowLeft, Check, LogOut, X, Star,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
