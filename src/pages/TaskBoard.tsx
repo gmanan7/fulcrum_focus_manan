@@ -603,7 +603,7 @@ export default function TaskBoard() {
         <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="active" className="text-xs">Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="recent" className="text-xs">Recently Closed ({recentlyClosed?.length || 0})</TabsTrigger>
+            <TabsTrigger value="recent" className="text-xs">Recently Closed ({scopedRecentlyClosed.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="active" className="mt-3 space-y-2">
             {activeTasks.length === 0 ? (
@@ -615,10 +615,10 @@ export default function TaskBoard() {
             )}
           </TabsContent>
           <TabsContent value="recent" className="mt-3 space-y-2">
-            {!recentlyClosed?.length ? (
+            {!scopedRecentlyClosed.length ? (
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
-              recentlyClosed.map((task) => (
+              scopedRecentlyClosed.map((task) => (
                 <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
