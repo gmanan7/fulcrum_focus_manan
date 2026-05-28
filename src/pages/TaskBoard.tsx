@@ -878,24 +878,12 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
 
   const changeDueDateMutation = useMutation({
     mutationFn: async () => {
-      const prevDue = freshTask?.due_date || task.due_date;
-      await supabase.from('task_due_date_history').insert({
-        task_id: task.id,
-        previous_due_date: prevDue,
-        new_due_date: newDueDate,
-        reason: dueDateReason,
-        changed_by: user!.id,
+      const { error } = await supabase.rpc('update_task_due_date' as any, {
+        p_task_id: task.id,
+        p_new_due_date: newDueDate,
+        p_reason: dueDateReason || null,
       });
-      await supabase.from('tasks').update({ due_date: newDueDate, updated_at: new Date().toISOString() }).eq('id', task.id);
-      // Log to activity feed
-      await supabase.from('task_updates').insert({
-        task_id: task.id,
-        updated_by: user!.id,
-        update_type: 'due_date_change',
-        previous_due_date: prevDue,
-        new_due_date: newDueDate,
-        update_note: dueDateReason || null,
-      } as any);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: 'Due date changed' });
@@ -907,6 +895,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       setDueDateReason('');
       logAudit('tasks', task.id, 'UPDATE', { due_date: freshTask?.due_date || task.due_date }, { due_date: newDueDate });
     },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const addCommentMutation = useMutation({
