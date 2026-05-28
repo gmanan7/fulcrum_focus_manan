@@ -782,8 +782,9 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
   const [editDeptId, setEditDeptId] = useState('');
   const [editOwnerId, setEditOwnerId] = useState('');
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
-  const [editDueDate, setEditDueDate] = useState('');
-  const [editIsPrivate, setEditIsPrivate] = useState(false);
+  // Note: due date and is_private are NOT editable from Edit Task form.
+  // Due date is changed via the separate "Change Due Date" control (update_task_due_date RPC).
+
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // Fetch user's department membership + leader-of group memberships,
