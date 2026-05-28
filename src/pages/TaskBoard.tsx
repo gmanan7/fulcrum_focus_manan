@@ -326,9 +326,9 @@ export default function TaskBoard() {
     return result;
   };
 
-  const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
-  const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
-  const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
+  const activeTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled')), sortKey);
+  const completedTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status === 'completed')), sortKey);
+  const cancelledTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status === 'cancelled')), sortKey);
   const totalAfterFilters = activeTasks.length + completedTasks.length + cancelledTasks.length;
   const searchActive = debouncedSearch.trim().length > 0;
   const noSearchResults = searchActive && totalAfterFilters === 0;
