@@ -22,6 +22,8 @@ import {
   canManageGroupMembers,
   canDeleteGroup,
   canCreateGroup,
+  canManageLeaders,
+  sortMembersLeadersFirst,
 } from '@/lib/taskGroups';
 
 type Mode = 'list' | 'create' | { kind: 'detail'; groupId: string };
