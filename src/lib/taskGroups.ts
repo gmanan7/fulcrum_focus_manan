@@ -92,6 +92,11 @@ export function canManageGroupMembers(
     viewerRoles.includes('factory_manager')
   ) {
     return true;
+  }
+  if (viewerRoles.includes('department_head') && group.created_by === viewerId) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -130,11 +135,6 @@ export function sortMembersLeadersFirst<T extends LeaderSortMember>(members: T[]
     if (al !== bl) return bl - al;
     return name(a).localeCompare(name(b));
   });
-}
-  if (viewerRoles.includes('department_head') && group.created_by === viewerId) {
-    return true;
-  }
-  return false;
 }
 
 /**
