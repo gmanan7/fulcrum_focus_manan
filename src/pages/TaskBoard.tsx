@@ -47,6 +47,7 @@ import { taskVisibility, truncateGroupName, shouldWarnOwnerNotInGroup, canPickGr
 import { resolveTaskDepartmentId, type UserDeptRow } from '@/lib/taskOwnerResolution';
 import { GroupsPanel } from '@/components/tasks/GroupsPanel';
 import { searchMatches } from '@/lib/taskSearch';
+import { scopeTasksToMyBoard } from '@/lib/taskBoardScope';
 import { TaskExportModal } from '@/components/tasks/TaskExportModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
@@ -290,10 +291,17 @@ export default function TaskBoard() {
   const historyIds = carryoverHistory?.ids ?? new Set<string>();
   const pushCounts = carryoverHistory?.counts ?? new Map<string, number>();
 
-  const overdueCount = tasks?.filter(isTaskOverdue).length ?? 0;
-  const dueTodayCount = tasks?.filter(isTaskDueToday).length ?? 0;
-  const myTasksCount = filterMyTasksFn(tasks ?? [], user?.id).length;
-  const carryoverCount = (tasks ?? []).filter((t) => isCarryover(t, historyIds)).length;
+  // Main-board scoping — uniform for ALL roles incl. super_admin/factory_manager.
+  // Admin/WM use /admin/tasks for full visibility; the main /tasks board shows
+  // only tasks the viewer is involved in (public, owned, created, or in their groups).
+  const myGroupIdSetForScope = new Set((myGroups || []).map((g) => g.id));
+  const scopedTasks = scopeTasksToMyBoard(tasks, user?.id, myGroupIdSetForScope);
+  const scopedRecentlyClosed = scopeTasksToMyBoard(recentlyClosed, user?.id, myGroupIdSetForScope);
+
+  const overdueCount = scopedTasks.filter(isTaskOverdue).length;
+  const dueTodayCount = scopedTasks.filter(isTaskDueToday).length;
+  const myTasksCount = filterMyTasksFn(scopedTasks, user?.id).length;
+  const carryoverCount = scopedTasks.filter((t) => isCarryover(t, historyIds)).length;
 
   const applyChipFilters = (list: any[]) => {
     let result = list;
@@ -318,9 +326,9 @@ export default function TaskBoard() {
     return result;
   };
 
-  const activeTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status !== 'completed' && t.status !== 'cancelled') || []), sortKey);
-  const completedTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'completed') || []), sortKey);
-  const cancelledTasks = sortTasks(applyChipFilters(tasks?.filter((t) => t.status === 'cancelled') || []), sortKey);
+  const activeTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled')), sortKey);
+  const completedTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status === 'completed')), sortKey);
+  const cancelledTasks = sortTasks(applyChipFilters(scopedTasks.filter((t) => t.status === 'cancelled')), sortKey);
   const totalAfterFilters = activeTasks.length + completedTasks.length + cancelledTasks.length;
   const searchActive = debouncedSearch.trim().length > 0;
   const noSearchResults = searchActive && totalAfterFilters === 0;
@@ -595,7 +603,7 @@ export default function TaskBoard() {
         <Tabs value={activeListTab} onValueChange={(v) => setActiveListTab(v as any)}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="active" className="text-xs">Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="recent" className="text-xs">Recently Closed ({recentlyClosed?.length || 0})</TabsTrigger>
+            <TabsTrigger value="recent" className="text-xs">Recently Closed ({scopedRecentlyClosed.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="active" className="mt-3 space-y-2">
             {activeTasks.length === 0 ? (
@@ -607,10 +615,10 @@ export default function TaskBoard() {
             )}
           </TabsContent>
           <TabsContent value="recent" className="mt-3 space-y-2">
-            {!recentlyClosed?.length ? (
+            {!scopedRecentlyClosed.length ? (
               <p className="text-sm text-muted-foreground text-center py-8">No recently closed tasks.</p>
             ) : (
-              recentlyClosed.map((task) => (
+              scopedRecentlyClosed.map((task) => (
                 <TaskListCard key={task.id} task={task} historyIds={historyIds} pushCounts={pushCounts} groupMeta={task.task_group_id ? groupMetaById.get(task.task_group_id) : undefined} onClick={() => setSelectedTask(task)} readOnly />
               ))
             )}
