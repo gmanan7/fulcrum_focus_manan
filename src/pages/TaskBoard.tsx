@@ -1135,7 +1135,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         <Switch id="edit-private-toggle" checked={editIsPrivate} onCheckedChange={setEditIsPrivate} />
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !editDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
+        <Button onClick={() => editTaskMutation.mutate()} disabled={!editTitle || !effectiveEditDeptId || !editOwnerId || !editDueDate || editTaskMutation.isPending} className="flex-1 h-11">
           {editTaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
         </Button>
         <Button variant="outline" onClick={() => setEditMode(false)} className="h-11">Cancel</Button>
