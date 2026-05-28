@@ -1067,7 +1067,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
         <div className="flex items-center justify-between mt-1">
           <h2 className="text-base font-bold">{t.title}</h2>
-          {canEdit && !isTerminal && (
+          {canEditFields(t as any, permCtx) && !isTerminal && (
             <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={enterEditMode}>
               Edit Task
             </Button>
@@ -1087,7 +1087,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
         </div>
       </div>
 
-      {!isTerminal && (
+      {!isTerminal && canChangeDueDateFn(t as any, permCtx) && (
         <div>
           <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowDueDateChange(!showDueDateChange)}>Change Due Date</Button>
           {showDueDateChange && (
@@ -1108,50 +1108,19 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       )}
 
       {!isTerminal && (() => {
-        const canUpdate = !!user && canUpdateTaskAnyRole(t, user.id, roles as string[]);
+        const canStatus = canChangeStatusFn(t as any, permCtx);
+        const canClose = canCloseTask(t as any, permCtx);
         const onSelectStatus = (newStatus: TaskStatus) => {
-          if (!canUpdate || newStatus === t.status) return;
+          if (newStatus === t.status) return;
           if (newStatus === 'completed' || newStatus === 'cancelled') {
+            if (!canClose) return;
             setCompletingAs(newStatus);
             setShowCompleteDialog(true);
             return;
           }
+          if (!canStatus) return;
           changeStatusMutation.mutate({ newStatus });
         };
-        const Buttons = (
-          <div className="flex flex-wrap gap-2">
-            {t.status === 'open' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
-                  <Play className="h-3.5 w-3.5" /> Start Work
-                </Button>
-                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
-                  <XCircle className="h-3.5 w-3.5" /> Cancel
-                </Button>
-              </>
-            )}
-            {t.status === 'in_progress' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
-                  <Pause className="h-3.5 w-3.5" /> Mark Blocked
-                </Button>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
-                </Button>
-              </>
-            )}
-            {t.status === 'blocked' && (
-              <>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
-                  <Play className="h-3.5 w-3.5" /> Resume
-                </Button>
-                <Button size="sm" disabled={!canUpdate} className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete
-                </Button>
-              </>
-            )}
-          </div>
-        );
         return (
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h3>
@@ -1159,15 +1128,15 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
             {/* Status dropdown — allows changing in any direction */}
             <div className="space-y-1">
               <Label className="text-xs">Change Status</Label>
-              {canUpdate ? (
+              {canStatus ? (
                 <Select value={t.status} onValueChange={(v) => onSelectStatus(v as TaskStatus)}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="blocked">Blocked</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="completed" disabled={!canClose}>Completed</SelectItem>
+                    <SelectItem value="cancelled" disabled={!canClose}>Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -1180,22 +1149,59 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
                         </Select>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
+                    <TooltipContent>{TOOLTIP_STATUS}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
             </div>
 
-            {/* Quick action buttons — disabled & tooltipped if not permitted */}
-            {canUpdate ? Buttons : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="opacity-60 cursor-not-allowed">{Buttons}</div>
-                  </TooltipTrigger>
-                  <TooltipContent>{TASK_UPDATE_FORBIDDEN_TOOLTIP}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {/* Quick action buttons */}
+            <div className="flex flex-wrap gap-2">
+              {t.status === 'open' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                      <Play className="h-3.5 w-3.5" /> Start Work
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => { setCompletingAs('cancelled'); setShowCompleteDialog(true); }}>
+                      <XCircle className="h-3.5 w-3.5" /> Cancel
+                    </Button>
+                  )}
+                </>
+              )}
+              {t.status === 'in_progress' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" variant="outline" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'blocked' })}>
+                      <Pause className="h-3.5 w-3.5" /> Mark Blocked
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                    </Button>
+                  )}
+                </>
+              )}
+              {t.status === 'blocked' && (
+                <>
+                  {canStatus && (
+                    <Button size="sm" className="h-10 gap-1" onClick={() => changeStatusMutation.mutate({ newStatus: 'in_progress' })}>
+                      <Play className="h-3.5 w-3.5" /> Resume
+                    </Button>
+                  )}
+                  {canClose && (
+                    <Button size="sm" className="h-10 gap-1 bg-rag-green hover:bg-rag-green/90 text-white" onClick={() => { setCompletingAs('completed'); setShowCompleteDialog(true); }}>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+            {!canClose && canStatus && (
+              <p className="text-xs text-muted-foreground italic">{TOOLTIP_CLOSE}</p>
             )}
           </div>
         );
