@@ -361,6 +361,26 @@ function GroupDetail({
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const setLeader = useMutation({
+    mutationFn: async ({ memberUserId, isLeader }: { memberUserId: string; isLeader: boolean }) => {
+      const { error } = await supabase
+        .from('task_group_members' as any)
+        .update({ is_leader: isLeader } as any)
+        .eq('group_id', groupId)
+        .eq('user_id', memberUserId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: vars.isLeader ? 'Marked as leader' : 'Leader removed' });
+      refetch();
+    },
+    onError: (e: Error) => toast({
+      title: 'Could not update leader',
+      description: `${e.message}. An RLS UPDATE policy on task_group_members may be required.`,
+      variant: 'destructive',
+    }),
+  });
+
   const leave = useMutation({
     mutationFn: async () => {
       const myRow = (members || []).find((m: any) => m.user_id === userId);
