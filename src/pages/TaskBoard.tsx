@@ -1047,9 +1047,8 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     setEditDeptId(t.department_id);
     setEditOwnerId(t.owner_id);
     setEditPriority(t.priority);
-    setEditDueDate(t.due_date);
-    setEditIsPrivate(!!(t as any).is_private);
     setEditMode(true);
+
   };
 
   const t = freshTask || task;
