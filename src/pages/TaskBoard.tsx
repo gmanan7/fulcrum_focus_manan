@@ -973,14 +973,33 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const editDerivedDeptId = editIsGroupTask
+    ? resolveTaskDepartmentId({
+        ownerId: editOwnerId,
+        ownerDeptRows: editGroupMemberDepts ?? [],
+        creatorId: user?.id ?? null,
+        creatorDeptRows: editCreatorDepts ?? [],
+      })
+    : null;
+  const effectiveEditDeptId = editIsGroupTask ? (editDerivedDeptId ?? '') : editDeptId;
+  const editOwnerOptions = editIsGroupTask
+    ? (editGroupMemberProfiles || [])
+    : (editDeptUsers || []);
+  const editDerivedDeptName = editIsGroupTask && editDerivedDeptId
+    ? (editDepartments?.find((d) => d.id === editDerivedDeptId)?.name ?? '—')
+    : '';
+
   const editTaskMutation = useMutation({
     mutationFn: async () => {
       if (editDueDate < today) throw new Error('Due date cannot be in the past');
+      if (editIsGroupTask && !effectiveEditDeptId) {
+        throw new Error('Cannot derive a department for this owner');
+      }
       const oldValues = { title: t.title, description: t.description, department_id: t.department_id, owner_id: t.owner_id, priority: t.priority, due_date: t.due_date, is_private: (t as any).is_private };
       const { error } = await supabase.from('tasks').update({
         title: editTitle,
         description: editDescription || null,
-        department_id: editDeptId,
+        department_id: effectiveEditDeptId,
         owner_id: editOwnerId,
         priority: editPriority,
         due_date: editDueDate,
