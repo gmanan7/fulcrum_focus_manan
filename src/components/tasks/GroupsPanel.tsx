@@ -322,6 +322,7 @@ function GroupDetail({
 
   const canManage = group ? canManageGroupMembers(group, userId, roles) : false;
   const canDelete = group ? canDeleteGroup(userId, roles) : false;
+  const canLead = group ? canManageLeaders(group, userId, roles) : false;
   const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ id: string; name: string } | null>(null);
   const isMember = !!userId; // membership lookup happens via RLS on member rows
 
@@ -330,16 +331,17 @@ function GroupDetail({
     queryFn: async () => {
       const { data: rows } = await supabase
         .from('task_group_members' as any)
-        .select('id, user_id, added_by, created_at')
+        .select('id, user_id, added_by, created_at, is_leader')
         .eq('group_id', groupId);
-      const ids = (rows || []).map((r: any) => r.user_id);
+      const ids = ((rows as any[]) || []).map((r: any) => r.user_id);
       if (ids.length === 0) return [];
       const { data: profs } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', ids);
       const profMap = new Map((profs || []).map((p) => [p.id, p]));
-      return (rows || []).map((r: any) => ({ ...r, profile: profMap.get(r.user_id) }));
+      const enriched = ((rows as any[]) || []).map((r: any) => ({ ...r, profile: profMap.get(r.user_id) }));
+      return sortMembersLeadersFirst(enriched as any);
     },
   });
 
