@@ -834,6 +834,54 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
     enabled: editMode,
   });
 
+  const editTaskGroupId: string | null = (freshTask as any)?.task_group_id ?? (task as any)?.task_group_id ?? null;
+  const editIsGroupTask = !!editTaskGroupId;
+
+  const { data: editGroupMemberProfiles } = useQuery({
+    queryKey: ['edit-task-group-member-profiles', editTaskGroupId],
+    queryFn: async () => {
+      const { data: rows } = await supabase
+        .from('task_group_members')
+        .select('user_id')
+        .eq('group_id', editTaskGroupId as string);
+      const ids = (rows || []).map((r) => r.user_id as string);
+      if (!ids.length) return [] as { id: string; full_name: string }[];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+        .eq('is_active', true);
+      return (data || []) as { id: string; full_name: string }[];
+    },
+    enabled: editMode && editIsGroupTask,
+  });
+
+  const editGroupMemberIdList = (editGroupMemberProfiles || []).map((p) => p.id);
+  const { data: editGroupMemberDepts } = useQuery({
+    queryKey: ['edit-task-group-member-depts', editGroupMemberIdList.sort().join(',')],
+    queryFn: async () => {
+      if (!editGroupMemberIdList.length) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .in('user_id', editGroupMemberIdList);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: editMode && editIsGroupTask && editGroupMemberIdList.length > 0,
+  });
+  const { data: editCreatorDepts } = useQuery({
+    queryKey: ['edit-task-creator-depts', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as UserDeptRow[];
+      const { data } = await supabase
+        .from('user_departments')
+        .select('user_id, department_id, is_primary')
+        .eq('user_id', user.id);
+      return (data || []) as UserDeptRow[];
+    },
+    enabled: editMode && editIsGroupTask && !!user?.id,
+  });
+
   const { data: editDeptUsers } = useQuery({
     queryKey: ['dept-users-edit-task', editDeptId],
     queryFn: async () => {
@@ -842,7 +890,7 @@ function TaskDetailDrawer({ task, open, onOpenChange }: { task: any; open: boole
       const { data } = await supabase.from('profiles').select('id, full_name').in('id', uds.map((u) => u.user_id)).eq('is_active', true);
       return data || [];
     },
-    enabled: !!editDeptId && editMode,
+    enabled: !!editDeptId && editMode && !editIsGroupTask,
   });
 
   const { data: statusHistory } = useQuery({
