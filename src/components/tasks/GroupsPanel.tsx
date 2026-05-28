@@ -470,21 +470,44 @@ function GroupDetail({
         </div>
         <div className="space-y-1">
           {(members || []).map((m: any) => (
-            <div key={m.id} className="flex items-center justify-between p-2 rounded border text-sm">
-              <span className="truncate">{m.profile?.full_name ?? m.user_id}</span>
-              {canManage && m.user_id !== group.created_by && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              )}
-              {m.user_id === group.created_by && (
-                <Badge variant="secondary" className="text-[10px]">creator</Badge>
-              )}
+            <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded border text-sm">
+              <span className="truncate flex-1">{m.profile?.full_name ?? m.user_id}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                {m.is_leader && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] gap-1 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                  >
+                    <Star className="h-3 w-3 fill-current" /> Leader
+                  </Badge>
+                )}
+                {m.user_id === group.created_by && (
+                  <Badge variant="secondary" className="text-[10px]">creator</Badge>
+                )}
+                {canLead && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title={m.is_leader ? 'Remove leader' : 'Make leader'}
+                    aria-label={m.is_leader ? 'Remove leader' : 'Make leader'}
+                    disabled={setLeader.isPending}
+                    onClick={() => setLeader.mutate({ memberUserId: m.user_id, isLeader: !m.is_leader })}
+                  >
+                    <Star className={cn('h-3.5 w-3.5', m.is_leader ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground')} />
+                  </Button>
+                )}
+                {canManage && m.user_id !== group.created_by && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => setConfirmRemoveMember({ id: m.id, name: m.profile?.full_name ?? 'this member' })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
