@@ -61,6 +61,20 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
     },
   });
 
+  const { data: factory } = useQuery({
+    queryKey: ['factory-singleton'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('factory')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
 
   // Load existing chart when editing
   useEffect(() => {
