@@ -28,7 +28,7 @@ export default function AdminCharts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_charts')
-        .select('*, creator:created_by(full_name), kpi_chart_kpis(kpi_id, kpi:kpi_id(name))')
+        .select('*, creator:created_by(full_name), department:department_id(name), kpi_chart_kpis(kpi_id, kpi:kpi_id(name))')
         .order('display_order');
       if (error) throw error;
       return data || [];
@@ -77,6 +77,7 @@ export default function AdminCharts() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>KPIs</TableHead>
@@ -93,6 +94,9 @@ export default function AdminCharts() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.department?.name || <span className="text-muted-foreground italic">Unassigned</span>}
+                    </TableCell>
                     <TableCell>{c.size_width} × {c.size_height}</TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{c.chart_type}</Badge></TableCell>
                     <TableCell>

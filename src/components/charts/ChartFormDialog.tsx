@@ -47,6 +47,20 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
     },
   });
 
+  const { data: departments } = useQuery({
+    queryKey: ['chart-form-departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('department')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
   // Load existing chart when editing
   useEffect(() => {
     if (!open) return;
@@ -72,6 +86,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
           size_height: chart.size_height as 1 | 2 | 3,
           chart_type: chart.chart_type as ChartType,
           display_order: chart.display_order,
+          department_id: (chart as any).department_id ?? null,
           kpis: (links || []).map((l: any) => ({
             kpi_id: l.kpi_id,
             render_as: l.render_as,
@@ -126,6 +141,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         size_height: form.size_height,
         chart_type: form.chart_type,
         display_order: form.display_order,
+        department_id: form.department_id,
       };
       if (isEdit && id) {
         const { error } = await supabase.from('kpi_charts').update(chartPayload).eq('id', id);
@@ -176,6 +192,23 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
             <Label>Name *</Label>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="h-10" />
           </div>
+
+          <div className="space-y-2">
+            <Label>Department *</Label>
+            <Select
+              value={form.department_id ?? ''}
+              onValueChange={(v) => setForm((f) => ({ ...f, department_id: v }))}
+            >
+              <SelectTrigger className="h-10"><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent>
+                {(departments || []).map((d: any) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Chart will appear in this department's section on KPI Trends.</p>
+          </div>
+
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -328,7 +361,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !validateChartForm(form).ok}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? 'Save Changes' : 'Create Chart'}
           </Button>

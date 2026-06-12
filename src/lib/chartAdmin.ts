@@ -28,6 +28,7 @@ export interface ChartFormState {
   size_height: 1 | 2 | 3;
   chart_type: ChartType;
   display_order: number;
+  department_id: string | null;
   kpis: ChartKpiRow[];
 }
 
@@ -42,6 +43,7 @@ export interface ValidationResult {
 
 export function validateChartForm(form: ChartFormState): ValidationResult {
   if (!form.name.trim()) return { ok: false, error: 'Name is required' };
+  if (!form.department_id) return { ok: false, error: 'Department is required' };
   if (form.kpis.length < 1) return { ok: false, error: 'At least one KPI is required' };
   if (form.kpis.some((k) => !k.kpi_id)) return { ok: false, error: 'All KPI rows must have a KPI selected' };
   const ids = form.kpis.map((k) => k.kpi_id);
@@ -57,6 +59,7 @@ export function emptyChartForm(displayOrder = 0): ChartFormState {
     size_height: 1,
     chart_type: 'composed',
     display_order: displayOrder,
+    department_id: null,
     kpis: [],
   };
 }
