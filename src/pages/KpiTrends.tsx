@@ -17,10 +17,12 @@ import { KpiExportModal } from '@/components/KpiExportModal';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
+import { computeKpiStatus } from '@/lib/composedChart';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { calculateMtd } from '@/lib/mtdUtils';
 import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
+import { ComposedKpiChartCard } from '@/components/charts/ComposedKpiChartCard';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
