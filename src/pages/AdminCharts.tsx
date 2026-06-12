@@ -77,6 +77,7 @@ export default function AdminCharts() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>KPIs</TableHead>
