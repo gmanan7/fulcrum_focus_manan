@@ -162,10 +162,12 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         const { error } = await supabase.from('kpi_charts').update(chartPayload).eq('id', id);
         if (error) throw error;
       } else {
+        if (!factory?.id) throw new Error('Factory not loaded');
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error('User not authenticated');
         const { data, error } = await supabase
           .from('kpi_charts')
-          .insert({ ...chartPayload, created_by: user?.id })
+          .insert(buildChartInsertPayload(form, factory.id, user.id))
           .select('id')
           .single();
         if (error) throw error;
