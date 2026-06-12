@@ -361,7 +361,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !validateChartForm(form).ok}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? 'Save Changes' : 'Create Chart'}
           </Button>
