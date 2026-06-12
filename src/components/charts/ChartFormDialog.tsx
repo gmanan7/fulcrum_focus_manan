@@ -13,6 +13,7 @@ import {
   CHART_COLOR_PRESETS,
   emptyChartForm,
   validateChartForm,
+  buildChartInsertPayload,
   type ChartFormState,
   type ChartKpiRow,
   type ChartType,
