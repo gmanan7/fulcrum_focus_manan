@@ -85,11 +85,29 @@ export default function KpiTrends() {
     },
   });
 
-  // All active KPIs
+  // All active KPIs — exclude those hidden from Trends (still appear inside composed charts via separate query)
   const { data: allKpis } = useQuery({
     queryKey: ['trends-all-kpis'],
     queryFn: async () => {
-      const { data } = await supabase.from('kpi_master').select('*').eq('is_active', true).order('display_order');
+      const { data } = await supabase
+        .from('kpi_master')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_hidden_from_trends', false)
+        .order('display_order');
+      return data || [];
+    },
+  });
+
+  // Composed multi-KPI charts (with their KPI links + eager KPI metadata)
+  const { data: composedCharts } = useQuery({
+    queryKey: ['trends-composed-charts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_charts')
+        .select('*, kpi_chart_kpis(*, kpi:kpi_id(id, name, unit, direction, green_threshold, amber_threshold, target_value, department_id))')
+        .order('display_order');
+      if (error) throw error;
       return data || [];
     },
   });
