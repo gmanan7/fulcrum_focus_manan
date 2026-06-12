@@ -13,6 +13,7 @@ import {
   CHART_COLOR_PRESETS,
   emptyChartForm,
   validateChartForm,
+  buildChartInsertPayload,
   type ChartFormState,
   type ChartKpiRow,
   type ChartType,
@@ -57,6 +58,20 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         .order('display_order');
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  const { data: factory } = useQuery({
+    queryKey: ['factory-singleton'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('factory')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -147,10 +162,12 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         const { error } = await supabase.from('kpi_charts').update(chartPayload).eq('id', id);
         if (error) throw error;
       } else {
+        if (!factory?.id) throw new Error('Factory not loaded');
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error('User not authenticated');
         const { data, error } = await supabase
           .from('kpi_charts')
-          .insert({ ...chartPayload, created_by: user?.id })
+          .insert(buildChartInsertPayload(form, factory.id, user.id))
           .select('id')
           .single();
         if (error) throw error;
@@ -361,7 +378,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !validateChartForm(form).ok}>
+          <Button onClick={handleSave} disabled={saving || !validateChartForm(form).ok || (!isEdit && !factory?.id)}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? 'Save Changes' : 'Create Chart'}
           </Button>

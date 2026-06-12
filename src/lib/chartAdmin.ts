@@ -63,3 +63,20 @@ export function emptyChartForm(displayOrder = 0): ChartFormState {
     kpis: [],
   };
 }
+
+export function buildChartInsertPayload(
+  form: ChartFormState,
+  factoryId: string,
+  userId: string
+): any {
+  return {
+    name: form.name.trim(),
+    factory_id: factoryId,
+    department_id: form.department_id,
+    size_width: form.size_width,
+    size_height: form.size_height,
+    chart_type: form.chart_type,
+    display_order: form.display_order,
+    created_by: userId,
+  };
+}
