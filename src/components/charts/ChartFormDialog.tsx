@@ -193,6 +193,23 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="h-10" />
           </div>
 
+          <div className="space-y-2">
+            <Label>Department *</Label>
+            <Select
+              value={form.department_id ?? ''}
+              onValueChange={(v) => setForm((f) => ({ ...f, department_id: v }))}
+            >
+              <SelectTrigger className="h-10"><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent>
+                {(departments || []).map((d: any) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Chart will appear in this department's section on KPI Trends.</p>
+          </div>
+
+
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Width</Label>
