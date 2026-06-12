@@ -478,8 +478,8 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
             {kpi.unit && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {latestStatus ? (
-              <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatus)}>{latestStatus}</Badge>
+            {latestStatusForBadge ? (
+              <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatusForBadge)}>{latestStatusForBadge}</Badge>
             ) : (
               <Badge className="text-[10px] rounded-full px-2 py-0.5" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)' }}>No data</Badge>
             )}
