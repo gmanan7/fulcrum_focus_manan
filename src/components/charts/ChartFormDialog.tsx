@@ -86,6 +86,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
           size_height: chart.size_height as 1 | 2 | 3,
           chart_type: chart.chart_type as ChartType,
           display_order: chart.display_order,
+          department_id: (chart as any).department_id ?? null,
           kpis: (links || []).map((l: any) => ({
             kpi_id: l.kpi_id,
             render_as: l.render_as,
