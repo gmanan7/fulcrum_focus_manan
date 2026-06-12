@@ -47,6 +47,20 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
     },
   });
 
+  const { data: departments } = useQuery({
+    queryKey: ['chart-form-departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('department')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
   // Load existing chart when editing
   useEffect(() => {
     if (!open) return;
