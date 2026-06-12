@@ -54,7 +54,6 @@ describe('validateChartForm', () => {
     }));
     expect(r.ok).toBe(false);
   });
-});
 
   it('fails without department', () => {
     const r = validateChartForm(baseForm({ department_id: null }));
