@@ -295,7 +295,7 @@ function ChangeStageModal({
     mutationFn: async () => {
       if (!next) throw new Error('Pick a stage');
       const check = validateStageChange({ current: job.stage, next, note, feedbackNote: feedback });
-      if (!check.ok) throw new Error(check.error);
+      if (!check.ok) throw new Error((check as { ok: false; error: string }).error);
       const { error } = await supabase.rpc('update_pd_job_stage', {
         p_job_id: job.id,
         p_new_stage: next as any,
