@@ -120,3 +120,31 @@ describe('KPI Trends interleave logic', () => {
     expect(grouped['d2']).toBeUndefined();
   });
 });
+
+describe('buildChartInsertPayload', () => {
+  it('includes factory_id and created_by in the insert payload', () => {
+    const form = baseForm({
+      name: 'Test Chart',
+      department_id: 'dept-1',
+      size_width: 2,
+      size_height: 1,
+      chart_type: 'line',
+      display_order: 3,
+    });
+    const payload = buildChartInsertPayload(form, 'factory-1', 'user-1');
+    expect(payload.factory_id).toBe('factory-1');
+    expect(payload.created_by).toBe('user-1');
+    expect(payload.name).toBe('Test Chart');
+    expect(payload.department_id).toBe('dept-1');
+    expect(payload.size_width).toBe(2);
+    expect(payload.size_height).toBe(1);
+    expect(payload.chart_type).toBe('line');
+    expect(payload.display_order).toBe(3);
+  });
+
+  it('trims the chart name in the payload', () => {
+    const form = baseForm({ name: '  My Chart  ' });
+    const payload = buildChartInsertPayload(form, 'factory-1', 'user-1');
+    expect(payload.name).toBe('My Chart');
+  });
+});
