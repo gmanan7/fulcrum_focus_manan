@@ -68,7 +68,7 @@ export function buildChartInsertPayload(
   form: ChartFormState,
   factoryId: string,
   userId: string
-): Record<string, any> {
+): any {
   return {
     name: form.name.trim(),
     factory_id: factoryId,
