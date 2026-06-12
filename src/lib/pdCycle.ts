@@ -23,10 +23,8 @@ export const PD_STAGE_LABEL: Record<PDStage, string> = {
   abandoned: 'Abandoned',
 };
 
-/**
- * Tailwind classes for pill rendering. Uses semantic tokens where they exist
- * and bg-*/text-* utilities elsewhere so it stays consistent across themes.
- */
+// Tailwind classes for stage pills. Uses semantic tokens where they exist
+// so colours stay consistent across the three project themes.
 export const PD_STAGE_PILL: Record<PDStage, string> = {
   upcoming: 'bg-primary/15 text-primary',
   in_process: 'bg-rag-amber/20 text-warning',
