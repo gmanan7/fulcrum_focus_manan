@@ -167,6 +167,7 @@ export type Database = {
           chart_type: string
           created_at: string
           created_by: string | null
+          department_id: string | null
           display_order: number
           factory_id: string | null
           id: string
@@ -179,6 +180,7 @@ export type Database = {
           chart_type?: string
           created_at?: string
           created_by?: string | null
+          department_id?: string | null
           display_order?: number
           factory_id?: string | null
           id?: string
@@ -191,6 +193,7 @@ export type Database = {
           chart_type?: string
           created_at?: string
           created_by?: string | null
+          department_id?: string | null
           display_order?: number
           factory_id?: string | null
           id?: string
@@ -205,6 +208,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_charts_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "department"
             referencedColumns: ["id"]
           },
           {
