@@ -27,6 +27,7 @@ import Compliance from "@/pages/Compliance";
 import Planner from "@/pages/Planner";
 import MyView from "@/pages/MyView";
 import PmSchedule from "@/pages/PmSchedule";
+import PDCycle from "@/pages/PDCycle";
 import Index from "@/pages/Index";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/meetings/templates" element={<MeetingTemplates />} />
               <Route path="/meetings/decisions" element={<DecisionLog />} />
               <Route path="/tasks" element={<TaskBoard />} />
+              <Route path="/pd-cycle" element={<PDCycle />} />
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/departments" element={<AdminDepartments />} />
