@@ -141,6 +141,7 @@ export function ChartFormDialog({ open, onClose, onSaved, chartId, nextDisplayOr
         size_height: form.size_height,
         chart_type: form.chart_type,
         display_order: form.display_order,
+        department_id: form.department_id,
       };
       if (isEdit && id) {
         const { error } = await supabase.from('kpi_charts').update(chartPayload).eq('id', id);
