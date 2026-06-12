@@ -331,6 +331,27 @@ export default function KpiTrends() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Multi-KPI Composed Charts */}
+          {visibleCharts.length > 0 && (
+            <div>
+              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                Multi-KPI Charts
+              </h2>
+              <div
+                className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-min"
+              >
+                {visibleCharts.map((c: any) => (
+                  <ComposedKpiChartCard
+                    key={c.id}
+                    chart={c}
+                    entriesByKpi={entriesByKpi as any}
+                    columns={columns}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {grouped.map(({ dept, kpis }) => {
             const numericKpis = kpis.filter((k) => k.kpi_type === 'numeric');
             const projectKpis = kpis.filter((k) => k.kpi_type === 'project_tracker');
