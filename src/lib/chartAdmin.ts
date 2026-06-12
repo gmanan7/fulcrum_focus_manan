@@ -43,8 +43,8 @@ export interface ValidationResult {
 export function validateChartForm(form: ChartFormState): ValidationResult {
   if (!form.name.trim()) return { ok: false, error: 'Name is required' };
   if (form.kpis.length < 1) return { ok: false, error: 'At least one KPI is required' };
-  const ids = form.kpis.map((k) => k.kpi_id).filter(Boolean);
-  if (ids.some((id) => !id)) return { ok: false, error: 'All KPI rows must have a KPI selected' };
+  if (form.kpis.some((k) => !k.kpi_id)) return { ok: false, error: 'All KPI rows must have a KPI selected' };
+  const ids = form.kpis.map((k) => k.kpi_id);
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
   if (dupes.length > 0) return { ok: false, error: 'The same KPI cannot appear twice' };
   return { ok: true };
