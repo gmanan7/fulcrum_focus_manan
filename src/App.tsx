@@ -28,6 +28,7 @@ import Planner from "@/pages/Planner";
 import MyView from "@/pages/MyView";
 import PmSchedule from "@/pages/PmSchedule";
 import PDCycle from "@/pages/PDCycle";
+import AdminCharts from "@/pages/AdminCharts";
 import Index from "@/pages/Index";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/admin/audit" element={<AdminAudit />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/admin/tasks" element={<AdminTaskOverview />} />
+              <Route path="/admin/charts" element={<AdminCharts />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />
