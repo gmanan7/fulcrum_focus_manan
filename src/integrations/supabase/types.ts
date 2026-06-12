@@ -120,6 +120,102 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_chart_kpis: {
+        Row: {
+          axis: string
+          chart_id: string
+          color: string | null
+          display_order: number
+          kpi_id: string
+          render_as: string
+        }
+        Insert: {
+          axis?: string
+          chart_id: string
+          color?: string | null
+          display_order?: number
+          kpi_id: string
+          render_as?: string
+        }
+        Update: {
+          axis?: string
+          chart_id?: string
+          color?: string | null
+          display_order?: number
+          kpi_id?: string
+          render_as?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_chart_kpis_chart_id_fkey"
+            columns: ["chart_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_charts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_chart_kpis_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_master"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_charts: {
+        Row: {
+          chart_type: string
+          created_at: string
+          created_by: string | null
+          display_order: number
+          factory_id: string | null
+          id: string
+          name: string
+          size_height: number
+          size_width: number
+          updated_at: string
+        }
+        Insert: {
+          chart_type?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          factory_id?: string | null
+          id?: string
+          name: string
+          size_height?: number
+          size_width?: number
+          updated_at?: string
+        }
+        Update: {
+          chart_type?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          factory_id?: string | null
+          id?: string
+          name?: string
+          size_height?: number
+          size_width?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_charts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_charts_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_entries: {
         Row: {
           actual_value: number | null
@@ -196,6 +292,7 @@ export type Database = {
           green_threshold: number | null
           id: string
           is_active: boolean
+          is_hidden_from_trends: boolean
           kpi_type: Database["public"]["Enums"]["kpi_type"]
           mtd_aggregation: Database["public"]["Enums"]["mtd_aggregation_type"]
           name: string
@@ -213,6 +310,7 @@ export type Database = {
           green_threshold?: number | null
           id?: string
           is_active?: boolean
+          is_hidden_from_trends?: boolean
           kpi_type?: Database["public"]["Enums"]["kpi_type"]
           mtd_aggregation?: Database["public"]["Enums"]["mtd_aggregation_type"]
           name: string
@@ -230,6 +328,7 @@ export type Database = {
           green_threshold?: number | null
           id?: string
           is_active?: boolean
+          is_hidden_from_trends?: boolean
           kpi_type?: Database["public"]["Enums"]["kpi_type"]
           mtd_aggregation?: Database["public"]["Enums"]["mtd_aggregation_type"]
           name?: string
