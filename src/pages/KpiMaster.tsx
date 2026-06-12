@@ -286,6 +286,15 @@ export default function KpiMaster() {
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const toggleHiddenMutation = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await supabase.from('kpi_master').update({ is_hidden_from_trends: value }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kpi-master'] }),
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
   const openEdit = (kpi: any) => {
     setEditKpi({
       id: kpi.id,
@@ -344,6 +353,15 @@ export default function KpiMaster() {
                   {kpi.target_value != null && <span>· Target: {formatIndianNumber(kpi.target_value)}</span>}
                   <span>· {FREQ_LABELS[kpi.frequency as KpiFrequency]}</span>
                 </div>
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Switch
+                      checked={!!kpi.is_hidden_from_trends}
+                      onCheckedChange={(v) => toggleHiddenMutation.mutate({ id: kpi.id, value: v })}
+                    />
+                    Hidden from Trends
+                  </label>
+                </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="h-9 gap-1" onClick={() => openEdit(kpi)}><Pencil className="h-3 w-3" /> Edit</Button>
                   <Button variant="outline" size="sm" className="h-9 gap-1 text-destructive" onClick={() => deleteMutation.mutate(kpi.id)}><Trash2 className="h-3 w-3" /> Delete</Button>
@@ -365,6 +383,7 @@ export default function KpiMaster() {
                 <TableHead>Target</TableHead>
                 <TableHead>Frequency</TableHead>
                 <TableHead>Active</TableHead>
+                <TableHead>Hidden from Trends</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -378,6 +397,12 @@ export default function KpiMaster() {
                   <TableCell>{formatIndianNumber(kpi.target_value)}</TableCell>
                   <TableCell>{FREQ_LABELS[kpi.frequency as KpiFrequency]}</TableCell>
                   <TableCell><Badge variant={kpi.is_active ? 'default' : 'outline'}>{kpi.is_active ? 'Yes' : 'No'}</Badge></TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={!!kpi.is_hidden_from_trends}
+                      onCheckedChange={(v) => toggleHiddenMutation.mutate({ id: kpi.id, value: v })}
+                    />
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(kpi)}><Pencil className="h-4 w-4" /></Button>
@@ -386,7 +411,7 @@ export default function KpiMaster() {
                   </TableCell>
                 </TableRow>
               ))}
-              {kpis?.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No KPIs found</TableCell></TableRow>}
+              {kpis?.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No KPIs found</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
