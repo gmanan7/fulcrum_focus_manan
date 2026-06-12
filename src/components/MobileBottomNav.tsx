@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, BarChart3, BookCheck, ListTodo, MoreHorizontal,
   Settings2, ShieldCheck, Users, Building2, ScrollText, TrendingUp, CalendarDays,
-  ClipboardList, LogOut, Sun, Moon, Sparkles, BarChart2,
+  ClipboardList, LogOut, Sun, Moon, Sparkles, BarChart2, Lightbulb,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, type Theme } from '@/hooks/useTheme';
@@ -24,6 +24,7 @@ const mainItems = [
 
 const moreItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: null as string[] | null, requireEng: false },
+  { label: 'PD Cycle', icon: Lightbulb, path: '/pd-cycle', roles: null as string[] | null, requireEng: false },
   { label: 'PM Schedule', icon: ClipboardList, path: '/pm-schedule', roles: null as string[] | null, requireEng: true },
   { label: 'Meetings', icon: CalendarDays, path: '/meetings', roles: null as string[] | null, requireEng: false },
   { label: 'Decision Log', icon: ClipboardList, path: '/meetings/decisions', roles: ['super_admin', 'factory_manager'], requireEng: false },

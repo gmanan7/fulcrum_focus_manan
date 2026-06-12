@@ -662,6 +662,172 @@ export type Database = {
           },
         ]
       }
+      pd_job_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          job_id: string
+          stage_at_comment: Database["public"]["Enums"]["pd_stage"] | null
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          job_id: string
+          stage_at_comment?: Database["public"]["Enums"]["pd_stage"] | null
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          stage_at_comment?: Database["public"]["Enums"]["pd_stage"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pd_job_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pd_job_comments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "pd_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pd_jobs: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          factory_id: string
+          feedback_note: string | null
+          id: string
+          job_number: number
+          previous_job_id: string | null
+          product: string | null
+          respawn_reason: string | null
+          stage: Database["public"]["Enums"]["pd_stage"]
+          substrate: string | null
+          target_dispatch_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          factory_id: string
+          feedback_note?: string | null
+          id?: string
+          job_number: number
+          previous_job_id?: string | null
+          product?: string | null
+          respawn_reason?: string | null
+          stage?: Database["public"]["Enums"]["pd_stage"]
+          substrate?: string | null
+          target_dispatch_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          factory_id?: string
+          feedback_note?: string | null
+          id?: string
+          job_number?: number
+          previous_job_id?: string | null
+          product?: string | null
+          respawn_reason?: string | null
+          stage?: Database["public"]["Enums"]["pd_stage"]
+          substrate?: string | null
+          target_dispatch_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pd_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pd_jobs_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pd_jobs_previous_job_id_fkey"
+            columns: ["previous_job_id"]
+            isOneToOne: false
+            referencedRelation: "pd_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pd_stage_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_stage: Database["public"]["Enums"]["pd_stage"] | null
+          id: string
+          job_id: string
+          note: string | null
+          to_stage: Database["public"]["Enums"]["pd_stage"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage?: Database["public"]["Enums"]["pd_stage"] | null
+          id?: string
+          job_id: string
+          note?: string | null
+          to_stage: Database["public"]["Enums"]["pd_stage"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage?: Database["public"]["Enums"]["pd_stage"] | null
+          id?: string
+          job_id?: string
+          note?: string | null
+          to_stage?: Database["public"]["Enums"]["pd_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pd_stage_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pd_stage_history_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "pd_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planner_items: {
         Row: {
           completed_at: string | null
@@ -1407,6 +1573,25 @@ export type Database = {
         Args: { p_group_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_pd_team: { Args: { p_user_id: string }; Returns: boolean }
+      spawn_pd_job_from: {
+        Args: {
+          p_new_target_dispatch_date: string
+          p_new_title: string
+          p_respawn_reason: string
+          p_source_job_id: string
+        }
+        Returns: string
+      }
+      update_pd_job_stage: {
+        Args: {
+          p_feedback_note?: string
+          p_job_id: string
+          p_new_stage: Database["public"]["Enums"]["pd_stage"]
+          p_note?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
@@ -1423,6 +1608,13 @@ export type Database = {
       kpi_type: "numeric" | "descriptive" | "project_tracker"
       meeting_status: "scheduled" | "in_progress" | "completed" | "cancelled"
       mtd_aggregation_type: "sum" | "average" | "weighted_average"
+      pd_stage:
+        | "upcoming"
+        | "in_process"
+        | "processing_finished"
+        | "feedback_approved"
+        | "feedback_rejected"
+        | "abandoned"
       project_item_status: "active" | "completed" | "on_hold" | "dropped"
       rag_status: "red" | "amber" | "green"
       task_origin: "meeting" | "kpi_red" | "standalone"
@@ -1575,6 +1767,14 @@ export const Constants = {
       kpi_type: ["numeric", "descriptive", "project_tracker"],
       meeting_status: ["scheduled", "in_progress", "completed", "cancelled"],
       mtd_aggregation_type: ["sum", "average", "weighted_average"],
+      pd_stage: [
+        "upcoming",
+        "in_process",
+        "processing_finished",
+        "feedback_approved",
+        "feedback_rejected",
+        "abandoned",
+      ],
       project_item_status: ["active", "completed", "on_hold", "dropped"],
       rag_status: ["red", "amber", "green"],
       task_origin: ["meeting", "kpi_red", "standalone"],

@@ -19,6 +19,7 @@ import {
   Sparkles,
   BarChart2,
   Eye,
+  Lightbulb,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink } from '@/components/NavLink';
@@ -62,6 +63,7 @@ const mainNav = [
   { title: 'Templates', url: '/meetings/templates', icon: Settings2, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
   { title: 'Compliance', url: '/compliance', icon: ShieldCheck, roles: ['super_admin', 'factory_manager'] as const, hideForShopFloor: true },
   { title: 'Task Board', url: '/tasks', icon: ListTodo, roles: null, hideForShopFloor: true },
+  { title: 'PD Cycle', url: '/pd-cycle', icon: Lightbulb, roles: null, hideForShopFloor: true },
 ];
 
 const adminNav: { title: string; url: string; icon: any; roles?: readonly string[] }[] = [
