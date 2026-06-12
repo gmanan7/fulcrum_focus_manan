@@ -28,7 +28,7 @@ export default function AdminCharts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_charts')
-        .select('*, creator:created_by(full_name), kpi_chart_kpis(kpi_id, kpi:kpi_id(name))')
+        .select('*, creator:created_by(full_name), department:department_id(name), kpi_chart_kpis(kpi_id, kpi:kpi_id(name))')
         .order('display_order');
       if (error) throw error;
       return data || [];
