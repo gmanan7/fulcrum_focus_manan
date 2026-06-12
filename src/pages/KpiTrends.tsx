@@ -217,16 +217,20 @@ export default function KpiTrends() {
     return () => window.removeEventListener('resize', calc);
   }, []);
 
-  // Filter composed charts by the page-level department filter:
-  // include a chart if ANY of its KPIs belong to a selected department.
-  const visibleCharts = useMemo(() => {
-    if (!composedCharts) return [];
-    return composedCharts.filter((c: any) => {
-      const links = c.kpi_chart_kpis || [];
-      if (links.length === 0) return false;
-      return links.some((l: any) => l.kpi && selectedDepts.includes(l.kpi.department_id));
+  // Charts grouped by department_id ("__unassigned__" for null)
+  const chartsByDept = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    (composedCharts || []).forEach((c: any) => {
+      if (!c.kpi_chart_kpis || c.kpi_chart_kpis.length === 0) return;
+      const key = c.department_id || '__unassigned__';
+      if (!m[key]) m[key] = [];
+      m[key].push(c);
     });
-  }, [composedCharts, selectedDepts]);
+    return m;
+  }, [composedCharts]);
+
+  // Unassigned charts shown only if any exist (no department filter applies)
+  const unassignedCharts = chartsByDept['__unassigned__'] || [];
 
   const toggleSection = (id: string) => {
     setCollapsedSections((prev) => {
@@ -238,7 +242,11 @@ export default function KpiTrends() {
   };
 
   const expandAll = () => setCollapsedSections(new Set());
-  const collapseAll = () => setCollapsedSections(new Set(grouped.map((g) => g.dept.id)));
+  const collapseAll = () => {
+    const ids = grouped.map((g) => g.dept.id);
+    if (unassignedCharts.length > 0) ids.push('__unassigned__');
+    setCollapsedSections(new Set(ids));
+  };
 
   return (
     <div className="space-y-6">
