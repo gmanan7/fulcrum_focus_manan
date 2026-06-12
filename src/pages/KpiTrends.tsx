@@ -431,14 +431,16 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const chartData = entries.map((e) => ({
     date: format(new Date(e.reporting_date), 'dd/MM'),
     actual: e.actual_value,
-    status: e.computed_status,
+    // Direction-aware client-side status (overrides DB computed_status which assumed higher-is-better)
+    status: computeKpiStatus(e.actual_value, kpi),
     remarks: e.remarks,
     submitter: (e as any).submitter?.full_name,
     fullDate: format(new Date(e.reporting_date), 'dd MMM yyyy'),
   }));
 
   const latest = entries[entries.length - 1];
-  const latestStatus = latest?.computed_status;
+  const latestStatus = latest ? computeKpiStatus(latest.actual_value, kpi) : null;
+  const latestStatusForBadge = latestStatus === 'gray' ? null : latestStatus;
 
   // MTD: aggregation type comes from kpi_master.mtd_aggregation
   const mtdValue = calculateMtd(entries, kpi.mtd_aggregation ?? 'sum', new Date());
