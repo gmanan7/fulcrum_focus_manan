@@ -9,6 +9,7 @@ import {
 const baseForm = (overrides: Partial<ChartFormState> = {}): ChartFormState => ({
   ...emptyChartForm(0),
   name: 'My Chart',
+  department_id: 'dept-1',
   kpis: [
     { kpi_id: 'a', render_as: 'line', axis: 'primary', color: null, display_order: 0 },
   ],
