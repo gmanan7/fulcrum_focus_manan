@@ -339,32 +339,49 @@ export default function KpiTrends() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {/* Multi-KPI Composed Charts */}
-          {visibleCharts.length > 0 && (
-            <div>
-              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                Multi-KPI Charts
-              </h2>
-              <div
-                className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-min"
-              >
-                {visibleCharts.map((c: any) => (
-                  <ComposedKpiChartCard
-                    key={c.id}
-                    chart={c}
-                    entriesByKpi={entriesByKpi as any}
-                    columns={columns}
-                  />
-                ))}
+          {/* Unassigned charts — only for pre-migration charts without a department */}
+          {unassignedCharts.length > 0 && (() => {
+            const isCollapsed = collapsedSections.has('__unassigned__');
+            return (
+              <div>
+                <button
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors"
+                  style={{ borderLeft: '4px solid var(--rag-amber-badge-border)', background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
+                  onClick={() => toggleSection('__unassigned__')}
+                >
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Unassigned</h2>
+                    <Badge variant="secondary" className="text-[10px]">{unassignedCharts.length} chart{unassignedCharts.length !== 1 ? 's' : ''}</Badge>
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Assign a department in Chart Admin</span>
+                  </div>
+                  {isCollapsed ? <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-muted)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />}
+                </button>
+                {!isCollapsed && (
+                  <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-min">
+                    {unassignedCharts.map((c: any) => (
+                      <ComposedKpiChartCard key={c.id} chart={c} entriesByKpi={entriesByKpi as any} columns={columns} />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {grouped.map(({ dept, kpis }) => {
             const numericKpis = kpis.filter((k) => k.kpi_type === 'numeric');
             const projectKpis = kpis.filter((k) => k.kpi_type === 'project_tracker');
             const descriptiveKpis = kpis.filter((k) => k.kpi_type === 'descriptive');
+            const deptCharts = chartsByDept[dept.id] || [];
             const isCollapsed = collapsedSections.has(dept.id);
+
+            // Interleave numeric KPIs and composed charts by display_order
+            type Item = { kind: 'kpi'; item: any; display_order: number } | { kind: 'chart'; item: any; display_order: number };
+            const interleaved: Item[] = [
+              ...numericKpis.map((k) => ({ kind: 'kpi' as const, item: k, display_order: k.display_order ?? 0 })),
+              ...deptCharts.map((c) => ({ kind: 'chart' as const, item: c, display_order: c.display_order ?? 0 })),
+            ].sort((a, b) => a.display_order - b.display_order);
+
+            const totalCount = interleaved.length + projectKpis.length + descriptiveKpis.length;
 
             return (
               <div key={dept.id}>
@@ -374,21 +391,43 @@ export default function KpiTrends() {
                   style={{ borderLeft: '4px solid var(--color-primary)', background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
                   onClick={() => toggleSection(dept.id)}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{dept.name}</h2>
-                    <Badge variant="secondary" className="text-[10px]">{numericKpis.length + projectKpis.length + descriptiveKpis.length} KPIs</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{totalCount} item{totalCount !== 1 ? 's' : ''}</Badge>
+                    {deptCharts.length > 0 && (
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        {numericKpis.length + projectKpis.length + descriptiveKpis.length} KPI{numericKpis.length + projectKpis.length + descriptiveKpis.length !== 1 ? 's' : ''} · {deptCharts.length} chart{deptCharts.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                   {isCollapsed ? <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-muted)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />}
                 </button>
 
                 {!isCollapsed && (
                   <div className="mt-3 space-y-4">
-                    {/* Numeric KPI Chart Grid */}
-                {numericKpis.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {numericKpis.map((kpi) => (
-                          <KpiChartCard key={kpi.id} kpi={kpi} entries={entriesByKpi[kpi.id] || []} isShopFloor={isShopFloorOnly} rangeFrom={rangeFrom} rangeTo={rangeTo} onNavigateToEntry={(date) => navigate(`/kpi/entry?date=${date}`)} />
-                        ))}
+                    {/* Interleaved single-KPI cards + composed charts */}
+                    {interleaved.length > 0 && (
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-min">
+                        {interleaved.map((entry) =>
+                          entry.kind === 'kpi' ? (
+                            <KpiChartCard
+                              key={`kpi-${entry.item.id}`}
+                              kpi={entry.item}
+                              entries={entriesByKpi[entry.item.id] || []}
+                              isShopFloor={isShopFloorOnly}
+                              rangeFrom={rangeFrom}
+                              rangeTo={rangeTo}
+                              onNavigateToEntry={(date) => navigate(`/kpi/entry?date=${date}`)}
+                            />
+                          ) : (
+                            <ComposedKpiChartCard
+                              key={`chart-${entry.item.id}`}
+                              chart={entry.item}
+                              entriesByKpi={entriesByKpi as any}
+                              columns={columns}
+                            />
+                          )
+                        )}
                       </div>
                     )}
 
