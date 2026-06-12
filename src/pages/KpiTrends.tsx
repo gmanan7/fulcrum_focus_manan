@@ -17,10 +17,12 @@ import { KpiExportModal } from '@/components/KpiExportModal';
 import { cn } from '@/lib/utils';
 import { filterKpisForShopFloor, filterDepartmentsForUser, calculateEntryGaps } from '@/lib/shopFloorTrends';
 import { type Period, PERIODS, getDateRange, RAG_DOT_COLORS, calculateYMax } from '@/lib/kpiChartUtils';
+import { computeKpiStatus } from '@/lib/composedChart';
 import { formatIndianNumber } from '@/lib/formatNumber';
 import { calculateMtd } from '@/lib/mtdUtils';
 import { fetchAllKpiEntries } from '@/lib/kpiEntriesApi';
 import { PmScheduleGrid } from '@/components/pm/PmScheduleGrid';
+import { ComposedKpiChartCard } from '@/components/charts/ComposedKpiChartCard';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
@@ -83,11 +85,29 @@ export default function KpiTrends() {
     },
   });
 
-  // All active KPIs
+  // All active KPIs — exclude those hidden from Trends (still appear inside composed charts via separate query)
   const { data: allKpis } = useQuery({
     queryKey: ['trends-all-kpis'],
     queryFn: async () => {
-      const { data } = await supabase.from('kpi_master').select('*').eq('is_active', true).order('display_order');
+      const { data } = await supabase
+        .from('kpi_master')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_hidden_from_trends', false)
+        .order('display_order');
+      return data || [];
+    },
+  });
+
+  // Composed multi-KPI charts (with their KPI links + eager KPI metadata)
+  const { data: composedCharts } = useQuery({
+    queryKey: ['trends-composed-charts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_charts')
+        .select('*, kpi_chart_kpis(*, kpi:kpi_id(id, name, unit, direction, green_threshold, amber_threshold, target_value, department_id))')
+        .order('display_order');
+      if (error) throw error;
       return data || [];
     },
   });
@@ -181,6 +201,32 @@ export default function KpiTrends() {
     });
     return m;
   }, [stageUpdates]);
+
+  // Responsive column count for the composed-chart grid (mobile=1, sm=2, lg=3, xl=4)
+  const [columns, setColumns] = useState<number>(1);
+  useEffect(() => {
+    const calc = () => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 0;
+      if (w >= 1280) setColumns(4);
+      else if (w >= 1024) setColumns(3);
+      else if (w >= 640) setColumns(2);
+      else setColumns(1);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
+  // Filter composed charts by the page-level department filter:
+  // include a chart if ANY of its KPIs belong to a selected department.
+  const visibleCharts = useMemo(() => {
+    if (!composedCharts) return [];
+    return composedCharts.filter((c: any) => {
+      const links = c.kpi_chart_kpis || [];
+      if (links.length === 0) return false;
+      return links.some((l: any) => l.kpi && selectedDepts.includes(l.kpi.department_id));
+    });
+  }, [composedCharts, selectedDepts]);
 
   const toggleSection = (id: string) => {
     setCollapsedSections((prev) => {
@@ -285,6 +331,27 @@ export default function KpiTrends() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Multi-KPI Composed Charts */}
+          {visibleCharts.length > 0 && (
+            <div>
+              <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                Multi-KPI Charts
+              </h2>
+              <div
+                className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-min"
+              >
+                {visibleCharts.map((c: any) => (
+                  <ComposedKpiChartCard
+                    key={c.id}
+                    chart={c}
+                    entriesByKpi={entriesByKpi as any}
+                    columns={columns}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {grouped.map(({ dept, kpis }) => {
             const numericKpis = kpis.filter((k) => k.kpi_type === 'numeric');
             const projectKpis = kpis.filter((k) => k.kpi_type === 'project_tracker');
@@ -364,14 +431,16 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
   const chartData = entries.map((e) => ({
     date: format(new Date(e.reporting_date), 'dd/MM'),
     actual: e.actual_value,
-    status: e.computed_status,
+    // Direction-aware client-side status (overrides DB computed_status which assumed higher-is-better)
+    status: computeKpiStatus(e.actual_value, kpi),
     remarks: e.remarks,
     submitter: (e as any).submitter?.full_name,
     fullDate: format(new Date(e.reporting_date), 'dd MMM yyyy'),
   }));
 
   const latest = entries[entries.length - 1];
-  const latestStatus = latest?.computed_status;
+  const latestStatus = latest ? computeKpiStatus(latest.actual_value, kpi) : null;
+  const latestStatusForBadge = latestStatus === 'gray' ? null : latestStatus;
 
   // MTD: aggregation type comes from kpi_master.mtd_aggregation
   const mtdValue = calculateMtd(entries, kpi.mtd_aggregation ?? 'sum', new Date());
@@ -409,8 +478,8 @@ function KpiChartCard({ kpi, entries, isShopFloor, rangeFrom, rangeTo, onNavigat
             {kpi.unit && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{kpi.unit}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {latestStatus ? (
-              <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatus)}>{latestStatus}</Badge>
+            {latestStatusForBadge ? (
+              <Badge className="text-[10px] rounded-full px-2 py-0.5" style={ragBadgeStyle(latestStatusForBadge)}>{latestStatusForBadge}</Badge>
             ) : (
               <Badge className="text-[10px] rounded-full px-2 py-0.5" style={{ background: 'var(--rag-missing-bg)', color: 'var(--rag-missing-text)' }}>No data</Badge>
             )}
