@@ -202,6 +202,32 @@ export default function KpiTrends() {
     return m;
   }, [stageUpdates]);
 
+  // Responsive column count for the composed-chart grid (mobile=1, sm=2, lg=3, xl=4)
+  const [columns, setColumns] = useState<number>(1);
+  useEffect(() => {
+    const calc = () => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 0;
+      if (w >= 1280) setColumns(4);
+      else if (w >= 1024) setColumns(3);
+      else if (w >= 640) setColumns(2);
+      else setColumns(1);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
+  // Filter composed charts by the page-level department filter:
+  // include a chart if ANY of its KPIs belong to a selected department.
+  const visibleCharts = useMemo(() => {
+    if (!composedCharts) return [];
+    return composedCharts.filter((c: any) => {
+      const links = c.kpi_chart_kpis || [];
+      if (links.length === 0) return false;
+      return links.some((l: any) => l.kpi && selectedDepts.includes(l.kpi.department_id));
+    });
+  }, [composedCharts, selectedDepts]);
+
   const toggleSection = (id: string) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);
