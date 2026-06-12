@@ -94,6 +94,9 @@ export default function AdminCharts() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.department?.name || <span className="text-muted-foreground italic">Unassigned</span>}
+                    </TableCell>
                     <TableCell>{c.size_width} × {c.size_height}</TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{c.chart_type}</Badge></TableCell>
                     <TableCell>
