@@ -1,3 +1,4 @@
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -6,11 +7,23 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-sar
-*.local
+# Dependencies
+node_modules/
+**/node_modules/
 
+# Build outputs
+dist/
+**/dist/
+dist-sar/
+*.timestamp-*.mjs
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*
+
+# Editor & OS files
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -20,9 +33,3 @@ dist-sar
 *.njsproj
 *.sln
 *.sw?
-
-# Environment variables — NEVER commit
-.env
-.env.local
-.env.production
-.env.*

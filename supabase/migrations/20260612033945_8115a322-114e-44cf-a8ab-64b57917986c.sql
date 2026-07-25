@@ -1,2 +1,0 @@
-ALTER TABLE public.kpi_charts ADD COLUMN IF NOT EXISTS department_id uuid NULL REFERENCES public.department(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_kpi_charts_department_id ON public.kpi_charts(department_id);

@@ -1,1 +1,0 @@
-CREATE POLICY "profiles_admin_update" ON profiles FOR UPDATE USING (has_role(auth.uid(), 'super_admin'::app_role));
